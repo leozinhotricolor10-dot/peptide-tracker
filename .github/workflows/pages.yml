@@ -1,0 +1,52 @@
+# Publica o app no GitHub Pages a cada push na main (ou à mão, em Actions > Pages > Run workflow).
+# Endereço final: https://<usuario>.github.io/<nome-do-repositorio>/
+# Antes da 1ª vez: Settings > Pages > Build and deployment > Source = "GitHub Actions".
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24: vitest 5 e react-router 8 exigem Node 22.22 ou mais novo (Node 20 não serve).
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+      # A pasta do site acompanha o nome do repositório (padrão do projeto: /peptide-tracker/).
+      - run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,128 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/dm-sans/wght.css';
+
+/* Paleta escura do app. Flat: sem sombra nem gradiente. */
+@theme {
+  --color-fundo: #050a0e;
+  --color-sup: #0a1219;
+  --color-sup2: #0f1c28;
+  --color-acento: #00e5c3;
+  --color-sobre-acento: #04110e;
+  --color-acento-escuro: #0b3b35;
+  --color-selecionado: #0d2b2e;
+  --color-texto: #e2eaf0;
+  --color-fraco: #a9bfcb;
+  --color-suave: #c7d6de;
+  --color-linha: #17323b;
+  --color-borda: #5a7a8a;
+  --color-aviso: #ffc46b;
+  --color-aviso-fundo: #2b2312;
+  --color-aviso-texto: #ffd58f;
+  --color-erro: #ff9f80;
+  --color-ok: #7be39b;
+  --color-ok-fundo: #0f2a1d;
+  --color-veu: #020508;
+  --font-titulo: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'DM Sans Variable', 'DM Sans', sans-serif;
+  --font-corpo: 'DM Sans Variable', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--color-fundo);
+    color: var(--color-texto);
+    font-family: var(--font-corpo);
+    -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+  }
+  #root {
+    min-height: 100dvh;
+  }
+  h1,
+  h2 {
+    font-family: var(--font-titulo);
+    margin: 0;
+  }
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+  input,
+  textarea {
+    accent-color: var(--color-acento);
+  }
+  ::placeholder {
+    color: #7d9aa8;
+    opacity: 1;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-acento);
+    outline-offset: 2px;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@utility btn {
+  @apply flex h-[52px] w-full items-center justify-center gap-2 rounded-[10px] px-4 text-base font-bold;
+}
+
+@utility btn-primario {
+  @apply btn bg-acento text-sobre-acento disabled:bg-sup2 disabled:text-fraco;
+}
+
+@utility btn-secundario {
+  @apply btn border border-borda bg-sup text-acento;
+}
+
+@utility btn-neutro {
+  @apply btn border border-linha bg-fundo text-texto;
+}
+
+@utility btn-perigo {
+  @apply btn bg-erro text-sobre-acento disabled:bg-sup2 disabled:text-fraco;
+}
+
+@utility btn-texto {
+  @apply flex min-h-11 items-center justify-center px-2 text-[15px] font-bold text-acento;
+}
+
+@utility link {
+  @apply flex min-h-11 items-center text-sm font-bold text-acento;
+}
+
+@utility card {
+  @apply rounded-xl border border-linha bg-sup;
+}
+
+@utility campo {
+  @apply h-12 w-full rounded-xl border border-borda bg-sup px-3 text-base font-bold text-texto;
+}
+
+@utility rotulo {
+  @apply flex flex-col gap-1.5 text-[13px] font-bold text-fraco;
+}
+
+@utility chip {
+  @apply flex h-11 items-center justify-center rounded-full border border-borda bg-sup px-3.5 text-sm font-semibold text-texto;
+  &[aria-pressed='true'] {
+    @apply border-2 border-acento bg-selecionado font-extrabold text-acento;
+  }
+}
+
+@utility selo {
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold;
+}
+
+@utility icone-btn {
+  @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px];
+}
+
