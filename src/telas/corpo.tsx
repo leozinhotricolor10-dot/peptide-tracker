@@ -11,6 +11,8 @@ import { useVoltar } from '../ui/navegar.ts'
 import { Grafico } from '../ui/Grafico.tsx'
 import { IcoCamera, IcoImagem, IcoMais, IcoPeso, IcoSeta, IcoLixo } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
+import { BotaoAcao } from '../ui/acao.tsx'
+import { mensagemDeErro } from '../dados/repo.ts'
 import { comprimirImagem } from '../sistema/imagem.ts'
 
 type Campo = 'peso' | 'cintura' | 'quadril' | 'braco' | 'coxa'
@@ -132,6 +134,7 @@ export function NovaMedicao() {
   const [nota, setNota] = useState('')
   const [erro, setErro] = useState('')
   const [confirmar, setConfirmar] = useState<string | null>(null)
+  const salvando = useRef(false)
   const [pronto, setPronto] = useState(!id)
   useEffect(() => {
     if (existente && !pronto) {
@@ -142,7 +145,7 @@ export function NovaMedicao() {
       setPronto(true)
     }
   }, [existente, pronto])
-  if (base && id && !existente && !pronto) return <NaoAchou titulo="Medição não encontrada" para="/peso" rotulo="Ir para Peso" />
+  if (base && id && !existente) return <NaoAchou titulo="Medição não encontrada" para="/peso" rotulo="Ir para Peso" />
   if (!base || !pronto) return <Tela><Carregando /></Tela>
 
   const num = (c: Campo) => (vals[c].trim() ? lerNumero(vals[c]) : undefined)
@@ -160,13 +163,20 @@ export function NovaMedicao() {
     if (!forcar && n.peso && anterior && Math.abs(n.peso - anterior.valor) / anterior.valor > 0.1) {
       return setConfirmar(`O peso informado (${fmtNum(n.peso, 1)} kg) é bem diferente do último (${fmtNum(anterior.valor, 1)} kg em ${dataBr(anterior.dia)}). Está certo?`)
     }
-    await repo.salvarMedicao({
+    if (salvando.current) return
+    salvando.current = true
+    try {
+      await repo.salvarMedicao({
       id: existente?.id,
       data,
       pesoKg: n.peso ?? undefined,
       medidas: { cintura: n.cintura ?? undefined, quadril: n.quadril ?? undefined, braco: n.braco ?? undefined, coxa: n.coxa ?? undefined },
       nota: nota.trim() || undefined,
-    })
+      })
+    } catch (e) {
+      salvando.current = false
+      return setErro(mensagemDeErro(e))
+    }
     toast({ titulo: existente ? 'Medição atualizada' : 'Medição salva', texto: dataBr(data) })
     voltarOu('/peso')
   }
@@ -191,17 +201,17 @@ export function NovaMedicao() {
       <div className="mt-auto flex flex-col gap-2">
         <button type="button" className="btn-primario" onClick={() => salvar()}>Salvar medição</button>
         {existente && (
-          <button
-            type="button"
+          <BotaoAcao
             className="btn-texto text-erro"
-            onClick={async () => {
+            ocupadoTexto="Apagando…"
+            acao={async () => {
               const m = await repo.apagarMedicao(existente.id)
               toast({ tipo: 'info', titulo: 'Medição apagada', desfazer: m ? () => repo.restaurarMedicao(m) : undefined })
               voltarOu('/peso')
             }}
           >
             Apagar medição
-          </button>
+          </BotaoAcao>
         )}
       </div>
       {confirmar && (
@@ -272,17 +282,17 @@ function VerFoto({ foto, aoFechar }: { foto: Foto; aoFechar: () => void }) {
   return (
     <Dialogo titulo={`${ANGULOS.find((a) => a.v === foto.angulo)?.t} · ${dataBr(foto.data)}`} aoFechar={aoFechar}>
       {url && <img src={url} alt={`Foto de ${dataBr(foto.data)}`} className="max-h-[55dvh] w-full rounded-xl object-contain" />}
-      <button
-        type="button"
+      <BotaoAcao
         className="btn-neutro text-erro"
-        onClick={async () => {
+        ocupadoTexto="Apagando…"
+        acao={async () => {
           await repo.apagarFoto(foto.id)
           aoFechar()
           toast({ tipo: 'info', titulo: 'Foto apagada', desfazer: () => repo.adicionarFoto({ data: foto.data, angulo: foto.angulo, blob: foto.blob, tipo: foto.tipo }).then(() => undefined) })
         }}
       >
         <IcoLixo tam={20} /> Apagar foto
-      </button>
+      </BotaoAcao>
       <button type="button" className="btn-texto" onClick={aoFechar}>Fechar</button>
     </Dialogo>
   )

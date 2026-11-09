@@ -32,13 +32,47 @@ export function ehCotaCheia(e: unknown): boolean {
   return false
 }
 
-async function gravando<T>(fn: () => Promise<T>): Promise<T> {
+/** Teto de uma gravação. Passou disso, o app avisa em vez de deixar o botão "morto". */
+export const TETO_GRAVACAO_MS = 10_000
+
+/** A gravação não terminou no teto (ex.: o app aberto em outra janela/aba segurando o banco). */
+export class BancoDemorou extends Error {
+  constructor() {
+    super('A gravação não terminou a tempo')
+    this.name = 'BancoDemorou'
+  }
+}
+
+/** Espera `p`, mas no máximo `ms`: depois disso rejeita com BancoDemorou. */
+export function comTeto<T>(p: Promise<T>, ms = TETO_GRAVACAO_MS): Promise<T> {
+  let t: ReturnType<typeof setTimeout> | undefined
+  const teto = new Promise<never>((_, falha) => {
+    t = setTimeout(() => falha(new BancoDemorou()), ms)
+  })
+  return Promise.race([p, teto]).finally(() => clearTimeout(t))
+}
+
+/** Texto em pt-BR para qualquer falha ao gravar (nunca falhar calado). */
+export function mensagemDeErro(e: unknown): string {
+  if (e instanceof BancoDemorou) return 'O aparelho está demorando para gravar. Se o app estiver aberto em outra janela ou aba, feche-a e tente de novo. Se continuar, feche e abra o app.'
+  if (ehCotaCheia(e)) return 'O espaço do app neste aparelho acabou. Nada do que já estava salvo foi perdido.'
+  return 'Não deu para gravar. Tente de novo; se continuar, feche e abra o app.'
+}
+
+async function gravando<T>(fn: () => Promise<T>, teto = TETO_GRAVACAO_MS): Promise<T> {
   try {
-    return await fn()
+    return await comTeto(fn(), teto)
   } catch (e) {
     if (ehCotaCheia(e) && typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO_ARMAZENAMENTO_CHEIO))
     throw e
   }
+}
+
+/** O que foi apagado junto com um frasco, para poder desfazer. */
+export interface FrascoApagado {
+  frasco: Frasco
+  aplicacoes: string[]
+  itens: string[]
 }
 
 export interface ConfigMapa {
@@ -84,7 +118,7 @@ export function criarRepo(db: BancoLocal) {
       await gravando(() => db.config.put({ chave, valor }))
     },
     async delConfig(chave: keyof ConfigMapa): Promise<void> {
-      await db.config.delete(chave)
+      await gravando(() => db.config.delete(chave))
     },
 
     // ---------- substâncias ----------
@@ -103,7 +137,7 @@ export function criarRepo(db: BancoLocal) {
     async usarSugestao(sug: Sugestao): Promise<Substancia> {
       const existente = await db.substancias.where('listaId').equals(sug.id).first()
       if (existente) {
-        if (existente.arquivada) await db.substancias.update(existente.id, { arquivada: false })
+        if (existente.arquivada) await gravando(() => db.substancias.update(existente.id, { arquivada: false }))
         return { ...existente, arquivada: false }
       }
       return repo.criarSubstancia({ nome: sug.nome, tipo: sug.tipo, origem: 'lista', listaId: sug.id, componentes: sug.tipo === 'blend' ? [] : undefined })
@@ -134,7 +168,7 @@ export function criarRepo(db: BancoLocal) {
     async apagarSubstancia(id: string): Promise<void> {
       const uso = await repo.usoSubstancia(id)
       if (uso.protocolos || uso.frascos || uso.aplicacoes) throw new Error('Substância em uso: só pode ser arquivada')
-      await db.substancias.delete(id)
+      await gravando(() => db.substancias.delete(id))
     },
 
     // ---------- protocolos ----------
@@ -222,9 +256,11 @@ export function criarRepo(db: BancoLocal) {
       return ap
     },
     async apagarAplicacao(id: string): Promise<Aplicacao | undefined> {
-      const a = await db.aplicacoes.get(id)
-      await db.aplicacoes.delete(id)
-      return a
+      return gravando(async () => {
+        const a = await db.aplicacoes.get(id)
+        await db.aplicacoes.delete(id)
+        return a
+      })
     },
     async restaurarAplicacao(a: Aplicacao): Promise<void> {
       await gravando(() => db.aplicacoes.put(a))
@@ -240,9 +276,11 @@ export function criarRepo(db: BancoLocal) {
       return med
     },
     async apagarMedicao(id: string): Promise<Medicao | undefined> {
-      const m = await db.medicoes.get(id)
-      await db.medicoes.delete(id)
-      return m
+      return gravando(async () => {
+        const m = await db.medicoes.get(id)
+        await db.medicoes.delete(id)
+        return m
+      })
     },
     async restaurarMedicao(m: Medicao): Promise<void> {
       await gravando(() => db.medicoes.put(m))
@@ -256,7 +294,7 @@ export function criarRepo(db: BancoLocal) {
       return foto
     },
     async apagarFoto(id: string): Promise<void> {
-      await db.fotos.delete(id)
+      await gravando(() => db.fotos.delete(id))
     },
 
     // ---------- frascos ----------
@@ -271,13 +309,36 @@ export function criarRepo(db: BancoLocal) {
     async statusFrasco(id: string, status: Frasco['status']): Promise<void> {
       await gravando(() => db.frascos.update(id, { status }))
     },
-    /** Apaga o frasco; registros que apontavam para ele ficam sem frasco. */
-    async apagarFrasco(id: string): Promise<void> {
-      await db.transaction('rw', db.frascos, db.aplicacoes, db.itens, async () => {
-        await db.aplicacoes.where('frascoId').equals(id).modify({ frascoId: undefined })
-        await db.itens.filter((i) => i.frascoId === id).modify({ frascoId: undefined })
-        await db.frascos.delete(id)
-      })
+    /**
+     * Apaga o frasco. Os registros de dose continuam no histórico, só deixam de apontar para ele;
+     * as linhas de protocolo ligadas a ele também ficam sem frasco. Tudo ou nada (uma transação).
+     * Devolve o que mudou (para desfazer) ou `undefined` se o frasco já não existia.
+     */
+    async apagarFrasco(id: string): Promise<FrascoApagado | undefined> {
+      return gravando(() =>
+        db.transaction('rw', db.frascos, db.aplicacoes, db.itens, async () => {
+          const frasco = await db.frascos.get(id)
+          if (!frasco) return undefined
+          const aps = await db.aplicacoes.where('frascoId').equals(id).toArray()
+          const its = (await db.itens.toArray()).filter((i) => i.frascoId === id)
+          await db.aplicacoes.bulkPut(aps.map(({ frascoId: _, ...a }) => a))
+          await db.itens.bulkPut(its.map(({ frascoId: _, ...i }) => i))
+          await db.frascos.delete(id)
+          return { frasco, aplicacoes: aps.map((a) => a.id), itens: its.map((i) => i.id) }
+        }),
+      )
+    },
+    /** Desfaz `apagarFrasco`: volta o frasco e religa os registros e linhas que ainda existirem. */
+    async restaurarFrasco(r: FrascoApagado): Promise<void> {
+      await gravando(() =>
+        db.transaction('rw', db.frascos, db.aplicacoes, db.itens, async () => {
+          await db.frascos.put(r.frasco)
+          const aps = (await db.aplicacoes.bulkGet(r.aplicacoes)).filter((a): a is Aplicacao => !!a && !a.frascoId)
+          await db.aplicacoes.bulkPut(aps.map((a) => ({ ...a, frascoId: r.frasco.id })))
+          const its = (await db.itens.bulkGet(r.itens)).filter((i): i is ItemProtocolo => !!i && !i.frascoId)
+          await db.itens.bulkPut(its.map((i) => ({ ...i, frascoId: r.frasco.id })))
+        }),
+      )
     },
 
     // ---------- geral ----------
@@ -293,9 +354,12 @@ export function criarRepo(db: BancoLocal) {
     },
     /** Apaga tudo deste aparelho, inclusive o aceite do aviso. */
     async apagarTudo(): Promise<void> {
-      await db.transaction('rw', TABELAS.map((t) => db.table(t)), async () => {
-        for (const t of TABELAS) await db.table(t).clear()
-      })
+      await gravando(() =>
+        db.transaction('rw', TABELAS.map((t) => db.table(t)), async () => {
+          for (const t of TABELAS) await db.table(t).clear()
+        }),
+      60_000,
+      )
     },
   }
   return repo

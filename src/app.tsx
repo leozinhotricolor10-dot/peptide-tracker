@@ -2,7 +2,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useRouteError } from 'react-router'
 import { useConfig, useBase, repo } from './dados/index.ts'
-import { EVENTO_ARMAZENAMENTO_CHEIO, ehCotaCheia } from './dados/repo.ts'
+import { EVENTO_ARMAZENAMENTO_CHEIO, ehCotaCheia, mensagemDeErro } from './dados/repo.ts'
 import { Carregando, Dialogo } from './ui/base.tsx'
 import { IcoAlerta, IcoEstoque, IcoHoje, IcoNuvemOff, IcoPeso, IcoProtocolos } from './ui/icones.tsx'
 import { ToastProvider, useToast } from './ui/toast.tsx'
@@ -196,7 +196,7 @@ function FalhaSilenciosa() {
   useEffect(() => {
     const f = (e: PromiseRejectionEvent) => {
       if (ehCotaCheia(e.reason)) return // já tratado por EspacoCheio
-      toast({ tipo: 'info', titulo: 'Algo não deu certo', texto: 'Tente de novo. Se continuar, recarregue o app.' })
+      toast({ tipo: 'info', titulo: 'Algo não deu certo', texto: mensagemDeErro(e.reason) })
     }
     window.addEventListener('unhandledrejection', f)
     return () => window.removeEventListener('unhandledrejection', f)

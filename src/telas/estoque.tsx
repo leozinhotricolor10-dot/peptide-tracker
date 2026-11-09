@@ -1,5 +1,5 @@
 // T40 Estoque (+E50), T51 novo/editar frasco, T52 reconstituição, T53 reconstituição de blend, M51 vencido.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { repo, useBase, type Base } from '../dados/index.ts'
 import { buscar } from '../dominio/sugestoes.ts'
@@ -28,6 +28,8 @@ import { Cabecalho, Carregando, Chips, Dialogo, NaoAchou, Nota, Tela, Vazio } fr
 import { useVoltar } from '../ui/navegar.ts'
 import { IcoAlerta, IcoEstoque, IcoMais } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
+import { BotaoAcao, useAcao } from '../ui/acao.tsx'
+import { mensagemDeErro } from '../dados/repo.ts'
 import { FrascoVencido, UNIDADES } from './dose.tsx'
 import { DIAS_AVISO_VENCIMENTO } from './hoje.tsx'
 
@@ -159,6 +161,7 @@ export function Estoque() {
 function EscolherSubstancia({ base, valor, aoEscolher }: { base: Base; valor?: string; aoEscolher: (s: Substancia) => void }) {
   const [texto, setTexto] = useState('')
   const [aberto, setAberto] = useState(!valor)
+  const { erro, rodar } = useAcao()
   const res = useMemo(() => buscar(texto, base.substancias, undefined, 8), [texto, base.substancias])
   const atual = valor ? base.subs.get(valor) : undefined
   if (!aberto && atual) {
@@ -183,11 +186,11 @@ function EscolherSubstancia({ base, valor, aoEscolher }: { base: Base; valor?: s
               role="option"
               aria-selected={false}
               className="flex min-h-12 items-center justify-between border-t border-sup2 px-4 text-left font-bold first:border-t-0"
-              onClick={async () => {
+              onClick={() => void rodar(async () => {
                 const s = r.origem === 'minha' ? r.substancia : await repo.usarSugestao(r.sugestao)
                 aoEscolher(s)
                 setAberto(false)
-              }}
+              })}
             >
               {nome}
               <span className={`selo ${r.origem === 'minha' ? 'bg-selecionado text-acento' : 'bg-sup2 text-fraco'}`}>{r.origem === 'minha' ? 'Sua' : 'Lista'}</span>
@@ -196,26 +199,35 @@ function EscolherSubstancia({ base, valor, aoEscolher }: { base: Base; valor?: s
         })}
         {q && (
           <>
-            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-[15px] font-bold text-acento" onClick={async () => { aoEscolher(await repo.substanciaPorNome(q)); setAberto(false) }}>
+            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-[15px] font-bold text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q)); setAberto(false) })}>
               <IcoMais tam={18} /> Criar “{q}”
             </button>
-            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-[15px] font-bold text-acento" onClick={async () => { aoEscolher(await repo.substanciaPorNome(q, 'blend')); setAberto(false) }}>
+            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-[15px] font-bold text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q, 'blend')); setAberto(false) })}>
               <IcoMais tam={18} /> É um blend? Criar “{q}” como blend
             </button>
           </>
         )}
       </div>
+      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
     </div>
   )
 }
 
+/** Uma tela nova por frasco: ir de um frasco para "Novo frasco" não leva junto o que estava preenchido. */
 export function FormFrasco() {
+  const { id } = useParams()
+  return <FormFrascoTela key={id ?? 'novo'} />
+}
+
+function FormFrascoTela() {
   const { id } = useParams()
   const [params] = useSearchParams()
   const base = useBase()
   const nav = useNavigate()
   const voltarOu = useVoltar()
   const toast = useToast()
+  const acoes = useAcao()
+  const apagado = useRef(false)
   const existente = id ? base?.frascos.find((f) => f.id === id) : undefined
   const [subId, setSubId] = useState<string | undefined>(params.get('sub') ?? undefined)
   const [mg, setMg] = useState('')
@@ -239,7 +251,10 @@ export function FormFrasco() {
       setPronto(true)
     }
   }, [existente, pronto])
-  if (base && id && !existente && !pronto) return <NaoAchou titulo="Frasco não encontrado" />
+  // Acabou de ser apagado aqui: a lista do banco atualiza antes da troca de tela; não vira "Novo frasco".
+  if (apagado.current && !existente) return <Tela><Carregando /></Tela>
+  // Não existe (endereço errado, ou apagado em outra janela / gravação que terminou depois do aviso de demora).
+  if (base && id && !existente) return <NaoAchou titulo="Frasco não encontrado" texto="Ele pode ter sido apagado." para="/estoque" rotulo="Ir para Estoque" />
   if (!base || !pronto) return <Tela><Carregando /></Tela>
   const sub = subId ? base.subs.get(subId) : undefined
 
@@ -267,9 +282,9 @@ export function FormFrasco() {
       compradoEm: compra || undefined,
       custo: custoN ?? undefined,
       })
-    } catch {
+    } catch (e) {
       setSalvando(false)
-      return setErro('Não deu para salvar. Tente de novo.')
+      return setErro(mensagemDeErro(e))
     }
     if (depois === 'reconstituir') nav(`/estoque/frasco/${f.id}/reconstituir`, { replace: true })
     else {
@@ -314,12 +329,13 @@ export function FormFrasco() {
             <Link to={`/estoque/frasco/${existente.id}/reconstituir`} className="btn-secundario">{existente.status === 'reconstituido' ? 'Reconstituição' : 'Reconstituir'}</Link>
             {(existente.status === 'fechado' || existente.status === 'reconstituido') ? (
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" className="btn-neutro text-sm" onClick={async () => { await repo.statusFrasco(existente.id, 'acabou'); toast({ tipo: 'info', titulo: 'Marcado como acabado', desfazer: () => repo.statusFrasco(existente.id, existente.status) }); voltarOu('/estoque') }}>Acabou</button>
-                <button type="button" className="btn-neutro text-sm" onClick={async () => { await repo.statusFrasco(existente.id, 'descartado'); toast({ tipo: 'info', titulo: 'Marcado como descartado', desfazer: () => repo.statusFrasco(existente.id, existente.status) }); voltarOu('/estoque') }}>Descartar</button>
+                <button type="button" className="btn-neutro text-sm" disabled={acoes.ocupado} onClick={() => void acoes.rodar(async () => { await repo.statusFrasco(existente.id, 'acabou'); toast({ tipo: 'info', titulo: 'Marcado como acabado', desfazer: () => repo.statusFrasco(existente.id, existente.status) }); voltarOu('/estoque') })}>Acabou</button>
+                <button type="button" className="btn-neutro text-sm" disabled={acoes.ocupado} onClick={() => void acoes.rodar(async () => { await repo.statusFrasco(existente.id, 'descartado'); toast({ tipo: 'info', titulo: 'Marcado como descartado', desfazer: () => repo.statusFrasco(existente.id, existente.status) }); voltarOu('/estoque') })}>Descartar</button>
               </div>
             ) : (
-              <button type="button" className="btn-neutro" onClick={async () => { await repo.statusFrasco(existente.id, existente.reconstituidoEm ? 'reconstituido' : 'fechado'); voltarOu('/estoque') }}>Voltar a usar este frasco</button>
+              <button type="button" className="btn-neutro" disabled={acoes.ocupado} onClick={() => void acoes.rodar(async () => { await repo.statusFrasco(existente.id, existente.reconstituidoEm ? 'reconstituido' : 'fechado'); voltarOu('/estoque') })}>Voltar a usar este frasco</button>
             )}
+            {acoes.erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{acoes.erro}</p>}
             <button type="button" className="btn-texto text-erro" onClick={() => setApagar(true)}>Apagar frasco</button>
           </>
         )}
@@ -334,7 +350,22 @@ export function FormFrasco() {
       {apagar && existente && (
         <Dialogo titulo="Apagar este frasco?" aoFechar={() => setApagar(false)}>
           <p className="m-0 text-[15px] text-suave">Os registros de dose continuam no histórico, só deixam de apontar para este frasco. Para guardar o histórico do frasco, prefira “Acabou” ou “Descartar”.</p>
-          <button type="button" className="btn-perigo" onClick={async () => { await repo.apagarFrasco(existente.id); toast({ tipo: 'info', titulo: 'Frasco apagado' }); nav('/estoque', { replace: true }) }}>Apagar</button>
+          <BotaoAcao
+            className="btn-perigo"
+            ocupadoTexto="Apagando…"
+            acao={async () => {
+              const nome = nomeComMg(sub?.nome ?? '', existente.mgTotal)
+              const r = await repo.apagarFrasco(existente.id)
+              apagado.current = true
+              setApagar(false)
+              toast(r
+                ? { tipo: 'info', titulo: 'Frasco apagado', texto: nome, desfazer: () => repo.restaurarFrasco(r) }
+                : { tipo: 'info', titulo: 'Este frasco já tinha sido apagado' })
+              nav('/estoque', { replace: true })
+            }}
+          >
+            Apagar
+          </BotaoAcao>
           <button type="button" className="btn-texto" onClick={() => setApagar(false)}>Cancelar</button>
         </Dialogo>
       )}
@@ -391,7 +422,11 @@ export function Reconstituicao() {
   const salvar = async () => {
     if (!dilN || dilN <= 0) return setErro(erroNumero(dil, 'Informe quantos mL de diluente você usou.'))
     if (usarAte && quando && usarAte < quando) return setErro('A data “usar até” é anterior à data em que foi misturado.')
-    await repo.salvarFrasco({ ...frasco, status: 'reconstituido', diluenteMl: dilN, reconstituidoEm: quando || hojeStr(), usarAte: usarAte || undefined })
+    try {
+      await repo.salvarFrasco({ ...frasco, status: 'reconstituido', diluenteMl: dilN, reconstituidoEm: quando || hojeStr(), usarAte: usarAte || undefined })
+    } catch (e) {
+      return setErro(mensagemDeErro(e))
+    }
     toast({ titulo: 'Reconstituição salva', texto: `${sub?.nome ?? ''} · ${fmtNum(dilN)} mL` })
     voltarOu('/estoque')
   }

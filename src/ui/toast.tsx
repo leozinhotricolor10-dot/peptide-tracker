@@ -1,6 +1,7 @@
 // Toast com Desfazer (N31). Some em 6 s.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { IcoCheck, IcoInfo } from './icones.tsx'
+import { mensagemDeErro } from '../dados/repo.ts'
 
 interface ToastDados {
   titulo: string
@@ -45,7 +46,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 onClick={async () => {
                   const f = atual.desfazer
                   setAtual(null)
-                  await f?.()
+                  try {
+                    await f?.()
+                  } catch (e) {
+                    mostrar({ tipo: 'info', titulo: 'Não deu para desfazer', texto: mensagemDeErro(e) })
+                  }
                 }}
               >
                 Desfazer

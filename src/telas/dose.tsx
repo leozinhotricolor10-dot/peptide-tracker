@@ -11,6 +11,8 @@ import { nomeComMg, nomeSubstancia } from '../dominio/nomes.ts'
 import { Chips, Dialogo, Nota, Sheet } from '../ui/base.tsx'
 import { IcoAlerta } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
+import { BotaoAcao } from '../ui/acao.tsx'
+import { mensagemDeErro } from '../dados/repo.ts'
 
 type Pedido =
   | { tipo: 'registrar'; itemId: string; slot?: Slot; outroHorario?: boolean }
@@ -158,9 +160,9 @@ function Registrar({
         status: 'feita',
         observacao: obs.trim() || undefined,
       })
-    } catch {
+    } catch (e) {
       setSalvando(false)
-      return setErro('Não deu para salvar. Tente de novo.')
+      return setErro(mensagemDeErro(e))
     }
     fechar()
     toast({
@@ -175,7 +177,13 @@ function Registrar({
   }
 
   const frascoAcabou = async () => {
-    if (frascoSel) await repo.statusFrasco(frascoSel.id, 'acabou')
+    if (frascoSel) {
+      try {
+        await repo.statusFrasco(frascoSel.id, 'acabou')
+      } catch (e) {
+        return setErro(mensagemDeErro(e))
+      }
+    }
     const outro = frascos.find((f) => f.id !== frascoSel?.id && frascoComSaldo(f, base))
     if (outro) {
       setFrascoId(outro.id)
@@ -287,17 +295,17 @@ export function FrascoVencido({
         {s.mlRestante !== null ? ` Restam cerca de ${fmtNum(s.mlRestante, 2)} mL pelos registros.` : ` Restam cerca de ${fmtNum(s.mgRestante, 3)} mg pelos registros.`}
       </p>
       <p className="m-0 text-[15px] leading-relaxed text-suave">O que fazer com ele é decisão sua. Marcar como descartado tira o frasco da lista de uso.</p>
-      <button
-        type="button"
+      <BotaoAcao
         className="btn-primario"
-        onClick={async () => {
+        ocupadoTexto="Gravando…"
+        acao={async () => {
           await repo.statusFrasco(frasco.id, 'descartado')
           descartado?.()
           aoFechar()
         }}
       >
         Marcar como descartado
-      </button>
+      </BotaoAcao>
       <button type="button" className="btn-secundario" onClick={manter}>{rotuloManter}</button>
       <button type="button" className="btn-texto" onClick={() => { aoFechar(); nav(`/estoque/frasco/${frasco.id}`) }}>Corrigir a data</button>
     </Dialogo>
@@ -331,10 +339,10 @@ function Pular({ base, slot, fechar, trocar }: { base: Base; slot: Slot; fechar:
         <legend className="mb-2 text-[13px] font-bold text-fraco">Motivo (opcional)</legend>
         <Chips rotulo="Motivo" opcoes={MOTIVOS.map((m) => ({ v: m, t: m }))} valor={motivo} aoMudar={(v) => setMotivo(motivo === v ? undefined : v)} />
       </fieldset>
-      <button
-        type="button"
+      <BotaoAcao
         className="btn-primario"
-        onClick={async () => {
+        ocupadoTexto="Gravando…"
+        acao={async () => {
           const ap = await repo.registrarAplicacao({
             protocoloId: slot.protocoloId,
             itemId: slot.itemId,
@@ -351,7 +359,7 @@ function Pular({ base, slot, fechar, trocar }: { base: Base; slot: Slot; fechar:
         }}
       >
         Salvar como não feita
-      </button>
+      </BotaoAcao>
       <button type="button" className="btn-texto" onClick={() => trocar({ tipo: 'atrasada', slot })}>Voltar</button>
     </Sheet>
   )
@@ -382,17 +390,17 @@ function Apagar({ base, id, fechar, trocar }: { base: Base; id: string; fechar: 
         <b className="text-texto">{nome} · {dataCurta(diaDe(d))} às {horaDe(d)} · {ap.status === 'feita' ? fmtDose(ap.doseValor, ap.doseUnidade) : 'não feita'}</b>
         {ap.frascoId && ap.status === 'feita' && <><br />O saldo do frasco volta a contar esta dose.</>}
       </p>
-      <button
-        type="button"
+      <BotaoAcao
         className="btn-perigo"
-        onClick={async () => {
+        ocupadoTexto="Apagando…"
+        acao={async () => {
           const apagada = await repo.apagarAplicacao(id)
           fechar()
           toast({ tipo: 'info', titulo: 'Registro apagado', texto: `${nome} · ${horaDe(d)}`, desfazer: apagada ? () => repo.restaurarAplicacao(apagada) : undefined })
         }}
       >
         Apagar
-      </button>
+      </BotaoAcao>
       {ap.status === 'feita' && <button type="button" className="btn-secundario" onClick={() => trocar({ tipo: 'editar', aplicacaoId: id })}>Editar em vez de apagar</button>}
       <button type="button" className="btn-texto" onClick={fechar}>Cancelar</button>
     </Dialogo>

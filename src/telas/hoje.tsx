@@ -12,6 +12,7 @@ import { IcoAlerta, IcoCheck, IcoEngrenagem, IcoProtocolos, IcoSeta, IcoSino, Ic
 import { FrascoVencido, useDoseUI } from './dose.tsx'
 import { PrePermissao, AvisosBloqueados } from './inicio.tsx'
 import { useToast } from '../ui/toast.tsx'
+import { BotaoAcao } from '../ui/acao.tsx'
 
 export const DIAS_AVISO_VENCIMENTO = 14
 
@@ -209,7 +210,7 @@ export function Hoje() {
           <p className="m-0 text-[15px] leading-relaxed text-suave">Seus registros existem só neste aparelho. Se você apagar o app, limpar os dados do navegador ou perder o celular sem um backup, eles não voltam.</p>
           <p className="m-0 text-[15px] text-suave">Leva menos de um minuto. Guarde o arquivo num lugar só seu.</p>
           <button type="button" className="btn-primario" onClick={() => nav('/ajustes/backup')}>Fazer backup agora</button>
-          <button type="button" className="btn-texto" onClick={async () => { await repo.setConfig('backupAdiadoAte', somaDias(hoje, 1)); setDialogo(null) }}>Lembrar amanhã</button>
+          <BotaoAcao className="btn-texto" acao={async () => { await repo.setConfig('backupAdiadoAte', somaDias(hoje, 1)); setDialogo(null) }}>Lembrar amanhã</BotaoAcao>
         </Dialogo>
       )}
       {typeof dialogo === 'object' && dialogo !== null && (

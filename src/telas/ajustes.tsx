@@ -5,7 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useNavigate } from 'react-router'
 import { repo, useBase, useConfig, type Base } from '../dados/index.ts'
 import { aplicarBackup, fmtBytes, lerBackup, montarBackup, nomeArquivoBackup, tamanhoEstimado, TAMANHO_MAX_BACKUP, type PreviaBackup } from '../dados/backup.ts'
-import { ehCotaCheia } from '../dados/repo.ts'
+import { comTeto, ehCotaCheia, mensagemDeErro } from '../dados/repo.ts'
 import { estadoEfetivo, descreverFrequencia, proximosSlots } from '../dominio/agenda.ts'
 import { dataBr, diaDe, diaRelativo, difDias, hojeStr, instante } from '../dominio/datas.ts'
 import { gerarIcs, TITULO_AGENDA } from '../dominio/ics.ts'
@@ -14,6 +14,7 @@ import { Cabecalho, Carregando, Dialogo, Nota, Tela } from '../ui/base.tsx'
 import { useVoltar } from '../ui/navegar.ts'
 import { IcoAlerta, IcoArquivo, IcoDownload, IcoMais, IcoSeta, IcoUpload } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
+import { BotaoAcao } from '../ui/acao.tsx'
 import { baixarArquivo } from '../sistema/imagem.ts'
 import { avisoDeTeste, permissaoAtual, suporteAviso, temGatilhos, TEXTO_AVISO } from '../sistema/avisos.ts'
 import { useInstalacao } from '../sistema/instalar.ts'
@@ -90,7 +91,11 @@ export function Lembretes() {
   const visiveis = base.protocolos.filter((p) => estadoEfetivo(p, hoje) !== 'encerrado')
   const proximos = proximosSlots(base.protocolos.filter((p) => p.lembretes), base.itens, new Date(), 6)
   const setCanal = async (c: Partial<{ agenda: boolean; notificacao: boolean }>) => {
-    await repo.setConfig('canais', { agenda: false, notificacao: false, ...canais.valor, ...c })
+    try {
+      await repo.setConfig('canais', { agenda: false, notificacao: false, ...canais.valor, ...c })
+    } catch (e) {
+      toast({ tipo: 'info', titulo: 'Não deu para gravar a escolha', texto: mensagemDeErro(e) })
+    }
   }
   return (
     <Tela>
@@ -151,7 +156,7 @@ export function Lembretes() {
             {visiveis.map((p) => (
               <label key={p.id} className="flex min-h-[52px] items-center justify-between gap-3 border-t border-sup2 px-4 first:border-t-0">
                 <span className="text-[15px] font-bold break-words">{nomeProtocolo(p, base.itens, base.subs)}{estadoEfetivo(p, hoje) === 'pausado' && <span className="font-medium text-fraco"> · em pausa</span>}</span>
-                <input type="checkbox" role="switch" className="h-6 w-6 shrink-0" checked={p.lembretes} onChange={async (e) => { await repo.lembretesProtocolo(p.id, e.target.checked); forcar((x) => x + 1) }} />
+                <input type="checkbox" role="switch" className="h-6 w-6 shrink-0" checked={p.lembretes} onChange={(e) => { const v = e.target.checked; repo.lembretesProtocolo(p.id, v).then(() => forcar((x) => x + 1), (err: unknown) => toast({ tipo: 'info', titulo: 'Não deu para mudar o lembrete', texto: mensagemDeErro(err) })) }} />
               </label>
             ))}
           </div>
@@ -285,7 +290,7 @@ function Restaurador({ aoRestaurar, children }: { aoRestaurar: (p: PreviaBackup)
             onClick={async () => {
               setRestaurando(true)
               try {
-                await aplicarBackup(repo, previa)
+                await comTeto(aplicarBackup(repo, previa), 120_000)
                 const p = previa
                 setPrevia(null)
                 aoRestaurar(p)
@@ -295,7 +300,7 @@ function Restaurador({ aoRestaurar, children }: { aoRestaurar: (p: PreviaBackup)
                   nome: '',
                   msg: ehCotaCheia(e)
                     ? 'O espaço do app neste aparelho não é suficiente para este backup. Libere espaço ou use um backup sem fotos.'
-                    : 'Não deu para gravar os dados.',
+                    : mensagemDeErro(e),
                 })
               } finally {
                 setRestaurando(false)
@@ -430,18 +435,18 @@ export function ApagarTudo() {
             <input className="campo" autoCapitalize="characters" value={texto} onChange={(e) => setTexto(e.target.value)} />
           </label>
           <div className="mt-auto flex flex-col gap-2">
-            <button
-              type="button"
+            <BotaoAcao
               className="btn-perigo"
+              ocupadoTexto="Apagando…"
               disabled={texto.trim().toUpperCase() !== 'APAGAR'}
-              onClick={async () => {
+              acao={async () => {
                 await repo.apagarTudo()
                 rascunho.limpar()
                 nav('/boas-vindas', { replace: true })
               }}
             >
               Apagar tudo
-            </button>
+            </BotaoAcao>
             <button type="button" className="btn-texto" onClick={() => nav('/ajustes')}>Cancelar</button>
           </div>
         </>
@@ -557,7 +562,7 @@ export function Substancias() {
           <span className="text-[13px] text-fraco">{s.tipo === 'blend' ? (s.origem === 'lista' ? 'Blend da lista' : 'Blend') : 'Simples'} · {emUso ? 'em uso' : 'sem uso'}</span>
         </button>
         {s.arquivada ? (
-          <button type="button" className="link px-3" onClick={async () => { await repo.arquivarSubstancia(s.id, false); toast({ titulo: 'Substância reativada', texto: s.nome }) }}>Reativar</button>
+          <BotaoAcao className="link px-3 disabled:opacity-60" acao={async () => { await repo.arquivarSubstancia(s.id, false); toast({ titulo: 'Substância reativada', texto: s.nome }) }}>Reativar</BotaoAcao>
         ) : (
           <button type="button" aria-label={`Arquivar ou apagar ${s.nome}`} className="icone-btn text-fraco" onClick={() => setAlvo(s)}><IcoArquivo tam={20} /></button>
         )}
@@ -595,10 +600,10 @@ export function Substancias() {
           ) : (
             <p className="m-0 text-[15px] text-suave">Ela não está em uso. Arquivar tira das buscas; apagar remove de vez.</p>
           )}
-          <button type="button" className="btn-primario" onClick={async () => { await repo.arquivarSubstancia(alvo.id); setAlvo(null); toast({ tipo: 'info', titulo: 'Substância arquivada', texto: alvo.nome, desfazer: () => repo.arquivarSubstancia(alvo.id, false) }) }}>Arquivar</button>
-          <button type="button" className="btn-neutro text-erro" disabled={emUso} onClick={async () => { await repo.apagarSubstancia(alvo.id); setAlvo(null); toast({ tipo: 'info', titulo: 'Substância apagada', texto: alvo.nome }) }}>
+          <BotaoAcao className="btn-primario" ocupadoTexto="Arquivando…" acao={async () => { await repo.arquivarSubstancia(alvo.id); setAlvo(null); toast({ tipo: 'info', titulo: 'Substância arquivada', texto: alvo.nome, desfazer: () => repo.arquivarSubstancia(alvo.id, false) }) }}>Arquivar</BotaoAcao>
+          <BotaoAcao className="btn-neutro text-erro" ocupadoTexto="Apagando…" disabled={emUso} acao={async () => { await repo.apagarSubstancia(alvo.id); setAlvo(null); toast({ tipo: 'info', titulo: 'Substância apagada', texto: alvo.nome }) }}>
             {emUso ? 'Apagar (indisponível em uso)' : 'Apagar'}
-          </button>
+          </BotaoAcao>
           <button type="button" className="btn-texto" onClick={() => setAlvo(null)}>Cancelar</button>
         </Dialogo>
       )}

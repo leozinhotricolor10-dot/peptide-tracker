@@ -84,7 +84,7 @@
 }
 
 @utility btn-neutro {
-  @apply btn border border-linha bg-fundo text-texto;
+  @apply btn border border-linha bg-fundo text-texto disabled:opacity-60;
 }
 
 @utility btn-perigo {
@@ -92,7 +92,7 @@
 }
 
 @utility btn-texto {
-  @apply flex min-h-11 items-center justify-center px-2 text-[15px] font-bold text-acento;
+  @apply flex min-h-11 items-center justify-center px-2 text-[15px] font-bold text-acento disabled:opacity-60;
 }
 
 @utility link {

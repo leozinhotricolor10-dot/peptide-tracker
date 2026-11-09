@@ -11,6 +11,7 @@ import { Carregando, Dialogo, NaoAchou, Nota, Sheet, StatusTomada, Tela, Vazio }
 import { useVoltar } from '../ui/navegar.ts'
 import { IcoCopiar, IcoEditar, IcoMais, IcoPausa, IcoPlay, IcoParar, IcoPontos, IcoProtocolos, IcoVoltar, IcoSeta, IcoBaixo, IcoLixo } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
+import { BotaoAcao } from '../ui/acao.tsx'
 import { useDoseUI } from './dose.tsx'
 
 const ROTULO_ESTADO: Record<EstadoProtocolo, string> = { ativo: 'Ativo', pausado: 'Pausado', encerrado: 'Concluído' }
@@ -231,17 +232,16 @@ export function DetalheProtocolo() {
               </button>
             )}
             {estado === 'pausado' && (
-              <button
-                type="button"
-                className="flex min-h-14 items-center gap-3.5 rounded-[10px] px-3 text-base font-bold"
-                onClick={async () => {
+              <BotaoAcao
+                className="flex min-h-14 items-center gap-3.5 rounded-[10px] px-3 text-base font-bold disabled:opacity-60"
+                acao={async () => {
                   await repo.retomarProtocolo(p.id)
                   setAcao(null)
                   toast({ titulo: 'Protocolo retomado', texto: nome })
                 }}
               >
                 <IcoPlay /> Retomar
-              </button>
+              </BotaoAcao>
             )}
             <button type="button" className="flex min-h-14 items-center gap-3.5 rounded-[10px] px-3 text-base font-bold" onClick={() => nav(`/protocolos/${p.id}/duplicar`)}>
               <IcoCopiar /> Duplicar para novo ciclo
@@ -266,10 +266,10 @@ export function DetalheProtocolo() {
             <li>O histórico continua salvo em Concluídos.</li>
             <li>Dá para duplicar depois para um novo ciclo.</li>
           </ul>
-          <button
-            type="button"
+          <BotaoAcao
             className="btn-perigo"
-            onClick={async () => {
+            ocupadoTexto="Encerrando…"
+            acao={async () => {
               await repo.encerrarProtocolo(p.id)
               setAcao(null)
               toast({ tipo: 'info', titulo: 'Protocolo encerrado', texto: nome })
@@ -277,7 +277,7 @@ export function DetalheProtocolo() {
             }}
           >
             Encerrar
-          </button>
+          </BotaoAcao>
           <button type="button" className="btn-neutro" onClick={() => setAcao(null)}>Manter ativo</button>
         </Dialogo>
       )}
@@ -287,17 +287,18 @@ export function DetalheProtocolo() {
             Apaga o protocolo e {registros.length === 1 ? '1 registro de dose' : `${registros.length} registros de dose`} dele, sem volta. Frascos e substâncias continuam no app.
           </p>
           {registros.length > 0 && <p className="m-0 text-sm text-fraco">Para guardar o histórico, prefira “Encerrar protocolo”.</p>}
-          <button
-            type="button"
+          <BotaoAcao
             className="btn-perigo"
-            onClick={async () => {
+            ocupadoTexto="Apagando…"
+            acao={async () => {
               await repo.apagarProtocolo(p.id)
+              setAcao(null)
               toast({ tipo: 'info', titulo: 'Protocolo apagado', texto: nome })
               nav('/protocolos', { replace: true })
             }}
           >
             Apagar
-          </button>
+          </BotaoAcao>
           <button type="button" className="btn-neutro" onClick={() => setAcao(null)}>Cancelar</button>
         </Dialogo>
       )}
@@ -326,10 +327,10 @@ function Pausar({ protocolo, nome, fechar }: { protocolo: Protocolo; nome: strin
         </label>
       </fieldset>
       {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
-      <button
-        type="button"
+      <BotaoAcao
         className="btn-primario"
-        onClick={async () => {
+        ocupadoTexto="Pausando…"
+        acao={async () => {
           if (comData && (!ate || ate <= hojeStr())) return setErro('Escolha uma data a partir de amanhã.')
           await repo.pausarProtocolo(protocolo.id, comData ? ate : undefined)
           fechar()
@@ -337,7 +338,7 @@ function Pausar({ protocolo, nome, fechar }: { protocolo: Protocolo; nome: strin
         }}
       >
         Pausar
-      </button>
+      </BotaoAcao>
       <button type="button" className="btn-texto" onClick={fechar}>Cancelar</button>
     </Dialogo>
   )

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { repo, useBase } from '../dados/index.ts'
+import { mensagemDeErro } from '../dados/repo.ts'
 import { AMOSTRA_IDS, buscar, existeNomeExato, type ResultadoBusca } from '../dominio/sugestoes.ts'
 import { descreverFrequencia } from '../dominio/agenda.ts'
 import { dataCurta, hojeStr, SEMANA_CURTA } from '../dominio/datas.ts'
@@ -135,6 +136,7 @@ export function PassoSubstancia() {
   const base = useBase()
   const nav = useNavigate()
   const sairDoAssistente = useSairDoAssistente()
+  const toast = useToast()
   const [texto, setTexto] = useState('')
   const [sair, setSair] = useState(false)
   const resultados = useMemo(() => (base ? buscar(texto, base.substancias, undefined, 30) : []), [base, texto])
@@ -151,7 +153,12 @@ export function PassoSubstancia() {
       rascunho.mudarItem(() => ({ substanciaId: res.substancia.id }))
       return
     }
-    const sub = await repo.usarSugestao(res.sugestao)
+    let sub
+    try {
+      sub = await repo.usarSugestao(res.sugestao)
+    } catch (e) {
+      return toast({ tipo: 'info', titulo: 'Não deu para escolher', texto: mensagemDeErro(e) })
+    }
     if (sub.tipo === 'blend') ir(`/novo/blend?id=${sub.id}&usar=1`)
     else rascunho.mudarItem(() => ({ substanciaId: sub.id }))
   }
@@ -280,13 +287,19 @@ export function CriarSubstancia() {
     if (!n) return setErro('Digite o nome.')
     if (ocupado.current) return
     ocupado.current = true
-    if (editando) {
-      await repo.atualizarSubstancia({ ...editando, nome: n })
+    if (tipo === 'blend' && !editando) return nav(`/novo/blend?nome=${encodeURIComponent(n)}${volta ? `&volta=${volta}` : '&usar=1'}`, { replace: true })
+    let s
+    try {
+      if (editando) await repo.atualizarSubstancia({ ...editando, nome: n })
+      else s = await repo.criarSubstancia({ nome: n, tipo: 'simples', origem: 'usuario' })
+    } catch (e) {
+      ocupado.current = false
+      return setErro(mensagemDeErro(e))
+    }
+    if (editando || !s) {
       toast({ titulo: 'Substância atualizada', texto: n })
       return voltarOu('/ajustes/substancias')
     }
-    if (tipo === 'blend') return nav(`/novo/blend?nome=${encodeURIComponent(n)}${volta ? `&volta=${volta}` : '&usar=1'}`, { replace: true })
-    const s = await repo.criarSubstancia({ nome: n, tipo: 'simples', origem: 'usuario' })
     if (volta) {
       toast({ titulo: 'Substância criada', texto: n })
       return voltarOu('/ajustes/substancias')
@@ -373,12 +386,17 @@ export function EditorBlend() {
     if (ocupado.current) return
     ocupado.current = true
     let subId: string
-    if (existente) {
-      await repo.atualizarSubstancia({ ...existente, nome: n, componentes })
-      subId = existente.id
-    } else {
-      const s = await repo.criarSubstancia({ nome: n, tipo: 'blend', origem: 'usuario', componentes })
-      subId = s.id
+    try {
+      if (existente) {
+        await repo.atualizarSubstancia({ ...existente, nome: n, componentes })
+        subId = existente.id
+      } else {
+        const s = await repo.criarSubstancia({ nome: n, tipo: 'blend', origem: 'usuario', componentes })
+        subId = s.id
+      }
+    } catch (e) {
+      ocupado.current = false
+      return setErro(mensagemDeErro(e))
     }
     if (usar) {
       rascunho.mudarItem(() => ({ substanciaId: subId }))
