@@ -18,8 +18,6 @@ export interface ItemRascunho {
   /** Calculadora do passo da dose (opcional): mg no frasco e mL de diluente, como digitados. */
   calcMgTxt?: string
   calcMlTxt?: string
-  /** Guardar o frasco da calculadora no Estoque (reconstituído) ao salvar o protocolo. */
-  salvarFrasco?: boolean
 }
 
 export interface Rascunho {
@@ -40,6 +38,8 @@ export interface Rascunho {
   fechado?: { destino: string }
   /** Para onde ir ao sair sem salvar quando não há tela anterior útil (fim do primeiro acesso). */
   saida?: string
+  /** Cor escolhida (id da paleta). Vazio = automática ao salvar. */
+  cor?: string
 }
 
 const CHAVE = 'pt-rascunho'
@@ -114,6 +114,7 @@ export function rascunhoDe(p: Protocolo, itens: ItemProtocolo[], modo: 'editar' 
     itens: itens.map((i) => paraItemRascunho(i, modo === 'editar')),
     atual: 0,
     antes,
+    cor: p.cor,
   }
 }
 
@@ -161,13 +162,33 @@ export function situacaoPasso(r: Rascunho | null): SituacaoPasso {
   return { tipo: 'ok', r }
 }
 
-/** Frasco que a calculadora do passo da dose guarda no Estoque, se a pessoa pediu e os números valem. */
-export function frascoDoCalculo(i: ItemRascunho, hoje: string): Omit<Frasco, 'id' | 'criadoEm'> | null {
-  if (!i.salvarFrasco || !i.substanciaId) return null
+/**
+ * Frasco que a calculadora do passo da dose põe no Estoque ao salvar (regra: todo frasco informado
+ * vai para o Estoque). Precisa dos mg do frasco; com a água informada entra como reconstituído hoje,
+ * sem a água entra lacrado. Nada é criado quando a linha já tem um frasco usável ligado (editar um
+ * protocolo não duplica o frasco) ou quando os números não valem.
+ */
+export function frascoDoCalculo(i: ItemRascunho, hoje: string, jaTemFrascoLigado = false): Omit<Frasco, 'id' | 'criadoEm'> | null {
+  if (jaTemFrascoLigado || !i.substanciaId) return null
   const mg = lerNumero(i.calcMgTxt ?? '')
-  const ml = lerNumero(i.calcMlTxt ?? '')
-  if (mg === null || !(mg > 0) || ml === null || !(ml > 0)) return null
+  if (mg === null || !(mg > 0)) return null
+  const mlTxt = (i.calcMlTxt ?? '').trim()
+  if (!mlTxt) return { substanciaId: i.substanciaId, mgTotal: mg, status: 'fechado', compradoEm: hoje }
+  const ml = lerNumero(mlTxt)
+  if (ml === null || !(ml > 0)) return null
   return { substanciaId: i.substanciaId, mgTotal: mg, diluenteMl: ml, status: 'reconstituido', reconstituidoEm: hoje, compradoEm: hoje }
+}
+
+/** Digitou algo na calculadora, mas não dá para montar o frasco (ex.: "1.000", zero, água sem os mg). */
+export function calculoInvalido(i: ItemRascunho): boolean {
+  const mg = (i.calcMgTxt ?? '').trim()
+  const ml = (i.calcMlTxt ?? '').trim()
+  if (!mg && !ml) return false
+  const vmg = lerNumero(mg)
+  if (vmg === null || !(vmg > 0)) return true
+  if (!ml) return false
+  const vml = lerNumero(ml)
+  return vml === null || !(vml > 0)
 }
 
 export function frequenciaDe(i: ItemRascunho): Frequencia {
@@ -198,7 +219,7 @@ export function validarRascunho(r: Rascunho): Validacao {
     if (!((lerNumero(i.doseTxt) ?? 0) > 0) || !i.doseUnidade) erros.push(`${p}informe a dose e a unidade.`)
     if (!i.horarios.length) erros.push(`${p}adicione pelo menos um horário.`)
     if (i.freqTipo === 'semana' && !i.dias.length) erros.push(`${p}escolha os dias da semana.`)
-    if (i.salvarFrasco && !frascoDoCalculo(i, r.inicio)) erros.push(`${p}para guardar o frasco no Estoque, informe os mg do frasco e os mL de diluente (ou desligue essa opção).`)
+    if (calculoInvalido(i)) erros.push(`${p}confira os números do frasco na calculadora (mg do frasco e mL de água) ou apague-os.`)
   })
   if ([...r.nome].length > 40) erros.push('O nome pode ter até 40 caracteres.')
   return { ok: erros.length === 0, erros }
@@ -220,6 +241,7 @@ export function montarProtocolo(r: Rascunho): { protocolo: Protocolo; itens: Ite
     lembretes: b?.lembretes ?? true,
     notas: b?.notas,
     criadoEm: b?.criadoEm ?? new Date().toISOString(),
+    cor: r.cor ?? b?.cor,
   }
   const itens: ItemProtocolo[] = r.itens.map((i, ordem) => ({
     id: i.id,

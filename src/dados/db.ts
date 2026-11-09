@@ -1,6 +1,7 @@
 // Banco local (IndexedDB via Dexie). Só o repositório (repo.ts) e o backup importam este arquivo:
 // a UI fala com o repositório, para dar para trocar por sincronização no futuro.
 import { Dexie, type EntityTable } from 'dexie'
+import { atribuirCores } from '../dominio/cores.ts'
 import type { Aplicacao, ConfigItem, Foto, Frasco, ItemProtocolo, Medicao, Protocolo, Substancia } from '../dominio/tipos.ts'
 
 export class BancoLocal extends Dexie {
@@ -25,6 +26,15 @@ export class BancoLocal extends Dexie {
       frascos: 'id, substanciaId, status',
       config: 'chave',
     })
+    // v2: cada protocolo ganha uma cor própria (os que já existem recebem cores diferentes entre si).
+    this.version(2)
+      .stores({})
+      .upgrade(async (tx) => {
+        const tabela = tx.table<Protocolo, string>('protocolos')
+        const todos = await tabela.toArray()
+        const comCor = atribuirCores(todos)
+        await tabela.bulkPut(comCor)
+      })
   }
 }
 

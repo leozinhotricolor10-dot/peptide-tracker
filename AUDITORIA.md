@@ -64,6 +64,28 @@ Varredura em toque (Pixel 7, 390×844, build servido como no Pages), todas de po
 
 Limitações: o gatilho exato no celular do dono não foi reproduzido (só os modos de falha que dão o mesmo sintoma); a instalação real (modo standalone) não dá para simular aqui. Se a gravação passar do teto e terminar depois, o app já avisou que demorou; a tela se corrige sozinha (o frasco some e aparece "Frasco não encontrado").
 
+## Rodada de 09/11/2026 (noite): cor do protocolo, frasco sempre no Estoque, movimento
+
+Pedidos do dono (celular, tela Protocolos): uma cor por protocolo; todo frasco no Estoque para acompanhar o saldo; animações leves nos cartões.
+
+| # | Tipo | O que mudou | Coberto por |
+|---|---|---|---|
+| P01 | Pedido | Cada protocolo tem uma cor (paleta de 8 em `dominio/cores.ts`, todas com contraste ≥ 4,5:1 nos fundos do app e longe do turquesa e das cores de status). A cor aparece na borda esquerda do cartão (Protocolos, Hoje, Estoque, Histórico, detalhe) e numa bolinha ao lado do nome; o nome sempre aparece (a cor nunca é a única pista). Atribuição automática estável (primeira cor livre; com todas em uso, a menos usada). Troca na revisão do cadastro e no Editar (bolinhas de 44 px, a escolhida com ✓). Banco v2 dá cores diferentes aos protocolos que já existiam, na ordem de criação. Backup leva a cor; backup antigo (sem cor) ou com cor desconhecida importa e recebe cores automáticas distintas | `dominio/cores.test.ts`, `dados/cores-estoque.test.ts` (migração v1→v2, salvar, backup antigo e novo) + e2e passos 17 e 18 |
+| P02 | Pedido | Todo frasco informado vai para o Estoque: o interruptor "Guardar este frasco no Estoque" saiu. Com os mg (e a água, se reconstituído) na calculadora do passo 2, o frasco é criado e ligado à linha do protocolo; só com os mg entra lacrado. Linha que já tem frasco usável ligado (editar) não duplica. Números inválidos na calculadora bloqueiam com mensagem (antes o frasco podia ficar de fora calado). Sem dados do frasco: aviso na revisão, selo "Sem frasco no estoque" (ícone + texto) no cartão, no detalhe e na Hoje, e o atalho "Adicione o frasco para acompanhar o estoque" abre o Novo frasco já ligado àquela linha. Cartão do protocolo mostra "Frasco: N doses restantes" (e "mais N frascos"); Estoque mostra "≈ N doses restantes" e o protocolo ligado. Protocolos antigos sem frasco: nada é inventado, só selo e atalho | `dominio/estoque.test.ts`, `dados/cores-estoque.test.ts`, `telas/rascunho.test.ts` + e2e passos 6, 15, 16, 17 |
+| A35 | Média | Salvar protocolo com frasco da calculadora gravava o frasco e depois o protocolo, em duas gravações: se a segunda falhasse, sobrava um frasco solto no Estoque; o erro era genérico | Uma transação só (`salvarProtocolo(p, itens, frascosNovos)`); erro com `mensagemDeErro` | `dados/cores-estoque.test.ts` |
+| A36 | Baixa | Ao registrar dose, o frasco pré-escolhido podia ser um vencido mesmo havendo outro bom; com vários frascos não havia regra clara | `escolherFrasco`: o ligado à linha (ou o último usado) se tem saldo e não venceu; senão o mais antigo não vencido (aberto antes do lacrado); vencido só se não houver outro (aí aparece o aviso de vencido) | `dominio/estoque.test.ts` |
+| P03 | Pedido | Movimento leve só com CSS (`transform`/`opacity`, 120–250 ms, nada em loop, sem biblioteca): cartões entram subindo em cascata curta (até 6, 40 ms entre eles), toque encolhe 2% cartões e botões, fundo da aba escolhida desliza (Ativos/Pausados/Concluídos) e a lista reentra, folha sobe e desce, diálogo cresce e encolhe, aviso (toast) sobe, barra de progresso desliza até o valor. Com "reduzir movimento" no aparelho, tudo desliga (folha/diálogo fecham na hora) | e2e (toda a jornada com as animações ligadas) + navegador com e sem `prefers-reduced-motion` |
+
+Conferido no build servido como no Pages (390×844, toque), com e sem "reduzir movimento": Protocolos, Hoje, detalhe com e sem frasco, Estoque, Histórico, passo 2 (calculadora), passo 4 (cor e frasco novo / sem frasco), Editar (troca de cor), folha Registrar dose, menu do protocolo. Nenhum alvo novo menor que 44 px (o único de 24 px é a caixa "Ciclo com pausa", dentro de uma linha clicável de 44 px, como antes), nenhum texto em inglês, sem rolagem lateral, console limpo, nenhuma animação ativa 700 ms depois de abrir cada tela (nada em loop); com "reduzir movimento", nenhuma animação.
+
+Tamanho do build (gzip): CSS 5,54 → 6,27 KB; JS do app 58,45 → 61,76 KB (inclui cor, estoque e animações; as animações são só CSS + ~20 linhas de JS para a saída das folhas). React e bibliotecas sem mudança.
+
+Limitações desta rodada:
+- Remover um item de uma lista não tem animação de saída (some na hora); só a entrada é animada.
+- Ações que fecham a folha por conta própria (salvar, apagar, cancelar) fecham na hora; a animação de saída é para o X, tocar fora e Esc.
+- Apagar protocolo: os frascos ligados continuam no Estoque, sem vínculo (como já era). O app não pergunta o que fazer com eles.
+- Doses em UI não descontam mg (o app não converte UI); o saldo e as "doses restantes" desses frascos não mudam com elas.
+
 ## Conferido sem achado
 
 - Datas: virada de mês, horário de verão (São Paulo 2018 e Nova York 2026), horário inexistente (02:30), ciclo e progresso atravessando o verão (testes A05).

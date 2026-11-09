@@ -15,6 +15,8 @@ import type {
   UnidadeDose,
 } from '../dominio/tipos.ts'
 
+import { atribuirCores, corValida } from '../dominio/cores.ts'
+
 export class BackupInvalido extends Error {}
 
 const DIA = /^\d{4}-\d{2}-\d{2}$/
@@ -146,6 +148,8 @@ export function protocolo(v: unknown): Protocolo {
     lembretes: bool(o.lembretes, true),
     notas: strOpc(o.notas),
     criadoEm: typeof o.criadoEm === 'string' ? o.criadoEm.slice(0, 40) : '',
+    // cor desconhecida ou ausente (backup antigo): fica sem e recebe uma automática em validarTabelas
+    cor: corValida(o.cor) ? o.cor : undefined,
   }
 }
 
@@ -292,7 +296,7 @@ export function validarTabelas(t: unknown): TabelasValidas {
   const porId = <T extends { id: string }>(xs: T[]) => semRepetir(xs, (x) => x.id)
   return {
     substancias: porId(lista(o.substancias).map(substancia)),
-    protocolos: porId(lista(o.protocolos).map(protocolo)),
+    protocolos: atribuirCores(porId(lista(o.protocolos).map(protocolo))),
     itens: porId(lista(o.itens).map(item)),
     aplicacoes: porId(lista(o.aplicacoes).map(aplicacao)),
     medicoes: porId(lista(o.medicoes).map(medicao)),

@@ -11,7 +11,9 @@ import { erroNumero, fmtDose, lerNumero, somaComponentesMg, fmtNum } from '../do
 import type { Componente, UnidadeDose } from '../dominio/tipos.ts'
 import { MAX_NOME_PROTOCOLO, nomeProtocolo } from '../dominio/nomes.ts'
 import { Carregando, Chips, Dialogo, NaoAchou, Nota, Tela } from '../ui/base.tsx'
-import { IcoBusca, IcoFechar, IcoMais, IcoVoltar, IcoX } from '../ui/icones.tsx'
+import { IcoAlerta, IcoBusca, IcoCheck, IcoEstoque, IcoFechar, IcoMais, IcoVoltar, IcoX } from '../ui/icones.tsx'
+import { CORES_PROTOCOLO, proximaCor } from '../dominio/cores.ts'
+import { frascosNaOrdem, frascoUsavel } from '../dominio/estoque.ts'
 import { useToast } from '../ui/toast.tsx'
 import { useVoltar } from '../ui/navegar.ts'
 import { UNIDADES } from './dose.tsx'
@@ -469,6 +471,7 @@ export function PassoDose() {
     nav(it.horarios.length ? '/novo/revisao' : '/novo/frequencia', { replace: true })
   }
   const frascoLigado = it.frascoId ? base.frascos.find((f) => f.id === it.frascoId) : undefined
+  const ligadoUsavel = !!frascoLigado && frascoUsavel(frascoLigado, base.aplicacoes)
   return (
     <Etapa
       n={2}
@@ -495,7 +498,7 @@ export function PassoDose() {
       </fieldset>
       {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
       {blend && <Nota>Em blend, use a dose do frasco todo (mL ou unidades), como você aplica.</Nota>}
-      <CalculadoraSeringa it={it} blend={blend} frascoLigado={frascoLigado} somaBlendMg={blend ? somaComponentesMg(sub.componentes) : null} />
+      <CalculadoraSeringa it={it} blend={blend} frascoLigado={frascoLigado} ligadoUsavel={ligadoUsavel} somaBlendMg={blend ? somaComponentesMg(sub.componentes) : null} />
       <Nota tipo="aviso">Confira a unidade: 1 mg = 1.000 mcg. O app não sugere doses; use a que você definiu e confira a conta.</Nota>
     </Etapa>
   )
@@ -595,28 +598,36 @@ export function PassoRevisao() {
   // Onde fica o protocolo antes desta edição (para sair sem salvar).
   const origem = r.base ? `/protocolos/${r.base.id}` : LISTA_PROTOCOLOS
 
+  /** Frasco que cada linha leva para o Estoque ao salvar (regra: todo frasco informado vai para o Estoque). */
+  const frascoNovoDe = (i: ItemRascunho, hoje: string) => {
+    const ligado = i.frascoId ? base.frascos.find((f) => f.id === i.frascoId) : undefined
+    return frascoDoCalculo(i, hoje, !!ligado && frascoUsavel(ligado, base.aplicacoes))
+  }
+  const corEscolhida = r.cor ?? proximaCor(base.protocolos.filter((p) => p.id !== r.protocoloId).map((p) => p.cor))
+
   const gravar = async () => {
     if (salvando.current) return
     salvando.current = true
     const { protocolo, itens } = montarProtocolo(r)
     const hoje = hojeStr()
+    const novos: Record<string, NonNullable<ReturnType<typeof frascoDoCalculo>>> = {}
+    for (const i of r.itens) {
+      const f = frascoNovoDe(i, hoje)
+      if (f) novos[i.id] = f
+    }
+    let criados = 0
     try {
-      for (const [k, i] of r.itens.entries()) {
-        const novo = frascoDoCalculo(i, hoje)
-        if (novo) itens[k] = { ...itens[k], frascoId: (await repo.salvarFrasco(novo)).id }
-      }
-      await repo.salvarProtocolo(protocolo, itens)
-    } catch {
+      criados = (await repo.salvarProtocolo({ ...protocolo, cor: corEscolhida }, itens, novos)).frascos.length
+    } catch (e) {
       salvando.current = false
       setConfirmar(false)
-      setErros(['Não deu para salvar. Tente de novo.'])
+      setErros([mensagemDeErro(e)])
       return
     }
     const destino = `/protocolos/${protocolo.id}`
     // Fecha o cadastro: nenhum passo reabre depois disto (voltar, F5, link antigo).
     rascunho.fechar(destino)
-    const frascos = r.itens.filter((i) => frascoDoCalculo(i, hoje)).length
-    toast({ titulo: r.modo === 'editar' ? 'Alteração salva' : 'Protocolo salvo', texto: `${nomeProtocolo(protocolo, itens, base.subs)}${frascos ? ' · frasco no Estoque' : ''}` })
+    toast({ titulo: r.modo === 'editar' ? 'Alteração salva' : 'Protocolo salvo', texto: `${nomeProtocolo(protocolo, itens, base.subs)}${criados ? ` · ${criados === 1 ? 'frasco' : `${criados} frascos`} no Estoque` : ''}` })
     // Editar: a tela anterior é o próprio protocolo. Novo/duplicar: o detalhe toma o lugar do assistente.
     if (r.modo === 'editar') voltarOu(destino)
     else nav(destino, { replace: true })
@@ -656,6 +667,7 @@ export function PassoRevisao() {
           Se deixar vazio, usamos o nome do composto (aqui, {nomePadrao}). Até {MAX_NOME_PROTOCOLO} caracteres; nomes repetidos são aceitos e diferenciados pela data de início.
         </span>
       </label>
+      <SeletorCor valor={corEscolhida} aoMudar={(cor) => rascunho.mudar(() => ({ cor }))} />
       <div className="grid grid-cols-2 gap-2.5">
         <label className="rotulo text-sm text-texto">
           Começa em
@@ -696,8 +708,8 @@ export function PassoRevisao() {
       <section aria-label="Resumo" className="flex flex-col gap-2.5">
         <span className="text-[13px] font-bold tracking-wide text-fraco uppercase">Confira antes de salvar</span>
         {r.itens.map((i, k) => {
-          const frascos = base.frascos.filter((f) => f.substanciaId === i.substanciaId && (f.status === 'fechado' || f.status === 'reconstituido'))
-          const novoFrasco = frascoDoCalculo(i, r.inicio)
+          const frascos = i.substanciaId ? frascosNaOrdem(i.substanciaId, base.frascos, base.aplicacoes, hojeStr()) : []
+          const novoFrasco = frascoNovoDe(i, r.inicio)
           return (
             <div key={i.id} className="card flex flex-col gap-1.5 p-4">
               <b className="text-lg break-words">{subNome(i) || 'Sem substância'} · {i.doseUnidade ? fmtDose(lerNumero(i.doseTxt) ?? 0, i.doseUnidade) : 'sem dose'}</b>
@@ -708,17 +720,25 @@ export function PassoRevisao() {
                 {r.ciclo && `, ciclo ${r.diasOn} dias sim e ${r.diasOff} não`}.
               </span>
               {novoFrasco ? (
-                <span className="text-sm font-semibold text-suave">Frasco novo: {fmtNum(novoFrasco.mgTotal)} mg + {fmtNum(novoFrasco.diluenteMl!)} mL, vai para o Estoque como reconstituído.</span>
+                <span className="flex items-start gap-2 text-sm font-semibold text-suave">
+                  <IcoEstoque tam={18} className="mt-0.5 shrink-0 text-acento" />
+                  {novoFrasco.status === 'reconstituido'
+                    ? `Frasco novo: ${fmtNum(novoFrasco.mgTotal)} mg + ${fmtNum(novoFrasco.diluenteMl!)} mL, vai para o Estoque como reconstituído.`
+                    : `Frasco novo: ${fmtNum(novoFrasco.mgTotal)} mg, vai para o Estoque lacrado.`}
+                </span>
+              ) : frascos.length > 0 ? (
+                <label className="rotulo mt-1">
+                  Frasco do Estoque
+                  <select className="campo text-sm font-semibold" value={i.frascoId ?? ''} onChange={(e) => rascunho.mudar((x) => ({ itens: x.itens.map((y) => (y.id === i.id ? { ...y, frascoId: e.target.value || undefined } : y)) }))}>
+                    <option value="">Automático (o mais antigo com saldo)</option>
+                    {frascos.map((f) => <option key={f.id} value={f.id}>{fmtNum(f.mgTotal)} mg · {f.status === 'reconstituido' ? 'reconstituído' : 'fechado'}{f.validade ? ` · val. ${dataCurta(f.validade)}` : ''}</option>)}
+                  </select>
+                </label>
               ) : (
-                frascos.length > 0 && (
-                  <label className="rotulo mt-1">
-                    Frasco em uso (opcional)
-                    <select className="campo text-sm font-semibold" value={i.frascoId ?? ''} onChange={(e) => rascunho.mudar((x) => ({ itens: x.itens.map((y) => (y.id === i.id ? { ...y, frascoId: e.target.value || undefined } : y)) }))}>
-                      <option value="">Nenhum</option>
-                      {frascos.map((f) => <option key={f.id} value={f.id}>{fmtNum(f.mgTotal)} mg · {f.status === 'reconstituido' ? 'reconstituído' : 'fechado'}{f.validade ? ` · val. ${dataCurta(f.validade)}` : ''}</option>)}
-                    </select>
-                  </label>
-                )
+                <span className="flex items-start gap-2 text-sm font-semibold text-aviso-texto">
+                  <IcoAlerta tam={18} className="mt-0.5 shrink-0 text-aviso" />
+                  Sem frasco no estoque. Depois de salvar, adicione o frasco para acompanhar o saldo (ou informe os mg do frasco em Corrigir dose).
+                </span>
               )}
               <div className="flex flex-wrap gap-x-4">
                 <button type="button" className="link" onClick={() => irPara(k, '/novo/dose')}>Corrigir dose</button>
@@ -753,5 +773,36 @@ export function PassoRevisao() {
         </Dialogo>
       )}
     </Etapa>
+  )
+}
+
+/** Cor do protocolo: bolinhas de 44px; a escolhida tem um sinal de check (não depende só da cor). */
+export function SeletorCor({ valor, aoMudar }: { valor: string; aoMudar: (cor: string) => void }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span id="cor-titulo" className="text-sm font-bold text-texto">Cor do protocolo</span>
+      <div role="radiogroup" aria-labelledby="cor-titulo" className="flex flex-wrap gap-1.5">
+        {CORES_PROTOCOLO.map((c) => {
+          const sel = c.id === valor
+          return (
+            <button
+              key={c.id}
+              type="button"
+              role="radio"
+              aria-checked={sel}
+              aria-label={c.nome}
+              title={c.nome}
+              onClick={() => aoMudar(c.id)}
+              className={`tocavel flex h-11 w-11 items-center justify-center rounded-full border-2 ${sel ? 'border-texto' : 'border-transparent'}`}
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sobre-acento" style={{ backgroundColor: c.hex }}>
+                {sel && <IcoCheck tam={18} />}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <span className="text-[13px] font-medium text-fraco">Só para reconhecer o cartão de relance. O nome continua aparecendo.</span>
+    </div>
   )
 }

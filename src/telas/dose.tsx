@@ -7,6 +7,7 @@ import type { Slot } from '../dominio/agenda.ts'
 import { diaDe, horaDe, instante, dataBr, dataCurta, diaRelativo, hojeStr } from '../dominio/datas.ts'
 import { dataLimite, erroNumero, fmtDose, fmtNum, lerNumero, saldoFrasco } from '../dominio/calculos.ts'
 import type { Aplicacao, Frasco, UnidadeDose } from '../dominio/tipos.ts'
+import { escolherFrasco } from '../dominio/estoque.ts'
 import { nomeComMg, nomeSubstancia } from '../dominio/nomes.ts'
 import { Chips, Dialogo, Nota, Sheet } from '../ui/base.tsx'
 import { IcoAlerta } from '../ui/icones.tsx'
@@ -113,9 +114,9 @@ function Registrar({
   )
   const frascoPadrao = (() => {
     if (edicao) return edicao.frascoId ?? ''
-    const cands = [item?.frascoId, ultimo?.frascoId].filter(Boolean) as string[]
-    for (const c of cands) if (frascos.some((f) => f.id === c && frascoComSaldo(f, base))) return c
-    return frascos.find((f) => f.status === 'reconstituido' && frascoComSaldo(f, base))?.id ?? frascos.find((f) => frascoComSaldo(f, base))?.id ?? ''
+    // o ligado à linha (ou o último usado) se tem saldo e não venceu; senão o mais antigo não vencido
+    if (!subId) return ''
+    return escolherFrasco({ substanciaId: subId, preferidos: [item?.frascoId, ultimo?.frascoId], frascos: base.frascos, aplicacoes: base.aplicacoes, hoje: hojeStr() })?.id ?? ''
   })()
 
   const inicioHora = edicao ? new Date(edicao.dataHora) : outroHorario && slot ? instante(slot.dia, slot.horario) : new Date()

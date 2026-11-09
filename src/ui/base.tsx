@@ -58,8 +58,39 @@ export function Passo({ n, total = 4 }: { n: number; total?: number }) {
   return <span className="text-[13px] font-bold tracking-wide text-acento uppercase">Passo {n} de {total}</span>
 }
 
+/** O aparelho pediu para reduzir movimento. */
+export function reduzirMovimento(): boolean {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return false
+  }
+}
+
+/** Duração da saída da folha/diálogo (igual ao CSS). */
+const SAIDA_MS = 160
+
+/**
+ * Fechar pelo X, por tocar fora ou pelo Esc: toca a animação de saída e só depois fecha.
+ * Sem animação quando o aparelho pede menos movimento. Ações que fecham por conta própria
+ * (salvar, apagar) continuam fechando na hora.
+ */
+function useFecharAnimado(aoFechar?: () => void): { saindo: boolean; fechar?: () => void } {
+  const [saindo, setSaindo] = useState(false)
+  const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(t.current), [])
+  if (!aoFechar) return { saindo }
+  const fechar = () => {
+    if (t.current !== undefined) return
+    if (reduzirMovimento()) return aoFechar()
+    setSaindo(true)
+    t.current = setTimeout(aoFechar, SAIDA_MS)
+  }
+  return { saindo, fechar }
+}
+
 /** Fundo escurecido + painel. Fecha com Esc e ao tocar fora. */
-function Camada({ aoFechar, children, alinhar }: { aoFechar?: () => void; children: ReactNode; alinhar: 'baixo' | 'centro' }) {
+function Camada({ aoFechar, children, alinhar, saindo }: { aoFechar?: () => void; children: ReactNode; alinhar: 'baixo' | 'centro'; saindo?: boolean }) {
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => e.key === 'Escape' && aoFechar?.()
     window.addEventListener('keydown', tecla)
@@ -72,7 +103,8 @@ function Camada({ aoFechar, children, alinhar }: { aoFechar?: () => void; childr
   }, [aoFechar])
   return createPortal(
     <div
-      className={`fixed inset-0 z-40 flex justify-center bg-veu/85 ${alinhar === 'baixo' ? 'items-end' : 'items-center px-4'}`}
+      data-saindo={saindo || undefined}
+      className={`veu-anima fixed inset-0 z-40 flex justify-center bg-veu/85 ${alinhar === 'baixo' ? 'items-end' : 'items-center px-4'}`}
       onMouseDown={(e) => e.target === e.currentTarget && aoFechar?.()}
     >
       {children}
@@ -82,21 +114,22 @@ function Camada({ aoFechar, children, alinhar }: { aoFechar?: () => void; childr
 }
 
 /** Bottom sheet (M..). */
-export function Sheet({ titulo, sub, aoFechar, children }: { titulo: ReactNode; sub?: ReactNode; aoFechar?: () => void; children: ReactNode }) {
+export function Sheet({ titulo, sub, aoFechar: fecharJa, children }: { titulo: ReactNode; sub?: ReactNode; aoFechar?: () => void; children: ReactNode }) {
   const id = useId()
   const ref = useRef<HTMLDivElement>(null)
+  const { saindo, fechar: aoFechar } = useFecharAnimado(fecharJa)
   useEffect(() => {
     ref.current?.focus()
   }, [])
   return (
-    <Camada aoFechar={aoFechar} alinhar="baixo">
+    <Camada aoFechar={aoFechar} alinhar="baixo" saindo={saindo}>
       <div
         ref={ref}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}
-        className="flex max-h-[92dvh] w-full max-w-[480px] flex-col gap-4 overflow-y-auto rounded-t-2xl bg-sup px-5 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] outline-none"
+        className="folha-anima flex max-h-[92dvh] w-full max-w-[480px] flex-col gap-4 overflow-y-auto rounded-t-2xl bg-sup px-5 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] outline-none"
       >
         <span aria-hidden="true" className="h-[5px] w-10 self-center rounded-full bg-borda" />
         <div className="flex items-start justify-between gap-2">
@@ -117,15 +150,16 @@ export function Sheet({ titulo, sub, aoFechar, children }: { titulo: ReactNode; 
 }
 
 /** Diálogo de confirmação (alertdialog). */
-export function Dialogo({ titulo, aoFechar, children, icone }: { titulo: ReactNode; aoFechar?: () => void; children: ReactNode; icone?: ReactNode }) {
+export function Dialogo({ titulo, aoFechar: fecharJa, children, icone }: { titulo: ReactNode; aoFechar?: () => void; children: ReactNode; icone?: ReactNode }) {
   const id = useId()
   const ref = useRef<HTMLDivElement>(null)
+  const { saindo, fechar: aoFechar } = useFecharAnimado(fecharJa)
   useEffect(() => {
     ref.current?.focus()
   }, [])
   return (
-    <Camada aoFechar={aoFechar} alinhar="centro">
-      <div ref={ref} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby={id} className="flex max-h-[90dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto rounded-2xl border border-linha bg-sup px-6 pt-7 pb-6 outline-none">
+    <Camada aoFechar={aoFechar} alinhar="centro" saindo={saindo}>
+      <div ref={ref} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby={id} className="dialogo-anima flex max-h-[90dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto rounded-2xl border border-linha bg-sup px-6 pt-7 pb-6 outline-none">
         {icone}
         <h2 id={id} className="text-[22px] font-extrabold">{titulo}</h2>
         {children}

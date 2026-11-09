@@ -59,34 +59,47 @@ describe('voltar com saída garantida', () => {
   })
 })
 
-describe('frasco da calculadora (opcional, um toque)', () => {
-  it('sem pedir, não salva frasco', () => {
-    expect(frascoDoCalculo({ ...pronto().itens[0], calcMgTxt: '5', calcMlTxt: '2' }, '2026-11-09')).toBeNull()
-  })
-
-  it('pedindo: frasco reconstituído hoje com os números digitados', () => {
-    const i = { ...pronto().itens[0], calcMgTxt: '5', calcMlTxt: '2,5', salvarFrasco: true }
+describe('frasco da calculadora: sempre vai para o Estoque', () => {
+  it('com mg e água: frasco reconstituído hoje com os números digitados, sem precisar pedir', () => {
+    const i = { ...pronto().itens[0], calcMgTxt: '5', calcMlTxt: '2,5' }
     expect(frascoDoCalculo(i, '2026-11-09')).toEqual({
       substanciaId: 's1', mgTotal: 5, diluenteMl: 2.5, status: 'reconstituido', reconstituidoEm: '2026-11-09', compradoEm: '2026-11-09',
     })
   })
 
-  it('pedindo com números inválidos: a revisão avisa em vez de salvar calado', () => {
-    for (const [mg, ml] of [['', '2'], ['0', '2'], ['5', '-1'], ['1.000', '2']]) {
-      const r = pronto({ calcMgTxt: mg, calcMlTxt: ml, salvarFrasco: true })
+  it('só com os mg (ainda não reconstituiu): entra lacrado', () => {
+    expect(frascoDoCalculo({ ...pronto().itens[0], calcMgTxt: '10' }, '2026-11-09')).toEqual({ substanciaId: 's1', mgTotal: 10, status: 'fechado', compradoEm: '2026-11-09' })
+  })
+
+  it('sem dados do frasco: nenhum frasco (o protocolo salva e mostra o aviso para adicionar depois)', () => {
+    expect(frascoDoCalculo(pronto().itens[0], '2026-11-09')).toBeNull()
+    expect(validarRascunho(pronto()).ok).toBe(true)
+  })
+
+  it('linha que já tem frasco usável ligado (editar): não duplica', () => {
+    expect(frascoDoCalculo({ ...pronto().itens[0], calcMgTxt: '5', calcMlTxt: '2' }, '2026-11-09', true)).toBeNull()
+  })
+
+  it('números inválidos na calculadora: a revisão avisa em vez de salvar sem o frasco calado', () => {
+    for (const [mg, ml] of [['', '2'], ['0', '2'], ['5', '-1'], ['1.000', '2'], ['abc', '']]) {
+      const r = pronto({ calcMgTxt: mg, calcMlTxt: ml })
       expect(frascoDoCalculo(r.itens[0], r.inicio)).toBeNull()
       const v = validarRascunho(r)
       expect(v.ok).toBe(false)
-      expect(v.erros.join(' ')).toMatch(/Estoque/)
+      expect(v.erros.join(' ')).toMatch(/frasco/)
     }
-    expect(validarRascunho(pronto({ calcMgTxt: '5', calcMlTxt: '2', salvarFrasco: true })).ok).toBe(true)
-    // números da calculadora sem pedir para salvar não atrapalham
-    expect(validarRascunho(pronto({ calcMgTxt: 'abc', calcMlTxt: '' })).ok).toBe(true)
+    expect(validarRascunho(pronto({ calcMgTxt: '5', calcMlTxt: '2' })).ok).toBe(true)
+    expect(validarRascunho(pronto({ calcMgTxt: '  ', calcMlTxt: '' })).ok).toBe(true)
   })
 
   it('a calculadora não muda a dose gravada no protocolo', () => {
-    const { itens } = montarProtocolo(pronto({ calcMgTxt: '10', calcMlTxt: '3', salvarFrasco: true }))
+    const { itens } = montarProtocolo(pronto({ calcMgTxt: '10', calcMlTxt: '3' }))
     expect(itens[0].doseValor).toBe(250)
     expect(itens[0].doseUnidade).toBe('mcg')
+  })
+
+  it('a cor escolhida vai para o protocolo; editar mantém a cor', () => {
+    expect(montarProtocolo({ ...pronto(), cor: 'violeta' }).protocolo.cor).toBe('violeta')
+    expect(montarProtocolo(pronto()).protocolo.cor).toBeUndefined()
   })
 })

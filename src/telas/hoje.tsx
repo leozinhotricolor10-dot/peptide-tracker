@@ -1,14 +1,16 @@
 // T10 Hoje, E10 Hoje vazio, N73 backup atrasado, M66 primeiro backup, N06 reativar avisos, alertas de frasco.
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { repo, useBase, useConfig, type Base } from '../dados/index.ts'
-import { proximosSlots, slotsDoDia, statusSlot, type Slot, type StatusSlot } from '../dominio/agenda.ts'
+import { estadoEfetivo, proximosSlots, slotsDoDia, statusSlot, type Slot, type StatusSlot } from '../dominio/agenda.ts'
 import { dataLonga, diaDe, diaRelativo, difDias, horaDe, somaDias } from '../dominio/datas.ts'
 import { LIMITE_ACABANDO, dataLimite, fmtDose, saldoFrasco } from '../dominio/calculos.ts'
-import { nomeSubstancia } from '../dominio/nomes.ts'
+import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
+import { estoqueDoItem } from '../dominio/estoque.ts'
+import { bordaCor } from '../ui/cor.tsx'
 import type { Frasco } from '../dominio/tipos.ts'
 import { Carregando, Dialogo, Tela, Vazio } from '../ui/base.tsx'
-import { IcoAlerta, IcoCheck, IcoEngrenagem, IcoProtocolos, IcoSeta, IcoSino, IcoX } from '../ui/icones.tsx'
+import { IcoAlerta, IcoCheck, IcoEngrenagem, IcoEstoque, IcoProtocolos, IcoSeta, IcoSino, IcoX } from '../ui/icones.tsx'
 import { FrascoVencido, useDoseUI } from './dose.tsx'
 import { PrePermissao, AvisosBloqueados } from './inicio.tsx'
 import { useToast } from '../ui/toast.tsx'
@@ -97,6 +99,13 @@ export function Hoje() {
     if (f.mgTotal > 0 && s.dosesFeitas > 0 && s.mgRestante / f.mgTotal <= LIMITE_ACABANDO) alertas.push({ f, texto: `Frasco de ${nome} está acabando` })
   }
 
+  // linhas de protocolos ativos sem frasco usável no Estoque (selo + atalho para adicionar)
+  const semFrascoLinhas = base.protocolos
+    .filter((p) => estadoEfetivo(p, hoje) === 'ativo')
+    .flatMap((p) => base.itens.filter((i) => i.protocoloId === p.id).map((i) => ({ i, p })))
+    .filter(({ i }) => !estoqueDoItem(i, base.frascos, base.aplicacoes, hoje).frasco)
+  const semFrascoIds = new Set(semFrascoLinhas.map((x) => x.i.id))
+
   const diasBackup = ultimoBackup.valor ? difDias(diaDe(new Date(ultimoBackup.valor)), hoje) : null
   const adiadoAtivo = !!adiado.valor && adiado.valor > hoje
   const mostrarN73 = diasBackup !== null && diasBackup > 30 && !adiadoAtivo
@@ -142,10 +151,12 @@ export function Hoje() {
           {slots.length > 0 && <span className="text-[13px] font-semibold text-fraco">{feitas} de {slots.length}</span>}
         </div>
         {slots.length === 0 && <p className="m-0 card p-4 text-[15px] text-suave">Nenhuma dose prevista para hoje.</p>}
-        {slots.map(({ s, st }) => {
+        {slots.map(({ s, st }, k) => {
           const ap = base.aplicacoes.find((a) => a.itemId === s.itemId && a.previsto === s.chave)
+          const prot = base.protocolos.find((p) => p.id === s.protocoloId)
+          const semFrasco = (st === 'pendente' || st === 'atrasada') && semFrascoIds.has(s.itemId)
           return (
-            <button key={s.chave + s.itemId} type="button" onClick={() => clicar(s, st)} className="card flex min-h-[64px] items-center gap-3.5 px-4 py-3 text-left">
+            <button key={s.chave + s.itemId} type="button" onClick={() => clicar(s, st)} style={{ '--i': k, ...bordaCor(prot) } as CSSProperties} className="card tocavel anima-entrada flex min-h-[64px] items-center gap-3.5 border-l-[5px] px-4 py-3 text-left">
               {st === 'feita' ? (
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ok-fundo text-ok"><IcoCheck tam={18} /></span>
               ) : st === 'pulada' ? (
@@ -158,6 +169,9 @@ export function Hoje() {
                 <span className={`text-[13px] font-semibold ${st === 'atrasada' ? 'text-aviso' : st === 'pulada' ? 'text-erro' : st === 'feita' ? 'text-ok' : 'text-fraco'}`}>
                   {st === 'feita' && ap ? `✓ Tomada às ${horaDe(new Date(ap.dataHora))} · ${fmtDose(ap.doseValor, ap.doseUnidade)}` : st === 'pulada' ? '✕ Não feita' : st === 'atrasada' ? `${doseTexto(base, s)} · atrasada` : `${doseTexto(base, s)} · pendente`}
                 </span>
+                {semFrasco && (
+                  <span className="mt-0.5 flex items-center gap-1 self-start rounded-full bg-aviso-fundo px-2 py-0.5 text-xs font-bold text-aviso-texto"><IcoAlerta tam={12} /> Sem frasco no estoque</span>
+                )}
               </span>
               <span className="text-sm font-bold">{s.horario}</span>
             </button>
@@ -167,7 +181,7 @@ export function Hoje() {
           .filter((a) => diaDe(new Date(a.dataHora)) === hoje && !slots.some((x) => x.s.itemId === a.itemId && x.s.chave === a.previsto))
           .sort((a, b) => a.dataHora.localeCompare(b.dataHora))
           .map((a) => (
-            <button key={a.id} type="button" onClick={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })} className="card flex min-h-[64px] items-center gap-3.5 px-4 py-3 text-left">
+            <button key={a.id} type="button" onClick={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })} style={bordaCor(base.protocolos.find((p) => p.id === a.protocoloId))} className="card tocavel anima-entrada flex min-h-[64px] items-center gap-3.5 border-l-[5px] px-4 py-3 text-left">
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${a.status === 'feita' ? 'bg-ok-fundo text-ok' : 'bg-sup2 text-erro'}`}>
                 {a.status === 'feita' ? <IcoCheck tam={18} /> : <IcoX tam={16} />}
               </span>
@@ -188,6 +202,17 @@ export function Hoje() {
           <span className="flex-1 text-sm font-semibold text-aviso-texto">{a.texto}</span>
           <IcoSeta tam={18} className="text-aviso" />
         </button>
+      ))}
+
+      {semFrascoLinhas.map(({ i, p }) => (
+        <Link key={i.id} to={`/estoque/frasco/novo?sub=${i.substanciaId}&item=${i.id}`} style={bordaCor(p)} className="card tocavel flex min-h-[52px] items-center gap-3 border-l-[5px] px-4 py-3">
+          <IcoEstoque tam={22} className="shrink-0 text-acento" />
+          <span className="flex flex-1 flex-col gap-0.5">
+            <span className="text-sm font-bold">Adicione o frasco para acompanhar o estoque</span>
+            <span className="text-[13px] text-fraco">{nomeProtocolo(p, base.itens, base.subs)}{base.itens.filter((x) => x.protocoloId === p.id).length > 1 ? ` · ${nomeSubstancia(i.substanciaId, base.subs)}` : ''} · sem frasco no estoque</span>
+          </span>
+          <IcoSeta tam={18} className="text-acento" />
+        </Link>
       ))}
 
       {mostrarN73 && (

@@ -126,3 +126,125 @@
   @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px];
 }
 
+
+/* ---------- Movimento ----------
+   Só transform e opacity (a GPU anima sem recalcular o layout), 120-250 ms, nunca em loop.
+   Nada de biblioteca. Com "reduzir movimento" ligado no aparelho, tudo isso desliga (fim do arquivo). */
+@keyframes pt-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes pt-aparecer {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pt-subir {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes pt-descer {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes pt-sumir {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes pt-crescer {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes pt-encolher {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes pt-barra {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+/* Entrada dos cartões: sobe e aparece, em cascata curta (até 6 itens, 40 ms entre eles).
+   `backwards`: depois de entrar, a animação solta o transform (o toque com escala continua valendo). */
+@utility anima-entrada {
+  animation: pt-entrar 220ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 5) * 40ms);
+}
+
+/* Toque: leve encolhida enquanto o dedo está em cima. */
+@utility tocavel {
+  transition: transform 120ms ease-out, background-color 120ms ease-out;
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+@utility indicador-aba {
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Barra de progresso: a parte cheia desliza da esquerda até o valor (o valor é um translateX). */
+@utility barra-anima {
+  animation: pt-barra 500ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: 120ms;
+}
+
+@utility veu-anima {
+  animation: pt-aparecer 200ms ease-out;
+  &[data-saindo] {
+    animation: pt-sumir 160ms ease-in forwards;
+  }
+}
+@utility folha-anima {
+  animation: pt-subir 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  [data-saindo] > & {
+    animation: pt-descer 160ms ease-in forwards;
+  }
+}
+@utility dialogo-anima {
+  animation: pt-crescer 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  [data-saindo] > & {
+    animation: pt-encolher 160ms ease-in forwards;
+  }
+}
+@utility aviso-anima {
+  animation: pt-entrar 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@layer base {
+  .btn,
+  .btn-primario,
+  .btn-secundario,
+  .btn-neutro,
+  .btn-perigo,
+  .chip {
+    transition: transform 120ms ease-out, background-color 120ms ease-out;
+  }
+  .btn:active:not(:disabled),
+  .btn-primario:active:not(:disabled),
+  .btn-secundario:active:not(:disabled),
+  .btn-neutro:active:not(:disabled),
+  .btn-perigo:active:not(:disabled),
+  .chip:active {
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

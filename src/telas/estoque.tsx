@@ -1,5 +1,5 @@
 // T40 Estoque (+E50), T51 novo/editar frasco, T52 reconstituição, T53 reconstituição de blend, M51 vencido.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { repo, useBase, type Base } from '../dados/index.ts'
 import { buscar } from '../dominio/sugestoes.ts'
@@ -32,6 +32,9 @@ import { BotaoAcao, useAcao } from '../ui/acao.tsx'
 import { mensagemDeErro } from '../dados/repo.ts'
 import { FrascoVencido, UNIDADES } from './dose.tsx'
 import { DIAS_AVISO_VENCIMENTO } from './hoje.tsx'
+import { corDe } from '../dominio/cores.ts'
+import { dosesRestantes } from '../dominio/estoque.ts'
+import { PontoCor } from '../ui/cor.tsx'
 
 function itemDoFrasco(base: Base, f: Frasco): ItemProtocolo | undefined {
   const ativos = new Set(base.protocolos.filter((p) => p.estado !== 'encerrado').map((p) => p.id))
@@ -84,7 +87,7 @@ export function Estoque() {
   const mes = hoje.slice(0, 7)
   const gastoMes = base.frascos.filter((f) => (f.compradoEm ?? diaDe(new Date(f.criadoEm))).startsWith(mes)).reduce((s, f) => s + (f.custo ?? 0), 0)
 
-  const card = (f: Frasco) => {
+  const card = (f: Frasco, k = 0) => {
     const nome = nomeSubstancia(f.substanciaId, base.subs)
     const s = saldoFrasco(f, base.aplicacoes)
     const selo = seloFrasco(f, base, hoje)
@@ -93,8 +96,11 @@ export function Estoque() {
     const lim = dataLimite(f)
     const frac = s.mlRestante !== null && f.diluenteMl ? s.mlRestante / f.diluenteMl : f.mgTotal ? s.mgRestante / f.mgTotal : 0
     const aberto = lim && difDias(hoje, lim) <= DIAS_AVISO_VENCIMENTO && (f.status === 'fechado' || f.status === 'reconstituido')
+    const prot = item ? base.protocolos.find((p) => p.id === item.protocoloId) : undefined
+    const emUsoF = f.status === 'fechado' || f.status === 'reconstituido'
+    const doses = item && emUsoF ? dosesRestantes(f, base.aplicacoes, item.doseValor, item.doseUnidade) : null
     return (
-      <div key={f.id} className={`card flex flex-col gap-2.5 p-4 ${selo.cls.includes('aviso') ? 'border-aviso' : ''}`}>
+      <div key={f.id} style={{ '--i': k, ...(prot && emUsoF ? { borderLeftColor: corDe(prot).hex } : {}) } as CSSProperties} className={`card anima-entrada flex flex-col gap-2.5 p-4 ${prot && emUsoF ? 'border-l-[5px]' : ''} ${selo.cls.includes('aviso') ? 'border-aviso' : ''}`}>
         <Link to={`/estoque/frasco/${f.id}`} className="flex items-start justify-between gap-2">
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className="text-[17px] font-extrabold break-words">{nomeComMg(nome, f.mgTotal)}</span>
@@ -114,8 +120,14 @@ export function Estoque() {
               <div className="h-2 overflow-hidden rounded-full bg-sup2" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(frac * 100)} aria-label="Saldo do frasco">
                 <div className={`h-full rounded-full ${frac <= LIMITE_ACABANDO ? 'bg-aviso' : 'bg-acento'}`} style={{ width: `${Math.max(0, Math.min(100, frac * 100))}%` }} />
               </div>
+              {doses !== null && <span className="text-sm font-semibold text-suave">{doses === 0 ? 'Menos de 1 dose restante' : `≈ ${doses} dose${doses === 1 ? '' : 's'} restante${doses === 1 ? '' : 's'}`} com {fmtDose(item!.doseValor, item!.doseUnidade)}</span>}
               {s.naoContabilizadas > 0 && <span className="text-xs text-fraco">{s.naoContabilizadas} registro(s) sem conversão para mg (em UI, ou em mL/unidades antes de reconstituir) não entram na conta.</span>}
             </div>
+            {prot && (
+              <Link to={`/protocolos/${prot.id}`} className="flex min-h-11 items-center gap-2 text-[13px] font-semibold text-suave">
+                <PontoCor protocolo={prot} /> Protocolo: <span className="text-texto">{nomeProtocolo(prot, base.itens, base.subs)}</span>
+              </Link>
+            )}
             <div className="flex flex-wrap justify-between gap-x-3 border-t border-sup2 pt-2.5 text-[13px] text-suave">
               <span>{lim ? `Validade: ${dataDiaMes(lim)}` : 'Sem validade informada'}</span>
               {custo !== null && <span>Custo: {fmtReais(custo)} por dose</span>}
@@ -143,13 +155,13 @@ export function Estoque() {
         <div className="card flex flex-col gap-0.5 p-3"><span className="text-xs font-bold text-fraco">Gasto no mês</span><b className="text-base">{fmtReais(gastoMes)}</b></div>
       </div>
       {emUso.length === 0 && <p className="m-0 card p-4 text-[15px] text-suave">Nenhum frasco em uso.</p>}
-      {emUso.sort((a, b) => (a.status === b.status ? 0 : a.status === 'reconstituido' ? -1 : 1)).map(card)}
+      {emUso.sort((a, b) => (a.status === b.status ? 0 : a.status === 'reconstituido' ? -1 : 1)).map((f, k) => card(f, k))}
       {antigos.length > 0 && (
         <>
           <button type="button" className="link" aria-expanded={verAntigos} onClick={() => setVerAntigos(!verAntigos)}>
             {verAntigos ? 'Esconder' : 'Ver'} acabados e descartados ({antigos.length})
           </button>
-          {verAntigos && antigos.map(card)}
+          {verAntigos && antigos.map((f, k) => card(f, k))}
         </>
       )}
       {vencido && <FrascoVencido frasco={vencido} base={base} aoFechar={() => setVencido(null)} manter={() => setVencido(null)} />}
@@ -230,6 +242,8 @@ function FormFrascoTela() {
   const apagado = useRef(false)
   const existente = id ? base?.frascos.find((f) => f.id === id) : undefined
   const [subId, setSubId] = useState<string | undefined>(params.get('sub') ?? undefined)
+  // "Adicione o frasco" de um protocolo: o frasco novo já fica ligado àquela linha.
+  const itemLigar = !id ? base?.itens.find((i) => i.id === params.get('item')) : undefined
   const [mg, setMg] = useState('')
   const [validade, setValidade] = useState('')
   const [lote, setLote] = useState('')
@@ -282,6 +296,7 @@ function FormFrascoTela() {
       compradoEm: compra || undefined,
       custo: custoN ?? undefined,
       })
+      if (itemLigar && itemLigar.substanciaId === subId) await repo.ligarFrasco(itemLigar.id, f.id)
     } catch (e) {
       setSalvando(false)
       return setErro(mensagemDeErro(e))
@@ -298,6 +313,15 @@ function FormFrascoTela() {
   return (
     <Tela className="min-h-dvh">
       <Cabecalho titulo={existente ? 'Frasco' : 'Novo frasco'} fechar={() => voltarOu('/estoque')} />
+      {itemLigar && (() => {
+        const p = base.protocolos.find((x) => x.id === itemLigar.protocoloId)
+        return p ? (
+          <p className="m-0 flex items-center gap-2 rounded-xl bg-sup2 px-4 py-3 text-sm text-suave">
+            <PontoCor protocolo={p} />
+            <span>Vai ficar ligado ao protocolo <b className="text-texto">{nomeProtocolo(p, base.itens, base.subs)}</b>, para acompanhar o saldo.</span>
+          </p>
+        ) : null
+      })()}
       <div className="rotulo">
         <span>Substância (simples ou blend)</span>
         <EscolherSubstancia base={base} valor={subId} aoEscolher={(s) => { setSubId(s.id); setErro(''); const sm = s.tipo === 'blend' ? somaComponentesMg(s.componentes) : null; if (sm && !mg) setMg(fmtNum(sm)) }} />

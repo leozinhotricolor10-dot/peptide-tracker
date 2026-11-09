@@ -1,5 +1,5 @@
 // T20 Protocolos (+E20), T25/T27 detalhe, M21 ações, M22 pausar, M23 encerrar, T31 histórico.
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { repo, useBase, type Base } from '../dados/index.ts'
 import { estadoEfetivo, frequenciaCurta, descreverFrequencia, progresso, proximosSlots, resumoDoDia, slotsDoDia, statusSlot, terminouEm } from '../dominio/agenda.ts'
@@ -9,10 +9,14 @@ import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import type { EstadoProtocolo, Protocolo } from '../dominio/tipos.ts'
 import { Carregando, Dialogo, NaoAchou, Nota, Sheet, StatusTomada, Tela, Vazio } from '../ui/base.tsx'
 import { useVoltar } from '../ui/navegar.ts'
-import { IcoCopiar, IcoEditar, IcoMais, IcoPausa, IcoPlay, IcoParar, IcoPontos, IcoProtocolos, IcoVoltar, IcoSeta, IcoBaixo, IcoLixo } from '../ui/icones.tsx'
+import { IcoAlerta, IcoEstoque, IcoCopiar, IcoEditar, IcoMais, IcoPausa, IcoPlay, IcoParar, IcoPontos, IcoProtocolos, IcoVoltar, IcoSeta, IcoBaixo, IcoLixo } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { BotaoAcao } from '../ui/acao.tsx'
 import { useDoseUI } from './dose.tsx'
+import { estoqueDoItem, resumoEstoque, type EstoqueDoItem } from '../dominio/estoque.ts'
+import { bordaCor, PontoCor } from '../ui/cor.tsx'
+
+const ABAS = ['ativo', 'pausado', 'encerrado'] as const
 
 const ROTULO_ESTADO: Record<EstadoProtocolo, string> = { ativo: 'Ativo', pausado: 'Pausado', encerrado: 'Concluído' }
 
@@ -53,32 +57,37 @@ export function Protocolos() {
   return (
     <Tela>
       {cabecalho}
-      <div role="tablist" aria-label="Estado" className="grid grid-cols-3 gap-1 rounded-xl bg-sup p-1">
-        {(['ativo', 'pausado', 'encerrado'] as const).map((e) => (
-          <button key={e} type="button" role="tab" aria-selected={aba === e} onClick={() => setAba(e)} className={`h-11 rounded-[10px] text-sm font-bold ${aba === e ? 'bg-selecionado text-acento' : 'text-fraco'}`}>
+      <div role="tablist" aria-label="Estado" className="relative grid grid-cols-3 gap-1 rounded-xl bg-sup p-1">
+        {/* fundo da aba escolhida desliza entre as abas (só transform) */}
+        <span aria-hidden="true" className="indicador-aba absolute top-1 bottom-1 left-1 rounded-[10px] bg-selecionado" style={{ width: 'calc((100% - 1rem) / 3)', transform: `translateX(calc(${ABAS.indexOf(aba)} * (100% + 0.25rem)))` }} />
+        {ABAS.map((e) => (
+          <button key={e} type="button" role="tab" aria-selected={aba === e} onClick={() => setAba(e)} className={`relative h-11 rounded-[10px] text-sm font-bold transition-colors ${aba === e ? 'text-acento' : 'text-fraco'}`}>
             {e === 'ativo' ? 'Ativos' : e === 'pausado' ? 'Pausados' : 'Concluídos'}
             {porEstado(e).length > 0 && ` (${porEstado(e).length})`}
           </button>
         ))}
       </div>
-      {lista.length === 0 && <p className="m-0 card p-4 text-[15px] text-suave">Nenhum protocolo {aba === 'ativo' ? 'ativo' : aba === 'pausado' ? 'pausado' : 'concluído'}.</p>}
-      {lista.map((p) => {
+      <div key={aba} className="flex flex-col gap-5">
+      {lista.length === 0 && <p className="anima-entrada m-0 card p-4 text-[15px] text-suave">Nenhum protocolo {aba === 'ativo' ? 'ativo' : aba === 'pausado' ? 'pausado' : 'concluído'}.</p>}
+      {lista.map((p, k) => {
         const itens = linhasDe(base, p)
         const pr = progresso(p, hoje)
         const total = p.fim ? difDias(p.inicio, p.fim) + 1 : 0
         const feito = total ? Math.min(1, Math.max(0, (difDias(p.inicio, hoje) + 1) / total)) : 0
+        const est = estadoEfetivo(p, hoje)
+        const estoques = est !== 'encerrado' ? itens.map((i) => estoqueDoItem(i, base.frascos, base.aplicacoes, hoje)) : []
         return (
-          <Link key={p.id} to={`/protocolos/${p.id}`} className="card flex flex-col gap-3 p-4">
+          <Link key={p.id} to={`/protocolos/${p.id}`} style={{ '--i': k, ...bordaCor(p) } as CSSProperties} className="card tocavel anima-entrada flex flex-col gap-3 border-l-[5px] p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-[19px] font-extrabold tracking-tight break-words">{nomeProtocolo(p, base.itens, base.subs)}</span>
+                <span className="flex items-center gap-2 text-[19px] font-extrabold tracking-tight break-words"><PontoCor protocolo={p} />{nomeProtocolo(p, base.itens, base.subs)}</span>
                 <span className="text-[13px] text-fraco">{pr.texto} · iniciado em {dataDiaMes(p.inicio)}</span>
               </div>
               <SeloEstado estado={estadoEfetivo(p, hoje)} />
             </div>
             {total > 0 && (
               <div className="h-2 overflow-hidden rounded-full bg-sup2" role="progressbar" aria-label="Andamento do protocolo" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(feito * 100)}>
-                <div className="h-full rounded-full bg-acento" style={{ width: `${feito * 100}%` }} />
+                <div className="barra-anima h-full w-full rounded-full bg-acento" style={{ transform: `translateX(${(feito - 1) * 100}%)` }} />
               </div>
             )}
             <div className="flex flex-col gap-1.5 border-t border-sup2 pt-3">
@@ -89,6 +98,13 @@ export function Protocolos() {
                 </span>
               ))}
             </div>
+            {estoques.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {estoques.map((e, j) => (
+                  <SeloEstoque key={itens[j].id} e={e} nome={itens.length > 1 ? nomeSubstancia(itens[j].substanciaId, base.subs) : undefined} />
+                ))}
+              </div>
+            )}
             {estadoEfetivo(p, hoje) === 'pausado' && <span className="text-[13px] font-semibold text-aviso">{p.pausadoAte ? `Pausado até ${dataCurta(p.pausadoAte)}` : 'Pausado sem data de volta'}</span>}
             {pr.pausaDeCiclo && estadoEfetivo(p, hoje) === 'ativo' && (
               <span className="rounded-lg bg-sup2 px-3 py-2 text-[13px] font-semibold text-suave">Pausa de ciclo · próximo ciclo começa em {pr.diasAteVoltar} dia{pr.diasAteVoltar === 1 ? '' : 's'}</span>
@@ -96,7 +112,26 @@ export function Protocolos() {
           </Link>
         )
       })}
+      </div>
     </Tela>
+  )
+}
+
+/** Resumo curto do estoque de uma linha: "Frasco: 12 doses restantes" ou o selo "Sem frasco no estoque". */
+export function SeloEstoque({ e, nome }: { e: EstoqueDoItem; nome?: string }) {
+  if (!e.frasco) {
+    return (
+      <span className="flex items-center gap-1.5 self-start rounded-full bg-aviso-fundo px-2.5 py-1 text-[13px] font-bold text-aviso-texto">
+        <IcoAlerta tam={14} /> Sem frasco no estoque{nome ? ` · ${nome}` : ''}
+      </span>
+    )
+  }
+  const pouco = e.vencido || (e.doses !== null && e.doses <= 2)
+  return (
+    <span className={`flex items-center gap-1.5 text-[13px] font-semibold ${pouco ? 'text-aviso-texto' : 'text-suave'}`}>
+      {pouco ? <IcoAlerta tam={14} className="shrink-0 text-aviso" /> : <IcoEstoque tam={14} className="shrink-0 text-acento" />}
+      {nome ? `${nome} · ` : ''}{resumoEstoque(e)}
+    </span>
   )
 }
 
@@ -136,7 +171,7 @@ export function DetalheProtocolo() {
       </div>
       <div className="flex flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
-          <h1 className="text-[28px] leading-tight font-extrabold tracking-tight break-words">{nome}</h1>
+          <h1 className="flex items-center gap-2.5 text-[28px] leading-tight font-extrabold tracking-tight break-words"><PontoCor protocolo={p} tam={14} />{nome}</h1>
           <SeloEstado estado={estado} />
         </div>
         <span className="text-sm text-fraco">Iniciado em {dataBr(p.inicio)}{p.fim ? ` · até ${dataBr(p.fim)}` : ' · sem data de fim'}</span>
@@ -152,9 +187,10 @@ export function DetalheProtocolo() {
         </Nota>
       )}
 
-      <div className="card flex flex-col">
+      <div className="card anima-entrada flex flex-col border-l-[5px]" style={bordaCor(p)}>
         {itens.map((i) => {
           const s = base.subs.get(i.substanciaId)
+          const e = estado !== 'encerrado' ? estoqueDoItem(i, base.frascos, base.aplicacoes, hoje) : undefined
           return (
             <div key={i.id} className="flex flex-col gap-1 border-t border-sup2 px-4 py-3 first:border-t-0">
               <span className="flex flex-wrap items-center gap-2 text-base font-bold">
@@ -162,6 +198,20 @@ export function DetalheProtocolo() {
                 {s?.tipo === 'blend' && <span className="selo border border-borda text-suave">Blend</span>}
               </span>
               <span className="text-sm text-suave">{fmtDose(i.doseValor, i.doseUnidade)} · {descreverFrequencia(i.frequencia, i.horarios)}</span>
+              {e && (
+                <div className="flex flex-wrap items-center gap-x-4 pt-1">
+                  {e.frasco ? (
+                    <Link to={`/estoque/frasco/${e.frasco.id}`} className="flex min-h-11 items-center"><SeloEstoque e={e} /></Link>
+                  ) : (
+                    <SeloEstoque e={e} />
+                  )}
+                  {(!e.frasco || (e.doses !== null && e.doses <= 2)) && (
+                    <Link to={`/estoque/frasco/novo?sub=${i.substanciaId}&item=${i.id}`} className="link">
+                      <IcoMais tam={18} /> {e.frasco ? 'Adicionar o próximo frasco' : 'Adicione o frasco para acompanhar o estoque'}
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
@@ -435,21 +485,22 @@ export function Historico() {
       </section>
 
       {doMes.length === 0 && <p className="m-0 card p-4 text-[15px] text-suave">Nenhum registro em {nomeMes(m - 1)}.</p>}
-      {[...grupos.entries()].map(([dia, lista]) => (
-        <div key={dia} className="flex flex-col gap-2">
+      {[...grupos.entries()].map(([dia, lista], gi) => (
+        <div key={dia} className="anima-entrada flex flex-col gap-2" style={{ '--i': gi } as CSSProperties}>
           <span className="text-[13px] font-bold text-fraco">{dataMedia(dia)}{dia === hoje ? ' · hoje' : ''}</span>
           <div className="card flex flex-col">
             {lista.map((a) => {
               const d = new Date(a.dataHora)
               const fr = a.frascoId ? base.frascos.find((f) => f.id === a.frascoId) : undefined
               const extra = [a.local, fr ? `frasco ${fr.reconstituidoEm ? `aberto em ${dataCurta(fr.reconstituidoEm)}` : `${fr.mgTotal} mg`}` : '', a.motivo ? `Motivo: ${a.motivo.toLowerCase()}` : '', a.observacao].filter(Boolean).join(' · ')
+              const pr = base.protocolos.find((x) => x.id === a.protocoloId)
               return (
-                <div key={a.id} className="flex items-center gap-3 border-t border-sup2 py-2.5 pr-1.5 pl-4 first:border-t-0">
+                <div key={a.id} className="flex items-center gap-3 border-t border-l-[5px] border-t-sup2 py-2.5 pr-1.5 pl-3 first:border-t-0" style={bordaCor(pr)}>
                   <span className="flex flex-1 flex-col gap-0.5">
                     <span className="text-[15px]">
                       <StatusTomada status={a.status} /> <span className="font-bold">· {horaDe(d)}{a.status === 'feita' ? ` · ${fmtDose(a.doseValor, a.doseUnidade)}` : ''}</span>
                     </span>
-                    <span className="text-[13px] text-fraco">{nomeSubstancia(a.substanciaId, base.subs)}{extra ? ` · ${extra}` : ''}</span>
+                    <span className="text-[13px] text-fraco">{pr && !filtro ? `${nomeProtocolo(pr, base.itens, base.subs)} · ` : ''}{nomeSubstancia(a.substanciaId, base.subs)}{extra ? ` · ${extra}` : ''}</span>
                   </span>
                   <button type="button" aria-label={`Opções do registro das ${horaDe(d)}`} className="icone-btn text-fraco" onClick={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })}><IcoPontos /></button>
                 </div>

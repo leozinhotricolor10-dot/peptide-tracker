@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[96px] z-50 flex justify-center px-4">
         {atual && (
-          <div role="status" key={atual.id} className="pointer-events-auto flex w-full max-w-[448px] items-center gap-3 rounded-xl bg-texto py-2 pr-2 pl-4 text-sobre-acento">
+          <div role="status" key={atual.id} className="aviso-anima pointer-events-auto flex w-full max-w-[448px] items-center gap-3 rounded-xl bg-texto py-2 pr-2 pl-4 text-sobre-acento">
             {atual.tipo === 'info' ? <IcoInfo tam={22} className="text-[#00695C]" /> : <IcoCheck tam={22} className="text-[#0B6B48]" />}
             <span className="flex flex-1 flex-col gap-0.5 py-1">
               <b className="text-[15px]">{atual.titulo}</b>

@@ -15,6 +15,7 @@ import type { Sugestao } from '../dominio/sugestoes.ts'
 import { normalizar } from '../dominio/sugestoes.ts'
 import { hojeStr } from '../dominio/datas.ts'
 import { fecharPausa } from '../dominio/agenda.ts'
+import { corValida, proximaCor } from '../dominio/cores.ts'
 
 export function novoId(): string {
   return crypto.randomUUID()
@@ -184,18 +185,42 @@ export function criarRepo(db: BancoLocal) {
       const itens = (await db.itens.where('protocoloId').equals(id).toArray()).sort((a, b) => a.ordem - b.ordem)
       return { protocolo, itens }
     },
-    /** Cria ou substitui o protocolo e suas linhas. Linhas removidas somem; registros antigos ficam. */
-    async salvarProtocolo(p: Protocolo, itens: ItemProtocolo[]): Promise<void> {
-      await gravando(() =>
-        db.transaction('rw', db.protocolos, db.itens, async () => {
+    /**
+     * Cria ou substitui o protocolo e suas linhas. Linhas removidas somem; registros antigos ficam.
+     * Sem cor escolhida, ganha a próxima cor livre da paleta.
+     * `frascosNovos` (id da linha -> frasco): frascos informados na calculadora, que entram no Estoque
+     * já ligados à linha, na MESMA transação (ou salva tudo, ou nada).
+     */
+    async salvarProtocolo(p: Protocolo, itens: ItemProtocolo[], frascosNovos: Record<string, Omit<Frasco, 'id' | 'criadoEm'>> = {}): Promise<{ frascos: Frasco[] }> {
+      return gravando(() =>
+        db.transaction('rw', db.protocolos, db.itens, db.frascos, async () => {
           const nome = p.nome?.trim()
-          await db.protocolos.put({ ...p, nome: nome ? nome : undefined })
+          let cor = corValida(p.cor) ? p.cor : undefined
+          if (!cor) {
+            const antiga = (await db.protocolos.get(p.id))?.cor
+            cor = corValida(antiga) ? antiga : proximaCor((await db.protocolos.toArray()).filter((x) => x.id !== p.id).map((x) => x.cor))
+          }
+          await db.protocolos.put({ ...p, nome: nome ? nome : undefined, cor })
+          const criados: Frasco[] = []
+          const ligados = itens.map((i) => {
+            const novo = frascosNovos[i.id]
+            if (!novo) return i
+            const fr: Frasco = { ...novo, id: novoId(), criadoEm: new Date().toISOString() }
+            criados.push(fr)
+            return { ...i, frascoId: fr.id }
+          })
+          if (criados.length) await db.frascos.bulkAdd(criados)
           const atuais = await db.itens.where('protocoloId').equals(p.id).primaryKeys()
-          const manter = new Set(itens.map((i) => i.id))
+          const manter = new Set(ligados.map((i) => i.id))
           await db.itens.bulkDelete(atuais.filter((id) => !manter.has(id)))
-          await db.itens.bulkPut(itens.map((i, ordem) => ({ ...i, protocoloId: p.id, ordem })))
+          await db.itens.bulkPut(ligados.map((i, ordem) => ({ ...i, protocoloId: p.id, ordem })))
+          return { frascos: criados }
         }),
       )
+    },
+    /** Liga um frasco a uma linha de protocolo (ex.: "Adicione o frasco" depois de criar o protocolo). */
+    async ligarFrasco(itemId: string, frascoId: string): Promise<void> {
+      await gravando(() => db.itens.update(itemId, { frascoId }))
     },
     async pausarProtocolo(id: string, ate?: string): Promise<void> {
       await gravando(() => db.protocolos.update(id, { estado: 'pausado', pausadoDesde: hojeStr(), pausadoAte: ate }))

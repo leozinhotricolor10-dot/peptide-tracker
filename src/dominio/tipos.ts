@@ -52,6 +52,8 @@ export interface Protocolo {
   lembretes: boolean
   notas?: string
   criadoEm: string
+  /** Cor do cartão (id da paleta em dominio/cores.ts). Só para reconhecer de relance; o nome continua visível. */
+  cor?: string
 }
 
 export interface ItemProtocolo {

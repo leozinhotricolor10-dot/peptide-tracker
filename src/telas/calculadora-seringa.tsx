@@ -4,7 +4,9 @@
 import { useEffect } from 'react'
 import { calcularSeringa, fmtDose, fmtNum, lerNumero, UNIDADES_POR_ML } from '../dominio/calculos.ts'
 import type { Frasco } from '../dominio/tipos.ts'
-import { rascunho, type ItemRascunho } from './rascunho.ts'
+import { hojeStr } from '../dominio/datas.ts'
+import { IcoEstoque } from '../ui/icones.tsx'
+import { frascoDoCalculo, rascunho, type ItemRascunho } from './rascunho.ts'
 
 /** Número para um campo editável (sem ponto de milhar, que o app recusa por ser ambíguo). */
 const paraCampo = (n: number) => fmtNum(n).replace(/\./g, '')
@@ -19,7 +21,7 @@ function Linha({ titulo, valor, detalhe, destaque }: { titulo: string; valor: st
   )
 }
 
-export function CalculadoraSeringa({ it, blend, frascoLigado, somaBlendMg }: { it: ItemRascunho; blend: boolean; frascoLigado?: Frasco; somaBlendMg: number | null }) {
+export function CalculadoraSeringa({ it, blend, frascoLigado, ligadoUsavel, somaBlendMg }: { it: ItemRascunho; blend: boolean; frascoLigado?: Frasco; ligadoUsavel: boolean; somaBlendMg: number | null }) {
   // Editando um protocolo com frasco reconstituído ligado: já vem preenchida com os números dele.
   const ligadoMg = frascoLigado?.status === 'reconstituido' && frascoLigado.diluenteMl ? frascoLigado.mgTotal : undefined
   const ligadoMl = ligadoMg !== undefined ? frascoLigado!.diluenteMl : undefined
@@ -37,6 +39,7 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, somaBlendMg }: { i
   const frascoOk = c.mgFrasco !== null && c.diluenteMl !== null
   const mesmoDoLigado = frascoOk && c.mgFrasco === ligadoMg && c.diluenteMl === ligadoMl
   const algumCampo = !!(mgTxt.trim() || mlTxt.trim())
+  const novo = frascoDoCalculo(it, hojeStr(), ligadoUsavel)
 
   let falta: string | null = null
   if (c.falta === 'ui') falta = 'Dose em UI não é convertida: o app não sabe quantas UI há em cada mg. Para usar a calculadora, escolha mg, mcg, mL ou unidades.'
@@ -50,7 +53,7 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, somaBlendMg }: { i
     <section aria-labelledby="calc-titulo" className="card flex flex-col gap-3 p-4">
       <div className="flex flex-col gap-0.5">
         <h2 id="calc-titulo" className="text-[17px] font-bold">Calculadora da seringa</h2>
-        <span className="text-[13px] leading-snug text-fraco">Opcional. Com os números do seu frasco, o app mostra quanto puxar na seringa.</span>
+        <span className="text-[13px] leading-snug text-fraco">Opcional. Com os números do seu frasco, o app mostra quanto puxar na seringa e guarda o frasco no Estoque.</span>
       </div>
       <div className="grid grid-cols-2 items-end gap-2.5">
         <label className="rotulo text-sm">
@@ -120,18 +123,30 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, somaBlendMg }: { i
         {falta && <span className="text-[13px] leading-snug text-fraco">{falta}</span>}
       </div>
 
-      {((frascoOk && !mesmoDoLigado) || it.salvarFrasco) && (
-        <label className="flex min-h-11 items-center justify-between gap-3 border-t border-sup2 pt-3">
-          <span className="flex flex-col gap-0.5">
-            <b className="text-[15px]">Guardar este frasco no Estoque</b>
-            <span className="text-[13px] text-fraco">
-              {frascoOk ? `${fmtNum(c.mgFrasco!)} mg + ${fmtNum(c.diluenteMl!)} mL, reconstituído hoje. Salva junto com o protocolo.` : 'Preencha os mg do frasco e os mL de água acima.'}
-            </span>
-          </span>
-          <input type="checkbox" role="switch" className="h-6 w-6 shrink-0" checked={!!it.salvarFrasco} onChange={(e) => rascunho.mudarItem(() => ({ salvarFrasco: e.target.checked }))} />
-        </label>
-      )}
-      {mesmoDoLigado && <span className="border-t border-sup2 pt-3 text-[13px] text-fraco">São os números do frasco já ligado a este protocolo.</span>}
+      {/* Regra do dono: todo frasco informado vai para o Estoque (sem interruptor). */}
+      <div className="flex items-start gap-2.5 border-t border-sup2 pt-3">
+        <IcoEstoque tam={20} className="mt-0.5 shrink-0 text-acento" />
+        <span className="flex flex-col gap-0.5">
+          {ligadoUsavel ? (
+            <>
+              <b className="text-[15px]">Frasco já no Estoque</b>
+              <span className="text-[13px] text-fraco">{mesmoDoLigado ? 'São os números do frasco já ligado a este protocolo.' : 'Este protocolo já tem um frasco ligado. Para um frasco novo, use Estoque > Frasco.'}</span>
+            </>
+          ) : novo ? (
+            <>
+              <b className="text-[15px]">O frasco entra no Estoque para você acompanhar o saldo</b>
+              <span className="text-[13px] text-fraco">
+                {novo.status === 'reconstituido' ? `${fmtNum(novo.mgTotal)} mg + ${fmtNum(novo.diluenteMl!)} mL, reconstituído hoje.` : `${fmtNum(novo.mgTotal)} mg, lacrado (sem água ainda).`} Salva junto com o protocolo.
+              </span>
+            </>
+          ) : (
+            <>
+              <b className="text-[15px]">Informe os mg do frasco</b>
+              <span className="text-[13px] text-fraco">Ele entra no Estoque para você acompanhar o saldo e as doses que restam. Sem isso, dá para adicionar o frasco depois.</span>
+            </>
+          )}
+        </span>
+      </div>
     </section>
   )
 }
