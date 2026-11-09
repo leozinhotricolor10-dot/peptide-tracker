@@ -112,7 +112,7 @@
 }
 
 @utility chip {
-  @apply flex h-11 items-center justify-center rounded-full border border-borda bg-sup px-3.5 text-sm font-semibold text-texto;
+  @apply flex h-11 min-w-11 items-center justify-center rounded-full border border-borda bg-sup px-3.5 text-sm font-semibold text-texto;
   &[aria-pressed='true'] {
     @apply border-2 border-acento bg-selecionado font-extrabold text-acento;
   }

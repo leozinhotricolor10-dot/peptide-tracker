@@ -25,6 +25,7 @@ import {
 import { nomeComMg, nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import type { Frasco, ItemProtocolo, Substancia, UnidadeDose } from '../dominio/tipos.ts'
 import { Cabecalho, Carregando, Chips, Dialogo, NaoAchou, Nota, Tela, Vazio } from '../ui/base.tsx'
+import { useVoltar } from '../ui/navegar.ts'
 import { IcoAlerta, IcoEstoque, IcoMais } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { FrascoVencido, UNIDADES } from './dose.tsx'
@@ -213,6 +214,7 @@ export function FormFrasco() {
   const [params] = useSearchParams()
   const base = useBase()
   const nav = useNavigate()
+  const voltarOu = useVoltar()
   const toast = useToast()
   const existente = id ? base?.frascos.find((f) => f.id === id) : undefined
   const [subId, setSubId] = useState<string | undefined>(params.get('sub') ?? undefined)
@@ -272,7 +274,7 @@ export function FormFrasco() {
     if (depois === 'reconstituir') nav(`/estoque/frasco/${f.id}/reconstituir`, { replace: true })
     else {
       toast({ titulo: existente ? 'Frasco atualizado' : 'Frasco salvo', texto: `${sub?.nome ?? ''} · ${fmtNum(mgN)} mg` })
-      nav(-1)
+      voltarOu('/estoque')
     }
   }
 
@@ -280,7 +282,7 @@ export function FormFrasco() {
 
   return (
     <Tela className="min-h-dvh">
-      <Cabecalho titulo={existente ? 'Frasco' : 'Novo frasco'} fechar={() => nav(-1)} />
+      <Cabecalho titulo={existente ? 'Frasco' : 'Novo frasco'} fechar={() => voltarOu('/estoque')} />
       <div className="rotulo">
         <span>Substância (simples ou blend)</span>
         <EscolherSubstancia base={base} valor={subId} aoEscolher={(s) => { setSubId(s.id); setErro(''); const sm = s.tipo === 'blend' ? somaComponentesMg(s.componentes) : null; if (sm && !mg) setMg(fmtNum(sm)) }} />
@@ -312,11 +314,11 @@ export function FormFrasco() {
             <Link to={`/estoque/frasco/${existente.id}/reconstituir`} className="btn-secundario">{existente.status === 'reconstituido' ? 'Reconstituição' : 'Reconstituir'}</Link>
             {(existente.status === 'fechado' || existente.status === 'reconstituido') ? (
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" className="btn-neutro text-sm" onClick={async () => { await repo.statusFrasco(existente.id, 'acabou'); toast({ tipo: 'info', titulo: 'Marcado como acabado', desfazer: () => repo.statusFrasco(existente.id, existente.status) }); nav(-1) }}>Acabou</button>
-                <button type="button" className="btn-neutro text-sm" onClick={async () => { await repo.statusFrasco(existente.id, 'descartado'); toast({ tipo: 'info', titulo: 'Marcado como descartado', desfazer: () => repo.statusFrasco(existente.id, existente.status) }); nav(-1) }}>Descartar</button>
+                <button type="button" className="btn-neutro text-sm" onClick={async () => { await repo.statusFrasco(existente.id, 'acabou'); toast({ tipo: 'info', titulo: 'Marcado como acabado', desfazer: () => repo.statusFrasco(existente.id, existente.status) }); voltarOu('/estoque') }}>Acabou</button>
+                <button type="button" className="btn-neutro text-sm" onClick={async () => { await repo.statusFrasco(existente.id, 'descartado'); toast({ tipo: 'info', titulo: 'Marcado como descartado', desfazer: () => repo.statusFrasco(existente.id, existente.status) }); voltarOu('/estoque') }}>Descartar</button>
               </div>
             ) : (
-              <button type="button" className="btn-neutro" onClick={async () => { await repo.statusFrasco(existente.id, existente.reconstituidoEm ? 'reconstituido' : 'fechado'); nav(-1) }}>Voltar a usar este frasco</button>
+              <button type="button" className="btn-neutro" onClick={async () => { await repo.statusFrasco(existente.id, existente.reconstituidoEm ? 'reconstituido' : 'fechado'); voltarOu('/estoque') }}>Voltar a usar este frasco</button>
             )}
             <button type="button" className="btn-texto text-erro" onClick={() => setApagar(true)}>Apagar frasco</button>
           </>
@@ -353,7 +355,7 @@ function Conta({ titulo, valor, detalhe }: { titulo: string; valor: string; deta
 export function Reconstituicao() {
   const { id } = useParams()
   const base = useBase()
-  const nav = useNavigate()
+  const voltarOu = useVoltar()
   const toast = useToast()
   const frasco = base?.frascos.find((f) => f.id === id)
   const [dil, setDil] = useState('')
@@ -391,7 +393,7 @@ export function Reconstituicao() {
     if (usarAte && quando && usarAte < quando) return setErro('A data “usar até” é anterior à data em que foi misturado.')
     await repo.salvarFrasco({ ...frasco, status: 'reconstituido', diluenteMl: dilN, reconstituidoEm: quando || hojeStr(), usarAte: usarAte || undefined })
     toast({ titulo: 'Reconstituição salva', texto: `${sub?.nome ?? ''} · ${fmtNum(dilN)} mL` })
-    nav('/estoque', { replace: true })
+    voltarOu('/estoque')
   }
 
   const doseMcg = dose ? paraMg(dose.v, dose.u) : null

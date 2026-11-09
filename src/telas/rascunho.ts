@@ -1,6 +1,6 @@
 // Rascunho do protocolo em criação/edição, guardado na sessão (sobrevive a recarregar a página).
 import { useSyncExternalStore } from 'react'
-import type { Frequencia, ItemProtocolo, Protocolo, UnidadeDose } from '../dominio/tipos.ts'
+import type { Frasco, Frequencia, ItemProtocolo, Protocolo, UnidadeDose } from '../dominio/tipos.ts'
 import { difDias, hojeStr, somaDias } from '../dominio/datas.ts'
 import { fmtNum, lerNumero } from '../dominio/calculos.ts'
 import { novoId } from '../dados/repo.ts'
@@ -15,6 +15,11 @@ export interface ItemRascunho {
   dias: number[]
   horarios: string[]
   frascoId?: string
+  /** Calculadora do passo da dose (opcional): mg no frasco e mL de diluente, como digitados. */
+  calcMgTxt?: string
+  calcMlTxt?: string
+  /** Guardar o frasco da calculadora no Estoque (reconstituído) ao salvar o protocolo. */
+  salvarFrasco?: boolean
 }
 
 export interface Rascunho {
@@ -31,6 +36,10 @@ export interface Rascunho {
   itens: ItemRascunho[]
   atual: number
   antes?: string
+  /** Cadastro já salvo ou descartado: os passos não abrem mais e levam para cá. */
+  fechado?: { destino: string }
+  /** Para onde ir ao sair sem salvar quando não há tela anterior útil (fim do primeiro acesso). */
+  saida?: string
 }
 
 const CHAVE = 'pt-rascunho'
@@ -123,6 +132,14 @@ export const rascunho = {
   get: () => estado,
   iniciar: (r: Rascunho) => gravar(r),
   limpar: () => gravar(null),
+  /**
+   * Fecha o cadastro (salvo ou descartado) sem apagar o rascunho no meio da troca de tela:
+   * qualquer passo que ainda apareça (voltar, F5, link antigo) leva para `destino`.
+   * Um rascunho novo (`iniciar`) substitui este.
+   */
+  fechar: (destino: string) => {
+    if (estado) gravar({ ...estado, fechado: { destino } })
+  },
   mudar: (f: (r: Rascunho) => Partial<Rascunho>) => {
     if (estado) gravar({ ...estado, ...f(estado) })
   },
@@ -131,6 +148,26 @@ export const rascunho = {
     const itens = estado.itens.map((i, k) => (k === estado!.atual ? { ...i, ...f(i) } : i))
     gravar({ ...estado, itens })
   },
+}
+
+/** O que um passo do assistente deve fazer com o rascunho que existe agora. */
+export type SituacaoPasso = { tipo: 'ok'; r: Rascunho } | { tipo: 'sem-rascunho'; para: string } | { tipo: 'fechado'; para: string }
+
+export const LISTA_PROTOCOLOS = '/protocolos'
+
+export function situacaoPasso(r: Rascunho | null): SituacaoPasso {
+  if (!r) return { tipo: 'sem-rascunho', para: LISTA_PROTOCOLOS }
+  if (r.fechado) return { tipo: 'fechado', para: r.fechado.destino || LISTA_PROTOCOLOS }
+  return { tipo: 'ok', r }
+}
+
+/** Frasco que a calculadora do passo da dose guarda no Estoque, se a pessoa pediu e os números valem. */
+export function frascoDoCalculo(i: ItemRascunho, hoje: string): Omit<Frasco, 'id' | 'criadoEm'> | null {
+  if (!i.salvarFrasco || !i.substanciaId) return null
+  const mg = lerNumero(i.calcMgTxt ?? '')
+  const ml = lerNumero(i.calcMlTxt ?? '')
+  if (mg === null || !(mg > 0) || ml === null || !(ml > 0)) return null
+  return { substanciaId: i.substanciaId, mgTotal: mg, diluenteMl: ml, status: 'reconstituido', reconstituidoEm: hoje, compradoEm: hoje }
 }
 
 export function frequenciaDe(i: ItemRascunho): Frequencia {
@@ -161,6 +198,7 @@ export function validarRascunho(r: Rascunho): Validacao {
     if (!((lerNumero(i.doseTxt) ?? 0) > 0) || !i.doseUnidade) erros.push(`${p}informe a dose e a unidade.`)
     if (!i.horarios.length) erros.push(`${p}adicione pelo menos um horário.`)
     if (i.freqTipo === 'semana' && !i.dias.length) erros.push(`${p}escolha os dias da semana.`)
+    if (i.salvarFrasco && !frascoDoCalculo(i, r.inicio)) erros.push(`${p}para guardar o frasco no Estoque, informe os mg do frasco e os mL de diluente (ou desligue essa opção).`)
   })
   if ([...r.nome].length > 40) erros.push('O nome pode ter até 40 caracteres.')
   return { ok: erros.length === 0, erros }

@@ -1,8 +1,9 @@
 // Peças visuais reaproveitadas pelas telas.
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router'
 import { IcoCheck, IcoFechar, IcoVoltar, IcoX } from './icones.tsx'
+import { useVoltar } from './navegar.ts'
 
 /** Coluna central de celular (390px de referência; não quebra em telas maiores). */
 export function Tela({ children, className = '', semPadding = false }: { children: ReactNode; className?: string; semPadding?: boolean }) {
@@ -30,11 +31,12 @@ export function Cabecalho({
   grande?: boolean
 }) {
   const nav = useNavigate()
+  const voltarOu = useVoltar()
   const acao = voltar ?? fechar
   const clicar = () => {
     if (typeof acao === 'function') acao()
     else if (typeof acao === 'string') nav(acao)
-    else nav(-1)
+    else voltarOu('/hoje')
   }
   return (
     <div className="flex items-center gap-1">
@@ -154,7 +156,25 @@ export function NaoAchou({ titulo, texto = 'Ele pode ter sido apagado.', para = 
   )
 }
 
+/** Depois disso, "Carregando…" vira uma mensagem com saída (nunca fica girando para sempre). */
+export const TETO_CARREGANDO_MS = 8000
+
 export function Carregando() {
+  const [demorou, setDemorou] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setDemorou(true), TETO_CARREGANDO_MS)
+    return () => clearTimeout(t)
+  }, [])
+  if (demorou) {
+    return (
+      <div role="alert" className="flex min-h-[40dvh] flex-col items-center justify-center gap-3 px-2 text-center">
+        <b className="text-lg">Está demorando mais que o normal</b>
+        <p className="m-0 text-[15px] text-suave">Seus dados continuam salvos neste aparelho.</p>
+        <button type="button" className="btn-primario" onClick={() => window.location.reload()}>Recarregar</button>
+        <a href="#/hoje" className="btn-texto">Ir para Hoje</a>
+      </div>
+    )
+  }
   return (
     <div role="status" className="flex min-h-[40dvh] items-center justify-center text-fraco">
       Carregando…

@@ -1,12 +1,13 @@
 // T30 Peso e medidas (+E40), M41 medição, T41 detalhe da medida, T42 fotos, M42 nova foto, T43 comparar.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { repo, useBase, useFotos, type Base } from '../dados/index.ts'
 import { dataBr, dataMedia, difDias, hojeStr, somaDias } from '../dominio/datas.ts'
 import { erroNumero, fmtNum, lerNumero, numeroAmbiguo } from '../dominio/calculos.ts'
 import { nomeProtocolo } from '../dominio/nomes.ts'
 import type { Angulo, Foto, Medicao } from '../dominio/tipos.ts'
 import { Cabecalho, Carregando, Chips, Dialogo, NaoAchou, Nota, Tela, Vazio } from '../ui/base.tsx'
+import { useVoltar } from '../ui/navegar.ts'
 import { Grafico } from '../ui/Grafico.tsx'
 import { IcoCamera, IcoImagem, IcoMais, IcoPeso, IcoSeta, IcoLixo } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
@@ -123,7 +124,7 @@ export function Peso() {
 export function NovaMedicao() {
   const { id } = useParams()
   const base = useBase()
-  const nav = useNavigate()
+  const voltarOu = useVoltar()
   const toast = useToast()
   const existente = id ? base?.medicoes.find((m) => m.id === id) : undefined
   const [data, setData] = useState(hojeStr())
@@ -167,12 +168,12 @@ export function NovaMedicao() {
       nota: nota.trim() || undefined,
     })
     toast({ titulo: existente ? 'Medição atualizada' : 'Medição salva', texto: dataBr(data) })
-    nav(-1)
+    voltarOu('/peso')
   }
 
   return (
     <Tela className="min-h-dvh">
-      <Cabecalho titulo={existente ? 'Editar medição' : 'Nova medição'} fechar={() => nav(-1)} />
+      <Cabecalho titulo={existente ? 'Editar medição' : 'Nova medição'} fechar={() => voltarOu('/peso')} />
       <div className="grid grid-cols-2 gap-2.5">
         <label className="rotulo">Data<input type="date" className="campo px-2" value={data} max={hojeStr()} onChange={(e) => setData(e.target.value)} /></label>
         <label className="rotulo">Peso (kg)<input className="campo" inputMode="decimal" autoFocus={!existente} placeholder="Ex.: 84,2" value={vals.peso} onChange={(e) => { setVals({ ...vals, peso: e.target.value }); setErro('') }} /></label>
@@ -196,7 +197,7 @@ export function NovaMedicao() {
             onClick={async () => {
               const m = await repo.apagarMedicao(existente.id)
               toast({ tipo: 'info', titulo: 'Medição apagada', desfazer: m ? () => repo.restaurarMedicao(m) : undefined })
-              nav(-1)
+              voltarOu('/peso')
             }}
           >
             Apagar medição
@@ -320,7 +321,7 @@ export function Fotos() {
 }
 
 export function NovaFoto() {
-  const nav = useNavigate()
+  const voltarOu = useVoltar()
   const toast = useToast()
   const [angulo, setAngulo] = useState<Angulo>('frente')
   const [data, setData] = useState(hojeStr())
@@ -345,11 +346,11 @@ export function NovaFoto() {
       return setEstado('erro-salvar')
     }
     toast({ titulo: 'Foto salva', texto: `${ANGULOS.find((a) => a.v === angulo)?.t} · ${dataBr(data)}` })
-    nav(-1)
+    voltarOu('/peso/fotos')
   }
   return (
     <Tela className="min-h-dvh">
-      <Cabecalho titulo="Nova foto" fechar={() => nav(-1)} />
+      <Cabecalho titulo="Nova foto" fechar={() => voltarOu('/peso/fotos')} />
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
         <legend className="mb-2 text-[13px] font-bold text-fraco">Ângulo</legend>
         <Chips rotulo="Ângulo" opcoes={ANGULOS} valor={angulo} aoMudar={setAngulo} />

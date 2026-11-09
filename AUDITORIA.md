@@ -35,6 +35,20 @@ ponta a ponta (`npm run e2e`, arquivo `e2e/fumaca.mjs`). Onde só deu para confe
 | A23 | Baixa | `npm ci` com aviso de pacote depreciado (`glob@11`) e 2 vulnerabilidades moderadas na ferramenta de build | `overrides` para `glob@14.0.4` | `npm ci` sem aviso |
 | A24 | Baixa | Comentários e relatórios dentro de `app/` citavam documentos internos e o nome de outro negócio do dono | Removidos; mapa de telas e teste antigo foram para `docs/` (privado) | busca no código |
 
+## Rodada de 09/11/2026 (teste do dono no celular)
+
+| # | Gravidade | Achado | Correção | Coberto por |
+|---|---|---|---|---|
+| A25 | Alta | Depois de salvar um protocolo novo, o voltar/fechar reabria os passos do cadastro; insistindo no voltar/X, a tela ficava em "Carregando…" para sempre. Causa: cada passo entrava no histórico (push) e só o último era trocado pelo detalhe; um passo aberto sem rascunho criava um cadastro novo escondido; e, quando o voltar caía em outra entrada da mesma rota, a tela reaproveitada lembrava que "tinha rascunho ao abrir" e ficava esperando sem saída | Os passos trocam de tela com `replace` (o cadastro ocupa uma entrada só); salvar/descartar marca o rascunho como fechado (`rascunho.fechar`) em vez de apagá-lo no meio da troca; todo passo sem cadastro em andamento sai para a lista (ou para o protocolo salvo), com teto de tempo; editar volta para o detalhe já aberto, sem duplicar | `telas/rascunho.test.ts` + e2e passos 7 e 8 (voltar, avançar, F5, link antigo `#/novo/dose`, X) |
+| A26 | Média | "Voltar"/"Fechar" (`nav(-1)`) não fazia nada quando a tela era a primeira aberta (link direto, aba nova) | `useVoltar`: volta pelo histórico se houver tela anterior do app, senão vai para uma tela segura (Hoje, Estoque, Peso…) | `telas/rascunho.test.ts` (`temTelaAnterior`) + navegador |
+| A27 | Média | "Carregando…" não tinha teto em nenhuma tela (se o armazenamento travar, gira para sempre) | Depois de 8 s vira "Está demorando mais que o normal" com Recarregar e Ir para Hoje | revisão |
+| A28 | Baixa | Restaurar backup em Configurações e salvar a reconstituição empilhavam telas (voltar caía de novo no Backup ou num Estoque repetido); o 1º passo aberto no fim do primeiro acesso sem rascunho dependia de um desvio escondido | Restaurar usa `replace`; reconstituição volta para a tela anterior; o primeiro acesso abre o cadastro por `/novo?saida=/hoje` (sair sem salvar vai para Hoje) | navegador |
+| A29 | Baixa | Chip "UI" da unidade tinha 43 px de largura | `min-w-11` em todos os chips | navegador (medição dos alvos no passo 2) |
+| A30 | Pedido | Passo 2 sem calculadora: o dono queria informar mg do frasco e água e ver as unidades | Calculadora da seringa no passo 2 (opcional), com as mesmas contas da Reconstituição (`calcularSeringa` em `dominio/calculos.ts`): concentração, unidades exatas, marca mais próxima com a dose que ela dá de verdade, rendimento; blend só volume; UI sem conversão; erros por campo ("1.000", zero, negativo, texto). Interruptor opcional "Guardar este frasco no Estoque" (reconstituído hoje, salvo junto com o protocolo e ligado a ele) | `dominio/seringa.test.ts` + e2e passo 6 (5 mg em 2 mL = 2,5 mg/mL, 250 mcg = 10 unidades, 20 doses; 10 mg em 3 mL = 7,5 unidades → marca 8; frasco aparece no Estoque) |
+
+Conferido nesta rodada, no build servido como no Pages (390×844): o roteiro do relato (criar → voltar → X → voltar → F5), editar (Corrigir dose → voltar → salvar → voltar), primeiro acesso, sem erro no console, sem texto em inglês, alvos do passo 2 ≥ 44 px (o interruptor de 24 px fica dentro de uma linha clicável de 44 px, como o "Ciclo com pausa").
+Limitação: o voltar do celular no meio do cadastro sai do assistente (volta para a tela de antes) em vez de voltar um passo; o que foi digitado fica guardado na sessão, mas "Novo" começa do zero. As setas da tela voltam um passo.
+
 ## Conferido sem achado
 
 - Datas: virada de mês, horário de verão (São Paulo 2018 e Nova York 2026), horário inexistente (02:30), ciclo e progresso atravessando o verão (testes A05).

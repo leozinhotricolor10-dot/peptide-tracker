@@ -11,6 +11,7 @@ import { dataBr, diaDe, diaRelativo, difDias, hojeStr, instante } from '../domin
 import { gerarIcs, TITULO_AGENDA } from '../dominio/ics.ts'
 import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import { Cabecalho, Carregando, Dialogo, Nota, Tela } from '../ui/base.tsx'
+import { useVoltar } from '../ui/navegar.ts'
 import { IcoAlerta, IcoArquivo, IcoDownload, IcoMais, IcoSeta, IcoUpload } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { baixarArquivo } from '../sistema/imagem.ts'
@@ -188,7 +189,7 @@ export function Lembretes() {
 export function Agenda() {
   const base = useBase()
   const toast = useToast()
-  const nav = useNavigate()
+  const voltarOu = useVoltar()
   const [fora, setFora] = useState<Set<string>>(new Set())
   const [dias, setDias] = useState(60)
   if (!base) return <Tela><Carregando /></Tela>
@@ -203,7 +204,7 @@ export function Agenda() {
     const c = (await repo.getConfig('canais')) ?? { agenda: false, notificacao: false }
     await repo.setConfig('canais', { ...c, agenda: true })
     toast({ titulo: 'Arquivo da agenda gerado', texto: `${slots.length} lembretes · abra o arquivo baixado` })
-    nav(-1)
+    voltarOu('/ajustes')
   }
   return (
     <Tela className="min-h-dvh">
@@ -367,7 +368,7 @@ export function Backup() {
       <section className="card flex flex-col gap-3 p-4">
         <b className="text-lg">Restaurar de um arquivo</b>
         <span className="text-sm text-suave">Use ao trocar de celular. Você vê o conteúdo antes de confirmar.</span>
-        <Restaurador aoRestaurar={() => { toast({ titulo: 'Backup restaurado' }); nav('/hoje') }}>
+        <Restaurador aoRestaurar={() => { toast({ titulo: 'Backup restaurado' }); nav('/hoje', { replace: true }) }}>
           {(abrir) => <button type="button" className="btn-secundario" onClick={abrir}><IcoUpload tam={20} /> Escolher arquivo</button>}
         </Restaurador>
         <button type="button" className="link self-start" aria-expanded={ajuda} onClick={() => setAjuda(!ajuda)}>O arquivo não abre?</button>
@@ -399,6 +400,7 @@ export function RestaurarInicio() {
 
 export function ApagarTudo() {
   const nav = useNavigate()
+  const voltarOu = useVoltar()
   const [passo, setPasso] = useState<1 | 2>(1)
   const [texto, setTexto] = useState('')
   const c = useLiveQuery(() => repo.contagens())
@@ -417,7 +419,7 @@ export function ApagarTudo() {
           <div className="mt-auto flex flex-col gap-2">
             <Link to="/ajustes/backup" className="btn-primario">Salvar backup antes</Link>
             <button type="button" className="btn-neutro text-erro" onClick={() => setPasso(2)}>Continuar para apagar</button>
-            <button type="button" className="btn-texto" onClick={() => nav(-1)}>Cancelar</button>
+            <button type="button" className="btn-texto" onClick={() => voltarOu('/ajustes')}>Cancelar</button>
           </div>
         </>
       ) : (

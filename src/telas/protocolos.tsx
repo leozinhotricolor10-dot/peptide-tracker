@@ -8,6 +8,7 @@ import { fmtDose } from '../dominio/calculos.ts'
 import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import type { EstadoProtocolo, Protocolo } from '../dominio/tipos.ts'
 import { Carregando, Dialogo, NaoAchou, Nota, Sheet, StatusTomada, Tela, Vazio } from '../ui/base.tsx'
+import { useVoltar } from '../ui/navegar.ts'
 import { IcoCopiar, IcoEditar, IcoMais, IcoPausa, IcoPlay, IcoParar, IcoPontos, IcoProtocolos, IcoVoltar, IcoSeta, IcoBaixo, IcoLixo } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { useDoseUI } from './dose.tsx'
@@ -102,6 +103,7 @@ export function DetalheProtocolo() {
   const { id } = useParams()
   const base = useBase()
   const nav = useNavigate()
+  const voltarOu = useVoltar()
   const abrir = useDoseUI()
   const toast = useToast()
   const [acao, setAcao] = useState<null | 'menu' | 'pausar' | 'encerrar' | 'apagar'>(null)
@@ -128,7 +130,7 @@ export function DetalheProtocolo() {
   return (
     <Tela className="min-h-dvh">
       <div className="flex items-center justify-between">
-        <button type="button" onClick={() => nav(-1)} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>
+        <button type="button" onClick={() => voltarOu('/protocolos')} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>
         <button type="button" onClick={() => setAcao('menu')} aria-label="Mais ações" className="icone-btn -mr-2.5"><IcoPontos tam={22} /></button>
       </div>
       <div className="flex flex-col gap-1">
@@ -343,7 +345,7 @@ function Pausar({ protocolo, nome, fechar }: { protocolo: Protocolo; nome: strin
 
 export function Historico() {
   const base = useBase()
-  const nav = useNavigate()
+  const voltarOu = useVoltar()
   const abrir = useDoseUI()
   const [params, setParams] = useSearchParams()
   const filtro = params.get('p') ?? ''
@@ -382,7 +384,7 @@ export function Historico() {
   return (
     <Tela>
       <div className="flex items-center gap-1">
-        <button type="button" onClick={() => nav(-1)} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>
+        <button type="button" onClick={() => voltarOu('/hoje')} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>
         <h1 className="text-2xl font-extrabold">Histórico</h1>
         <label className="relative ml-auto">
           <span className="sr-only">Filtrar por protocolo</span>

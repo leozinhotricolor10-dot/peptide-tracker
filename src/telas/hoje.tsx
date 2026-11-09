@@ -60,7 +60,7 @@ export function Hoje() {
       <Tela>
         <CabecalhoHoje hoje={hoje} />
         <Vazio icone={<IcoProtocolos tam={30} />} titulo="Nada para hoje ainda" texto="Cadastre o protocolo que você já segue. As doses do dia aparecem aqui, com um botão para registrar.">
-          <Link to="/novo/substancia" className="btn-primario">Criar protocolo</Link>
+          <Link to="/novo" className="btn-primario">Criar protocolo</Link>
           <Link to="/restaurar" className="btn-texto">Tenho um backup</Link>
         </Vazio>
       </Tela>

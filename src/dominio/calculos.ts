@@ -110,6 +110,89 @@ export function dataLimite(f: Frasco): string | undefined {
   return datas.sort()[0]
 }
 
+// ---------- calculadora da seringa (passo da dose) ----------
+// Junta as contas de reconstituição acima a partir do que a pessoa digitou: mg no frasco,
+// mL de diluente e a dose. Não sugere dose. O valor exato é sempre mostrado; a marca da
+// seringa mais próxima (de 1 em 1 unidade) é só uma ajuda, com a dose que ela daria de verdade.
+
+export type CampoSeringa = 'mgFrasco' | 'diluenteMl'
+
+export interface ResultadoSeringa {
+  /** Mensagem por campo (vazio não é erro: a calculadora é opcional). */
+  erros: Partial<Record<CampoSeringa, string>>
+  mgFrasco: number | null
+  diluenteMl: number | null
+  /** null em blend (o app não divide o blend por componente) */
+  concMgMl: number | null
+  volumeMl: number | null
+  unidadesExatas: number | null
+  /** Marca inteira mais próxima, só quando o exato não é inteiro. */
+  marca: number | null
+  /** Dose (na unidade digitada) que a marca arredondada dá de verdade; null se não dá para converter. */
+  doseDaMarca: number | null
+  /** Menos de meia unidade: não há marca para isso na seringa. */
+  abaixoDaMenorMarca: boolean
+  /** mg da dose quando ela foi digitada em mL ou unidades (simples). */
+  mgDaDoseEmVolume: number | null
+  rende: number | null
+  /** Por que não deu para mostrar a conta. */
+  falta?: 'frasco' | 'dose' | 'ui' | 'blend-mg'
+}
+
+function lerCampoPositivo(txt: string): { v: number | null; erro?: string } {
+  if (!txt.trim()) return { v: null }
+  const n = lerNumero(txt)
+  if (n === null) return { v: null, erro: erroNumero(txt, 'Digite só o número (ex.: 2,5).') }
+  if (!(n > 0)) return { v: null, erro: 'Precisa ser maior que zero.' }
+  return { v: n }
+}
+
+const QUASE = 1e-9
+
+export function calcularSeringa(e: { mgFrasco: string; diluenteMl: string; dose: string; unidade?: UnidadeDose; blend: boolean }): ResultadoSeringa {
+  const mg = lerCampoPositivo(e.mgFrasco)
+  const dil = lerCampoPositivo(e.diluenteMl)
+  const erros: ResultadoSeringa['erros'] = {}
+  if (mg.erro) erros.mgFrasco = mg.erro
+  if (dil.erro) erros.diluenteMl = dil.erro
+  const vazio: ResultadoSeringa = {
+    erros, mgFrasco: mg.v, diluenteMl: dil.v, concMgMl: null, volumeMl: null, unidadesExatas: null,
+    marca: null, doseDaMarca: null, abaixoDaMenorMarca: false, mgDaDoseEmVolume: null, rende: null,
+  }
+  const conc = !e.blend && mg.v !== null && dil.v !== null ? concentracaoMgMl(mg.v, dil.v) : null
+  const dose = lerNumero(e.dose)
+  if (dose === null || !(dose > 0) || !e.unidade) return { ...vazio, concMgMl: conc, falta: 'dose' }
+  if (e.unidade === 'UI') return { ...vazio, concMgMl: conc, falta: 'ui' }
+  if (e.blend && (e.unidade === 'mg' || e.unidade === 'mcg')) return { ...vazio, falta: 'blend-mg' }
+  const precisaFrasco = !e.blend && (e.unidade === 'mg' || e.unidade === 'mcg')
+  if (precisaFrasco && conc === null) return { ...vazio, falta: 'frasco' }
+  const vol = volumeDaDoseMl(dose, e.unidade, conc)
+  if (vol === null) return { ...vazio, concMgMl: conc, falta: 'frasco' }
+  const exatas = unidadesNaSeringa(vol)
+  const redondo = Math.round(exatas)
+  const inteiro = Math.abs(exatas - redondo) < QUASE
+  const abaixo = !inteiro && redondo === 0
+  const marca = inteiro || abaixo ? null : redondo
+  let doseDaMarca: number | null = null
+  if (marca !== null) {
+    const mlMarca = marca / UNIDADES_POR_ML
+    if (e.unidade === 'unidades') doseDaMarca = marca
+    else if (e.unidade === 'mL') doseDaMarca = mlMarca
+    else if (conc !== null) doseDaMarca = e.unidade === 'mg' ? mlMarca * conc : mlMarca * conc * 1000
+  }
+  return {
+    ...vazio,
+    concMgMl: conc,
+    volumeMl: vol,
+    unidadesExatas: inteiro ? redondo : exatas,
+    marca,
+    doseDaMarca,
+    abaixoDaMenorMarca: abaixo,
+    mgDaDoseEmVolume: !e.blend && conc !== null && (e.unidade === 'mL' || e.unidade === 'unidades') ? mgDaDose(dose, e.unidade, conc) : null,
+    rende: dil.v !== null ? rendimento(dil.v, vol) : null,
+  }
+}
+
 /** Fração restante abaixo da qual o frasco é mostrado como "acabando". */
 export const LIMITE_ACABANDO = 0.2
 

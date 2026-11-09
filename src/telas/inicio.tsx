@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { repo, useConfig } from '../dados/index.ts'
 import { Dialogo, Nota, Tela } from '../ui/base.tsx'
+import { useVoltar } from '../ui/navegar.ts'
 import { IcoAlerta, IcoCalendario, IcoCelular, IcoCheck, IcoCompartilhar, IcoEscudo, IcoSino, IcoVoltar } from '../ui/icones.tsx'
 import { useInstalacao } from '../sistema/instalar.ts'
 import { TEXTO_AVISO, pedirPermissao, suporteAviso } from '../sistema/avisos.ts'
@@ -103,16 +104,17 @@ export function Saida() {
 
 export function Instalar() {
   const nav = useNavigate()
+  const voltarOu = useVoltar()
   const [params] = useSearchParams()
   const primeiro = params.get('primeiro') === '1'
   const inst = useInstalacao()
   const [aba, setAba] = useState<'ios' | 'android'>(inst.ios ? 'ios' : 'android')
   const toast = useToast()
-  const seguir = () => (primeiro ? nav('/lembrar', { replace: true }) : nav(-1))
+  const seguir = () => (primeiro ? nav('/lembrar', { replace: true }) : voltarOu('/hoje'))
 
   return (
     <Tela className="min-h-dvh">
-      {!primeiro && <button type="button" onClick={() => nav(-1)} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>}
+      {!primeiro && <button type="button" onClick={() => voltarOu('/hoje')} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>}
       {primeiro && <span className="text-[13px] font-bold tracking-wide text-acento uppercase">Passo 2 de 3</span>}
       <div className="flex flex-col gap-2">
         <h1 className="text-[28px] leading-tight font-extrabold">Coloque o app na tela inicial</h1>
@@ -239,7 +241,7 @@ export function ComoLembrar() {
 
   const terminar = async () => {
     await repo.setConfig('onboarding', true)
-    nav('/novo/substancia', { replace: true })
+    nav('/novo?saida=/hoje', { replace: true })
   }
   const continuar = async () => {
     await repo.setConfig('canais', { agenda, notificacao: false })
