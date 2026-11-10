@@ -6,7 +6,7 @@ import { estadoEfetivo, frequenciaCurta, descreverFrequencia, progresso, proximo
 import { dataBr, dataCurta, dataDiaMes, diaDe, difDias, diaRelativo, hojeStr, horaDe, nomeMes, somaDias, dataMedia } from '../dominio/datas.ts'
 import { fmtDose } from '../dominio/calculos.ts'
 import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
-import type { EstadoProtocolo, Protocolo } from '../dominio/tipos.ts'
+import type { Aplicacao, EstadoProtocolo, Protocolo } from '../dominio/tipos.ts'
 import { Carregando, Dialogo, NaoAchou, Nota, Sheet, StatusTomada, Tela, Vazio } from '../ui/base.tsx'
 import { useVoltar } from '../ui/navegar.ts'
 import { IcoAlerta, IcoEstoque, IcoCopiar, IcoEditar, IcoMais, IcoPausa, IcoPlay, IcoParar, IcoPontos, IcoProtocolos, IcoVoltar, IcoSeta, IcoBaixo, IcoLixo } from '../ui/icones.tsx'
@@ -15,6 +15,8 @@ import { BotaoAcao } from '../ui/acao.tsx'
 import { useDoseUI } from './dose.tsx'
 import { estoqueDoItem, resumoEstoque, type EstoqueDoItem } from '../dominio/estoque.ts'
 import { bordaCor, PontoCor } from '../ui/cor.tsx'
+import { useListaComSaida } from '../ui/base.tsx'
+import { useNumeroAnimado, useRecente } from '../ui/movimento.ts'
 
 const ABAS = ['ativo', 'pausado', 'encerrado'] as const
 
@@ -61,7 +63,7 @@ export function Protocolos() {
         {/* fundo da aba escolhida desliza entre as abas (só transform) */}
         <span aria-hidden="true" className="indicador-aba absolute top-1 bottom-1 left-1 rounded-[10px] bg-selecionado" style={{ width: 'calc((100% - 1rem) / 3)', transform: `translateX(calc(${ABAS.indexOf(aba)} * (100% + 0.25rem)))` }} />
         {ABAS.map((e) => (
-          <button key={e} type="button" role="tab" aria-selected={aba === e} onClick={() => setAba(e)} className={`relative h-11 rounded-[10px] text-sm font-bold transition-colors ${aba === e ? 'text-acento' : 'text-fraco'}`}>
+          <button key={e} type="button" role="tab" aria-selected={aba === e} onClick={() => setAba(e)} className={`relative h-11 rounded-[10px] text-sm font-bold ${aba === e ? 'text-acento' : 'text-fraco'}`}>
             {e === 'ativo' ? 'Ativos' : e === 'pausado' ? 'Pausados' : 'Concluídos'}
             {porEstado(e).length > 0 && ` (${porEstado(e).length})`}
           </button>
@@ -119,6 +121,8 @@ export function Protocolos() {
 
 /** Resumo curto do estoque de uma linha: "Frasco: 12 doses restantes" ou o selo "Sem frasco no estoque". */
 export function SeloEstoque({ e, nome }: { e: EstoqueDoItem; nome?: string }) {
+  // "Frasco: N doses restantes" rola do valor antigo ao novo ao registrar/desfazer
+  const doses = Math.round(useNumeroAnimado(e.doses ?? 0))
   if (!e.frasco) {
     return (
       <span className="flex items-center gap-1.5 self-start rounded-full bg-aviso-fundo px-2.5 py-1 text-[13px] font-bold text-aviso-texto">
@@ -130,7 +134,7 @@ export function SeloEstoque({ e, nome }: { e: EstoqueDoItem; nome?: string }) {
   return (
     <span className={`flex items-center gap-1.5 text-[13px] font-semibold ${pouco ? 'text-aviso-texto' : 'text-suave'}`}>
       {pouco ? <IcoAlerta tam={14} className="shrink-0 text-aviso" /> : <IcoEstoque tam={14} className="shrink-0 text-acento" />}
-      {nome ? `${nome} · ` : ''}{resumoEstoque(e)}
+      {nome ? `${nome} · ` : ''}{resumoEstoque(e, e.doses === null ? null : doses)}
     </span>
   )
 }
@@ -255,15 +259,7 @@ export function DetalheProtocolo() {
           <Link className="link" to={`/historico?p=${p.id}`}>Ver histórico</Link>
         </div>
         {registros.length === 0 && <p className="m-0 text-sm text-fraco">Nenhum registro ainda.</p>}
-        {registros.slice(0, 3).map((a) => {
-          const d = new Date(a.dataHora)
-          return (
-            <button key={a.id} type="button" onClick={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })} className="flex min-h-11 items-center justify-between gap-2 border-b border-sup2 text-left text-[15px]">
-              <span>{diaRelativo(diaDe(d), hoje)} {horaDe(d)} · {nomeSubstancia(a.substanciaId, base.subs)}</span>
-              <span className="text-sm"><StatusTomada status={a.status} /></span>
-            </button>
-          )
-        })}
+        <UltimosRegistros registros={registros.slice(0, 3)} base={base} hoje={hoje} abrir={(id) => abrir({ tipo: 'opcoes', aplicacaoId: id })} />
       </section>
 
       {estado !== 'encerrado' && <button type="button" className="btn-primario mt-auto" onClick={registrarAgora}>Registrar dose agora</button>}
@@ -486,29 +482,64 @@ export function Historico() {
 
       {doMes.length === 0 && <p className="m-0 card p-4 text-[15px] text-suave">Nenhum registro em {nomeMes(m - 1)}.</p>}
       {[...grupos.entries()].map(([dia, lista], gi) => (
-        <div key={dia} className="anima-entrada flex flex-col gap-2" style={{ '--i': gi } as CSSProperties}>
+        <div key={dia} className="anima-entrada flex flex-col gap-2 [contain-intrinsic-size:auto_160px] [content-visibility:auto]" style={{ '--i': gi } as CSSProperties}>
           <span className="text-[13px] font-bold text-fraco">{dataMedia(dia)}{dia === hoje ? ' · hoje' : ''}</span>
-          <div className="card flex flex-col">
-            {lista.map((a) => {
-              const d = new Date(a.dataHora)
-              const fr = a.frascoId ? base.frascos.find((f) => f.id === a.frascoId) : undefined
-              const extra = [a.local, fr ? `frasco ${fr.reconstituidoEm ? `aberto em ${dataCurta(fr.reconstituidoEm)}` : `${fr.mgTotal} mg`}` : '', a.motivo ? `Motivo: ${a.motivo.toLowerCase()}` : '', a.observacao].filter(Boolean).join(' · ')
-              const pr = base.protocolos.find((x) => x.id === a.protocoloId)
-              return (
-                <div key={a.id} className="flex items-center gap-3 border-t border-l-[5px] border-t-sup2 py-2.5 pr-1.5 pl-3 first:border-t-0" style={bordaCor(pr)}>
-                  <span className="flex flex-1 flex-col gap-0.5">
-                    <span className="text-[15px]">
-                      <StatusTomada status={a.status} /> <span className="font-bold">· {horaDe(d)}{a.status === 'feita' ? ` · ${fmtDose(a.doseValor, a.doseUnidade)}` : ''}</span>
-                    </span>
-                    <span className="text-[13px] text-fraco">{pr && !filtro ? `${nomeProtocolo(pr, base.itens, base.subs)} · ` : ''}{nomeSubstancia(a.substanciaId, base.subs)}{extra ? ` · ${extra}` : ''}</span>
-                  </span>
-                  <button type="button" aria-label={`Opções do registro das ${horaDe(d)}`} className="icone-btn text-fraco" onClick={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })}><IcoPontos /></button>
-                </div>
-              )
-            })}
-          </div>
+          <GrupoDia lista={lista} base={base} filtro={filtro} abrir={(id) => abrir({ tipo: 'opcoes', aplicacaoId: id })} />
         </div>
       ))}
     </Tela>
+  )
+}
+
+/** Últimos 3 registros: o novo entra deslizando com brilho; o desfeito/apagado desliza e some. */
+function UltimosRegistros({ registros, base, hoje, abrir }: { registros: Aplicacao[]; base: Base; hoje: string; abrir: (id: string) => void }) {
+  const lista = useListaComSaida(registros, (a) => a.id)
+  return (
+    <>
+      {lista.map(({ item: a, saindo }) => (
+        <LinhaRegistro key={a.id} a={a} saindo={saindo} texto={`${diaRelativo(diaDe(new Date(a.dataHora)), hoje)} ${horaDe(new Date(a.dataHora))} · ${nomeSubstancia(a.substanciaId, base.subs)}`} abrir={() => abrir(a.id)} />
+      ))}
+    </>
+  )
+}
+
+function LinhaRegistro({ a, saindo, texto, abrir }: { a: Aplicacao; saindo: boolean; texto: string; abrir: () => void }) {
+  const recente = useRecente(a.id)
+  return (
+    <button type="button" onClick={abrir} disabled={saindo} className={`flex min-h-11 items-center justify-between gap-2 rounded-lg border-b border-sup2 text-left text-[15px] ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : ''}`}>
+      <span>{texto}</span>
+      <span className="text-sm"><StatusTomada status={a.status} /></span>
+    </button>
+  )
+}
+
+/** Registros de um dia no Histórico: o apagado desliza e some; o novo entra com brilho. */
+function GrupoDia({ lista, base, filtro, abrir }: { lista: Aplicacao[]; base: Base; filtro: string; abrir: (id: string) => void }) {
+  const itens = useListaComSaida(lista, (a) => a.id)
+  return (
+    <div className="card flex flex-col overflow-hidden">
+      {itens.map(({ item: a, saindo }) => (
+        <LinhaHistorico key={a.id} a={a} saindo={saindo} base={base} filtro={filtro} abrir={() => abrir(a.id)} />
+      ))}
+    </div>
+  )
+}
+
+function LinhaHistorico({ a, saindo, base, filtro, abrir }: { a: Aplicacao; saindo: boolean; base: Base; filtro: string; abrir: () => void }) {
+  const recente = useRecente(a.id)
+  const d = new Date(a.dataHora)
+  const fr = a.frascoId ? base.frascos.find((f) => f.id === a.frascoId) : undefined
+  const extra = [a.local, fr ? `frasco ${fr.reconstituidoEm ? `aberto em ${dataCurta(fr.reconstituidoEm)}` : `${fr.mgTotal} mg`}` : '', a.motivo ? `Motivo: ${a.motivo.toLowerCase()}` : '', a.observacao].filter(Boolean).join(' · ')
+  const pr = base.protocolos.find((x) => x.id === a.protocoloId)
+  return (
+    <div className={`flex items-center gap-3 border-t border-l-[5px] border-t-sup2 py-2.5 pr-1.5 pl-3 first:border-t-0 ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : ''}`} style={bordaCor(pr)}>
+      <span className="flex flex-1 flex-col gap-0.5">
+        <span className="text-[15px]">
+          <StatusTomada status={a.status} /> <span className="font-bold">· {horaDe(d)}{a.status === 'feita' ? ` · ${fmtDose(a.doseValor, a.doseUnidade)}` : ''}</span>
+        </span>
+        <span className="text-[13px] text-fraco">{pr && !filtro ? `${nomeProtocolo(pr, base.itens, base.subs)} · ` : ''}{nomeSubstancia(a.substanciaId, base.subs)}{extra ? ` · ${extra}` : ''}</span>
+      </span>
+      <button type="button" disabled={saindo} aria-label={`Opções do registro das ${horaDe(d)}`} className="icone-btn text-fraco" onClick={abrir}><IcoPontos /></button>
+    </div>
   )
 }

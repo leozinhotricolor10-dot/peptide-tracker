@@ -128,8 +128,22 @@
 
 
 /* ---------- Movimento ----------
-   Só transform e opacity (a GPU anima sem recalcular o layout), 120-250 ms, nunca em loop.
-   Nada de biblioteca. Com "reduzir movimento" ligado no aparelho, tudo isso desliga (fim do arquivo). */
+   Só transform e opacity (e stroke-dashoffset num SVG pequeno), nunca em loop, sem biblioteca.
+   UI: 120-350 ms. Celebração da dose: até ~900 ms. Nada de blur nem sombra animada (Android médio).
+   Com "reduzir movimento" ligado no aparelho, tudo isso desliga (fim do arquivo). */
+:root {
+  /* curvas: "saída" desacelera (entrar, mudar), "mola" passa um tiquinho e volta (dar vida),
+     "sair" acelera (o que vai embora) */
+  --curva-saida: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --curva-mola: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --curva-sair: cubic-bezier(0.4, 0, 1, 1);
+  --dur-toque: 120ms;
+  --dur-curta: 180ms;
+  --dur-media: 240ms;
+  --dur-longa: 340ms;
+  --dur-festa: 800ms;
+}
+
 @keyframes pt-entrar {
   from {
     opacity: 0;
@@ -173,52 +187,266 @@
     transform: translateX(-100%);
   }
 }
+@keyframes pt-estalar {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+  }
+}
+@keyframes pt-desenhar {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes pt-onda {
+  from {
+    opacity: 0.75;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.3);
+  }
+}
+@keyframes pt-destaque {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes pt-entrar-lado {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+@keyframes pt-sair-lado {
+  to {
+    opacity: 0;
+    transform: translateX(24px) scale(0.98);
+  }
+}
+@keyframes pt-trocar {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+@keyframes pt-aviso-entra {
+  from {
+    opacity: 0;
+    transform: translateY(110%);
+  }
+}
+@keyframes pt-aviso-sai {
+  to {
+    opacity: 0;
+    transform: translateY(60%);
+  }
+}
+@keyframes pt-tempo {
+  to {
+    transform: scaleX(0);
+  }
+}
+@keyframes pt-linha {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes vt-sai-esq {
+  to {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+@keyframes vt-entra-dir {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+@keyframes vt-sai-dir {
+  to {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+@keyframes vt-entra-esq {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
 
 /* Entrada dos cartões: sobe e aparece, em cascata curta (até 6 itens, 40 ms entre eles).
    `backwards`: depois de entrar, a animação solta o transform (o toque com escala continua valendo). */
 @utility anima-entrada {
-  animation: pt-entrar 220ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation: pt-entrar 220ms var(--curva-saida) backwards;
   animation-delay: calc(min(var(--i, 0), 5) * 40ms);
 }
 
 /* Toque: leve encolhida enquanto o dedo está em cima. */
 @utility tocavel {
-  transition: transform 120ms ease-out, background-color 120ms ease-out;
+  transition: transform var(--dur-toque) ease-out, opacity var(--dur-toque) ease-out;
   &:active {
     transform: scale(0.98);
   }
 }
 
 @utility indicador-aba {
-  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform var(--dur-media) var(--curva-saida);
 }
 
-/* Barra de progresso: a parte cheia desliza da esquerda até o valor (o valor é um translateX). */
+/* Barra de progresso: a parte cheia desliza da esquerda até o valor (o valor é um translateX)
+   e, quando o valor muda, desliza do antigo ao novo. */
 @utility barra-anima {
-  animation: pt-barra 500ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation: pt-barra 500ms var(--curva-saida) backwards;
   animation-delay: 120ms;
+  transition: transform 500ms var(--curva-saida);
 }
 
+/* Véu escuro atrás da folha/diálogo: fica num ::before para poder esmaecer sozinho
+   (o painel por cima continua opaco enquanto sobe ou desce). */
 @utility veu-anima {
-  animation: pt-aparecer 200ms ease-out;
-  &[data-saindo] {
-    animation: pt-sumir 160ms ease-in forwards;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--color-veu) 85%, transparent);
+    animation: pt-aparecer 200ms ease-out;
+  }
+  & > * {
+    position: relative;
   }
 }
 @utility folha-anima {
-  animation: pt-subir 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  [data-saindo] > & {
-    animation: pt-descer 160ms ease-in forwards;
-  }
+  animation: pt-subir var(--dur-media) var(--curva-saida);
 }
 @utility dialogo-anima {
-  animation: pt-crescer 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  [data-saindo] > & {
-    animation: pt-encolher 160ms ease-in forwards;
+  animation: pt-crescer 200ms var(--curva-saida);
+}
+
+/* Fantasma de saída: cópia inerte da folha/diálogo que acabou de fechar (por X, tocar fora, Esc,
+   salvar, apagar ou cancelar). Anima a saída por cima, sem segurar nenhum toque. */
+[data-fantasma] {
+  pointer-events: none !important;
+  &::before {
+    animation: pt-sumir var(--dur-curta) var(--curva-sair) forwards;
+  }
+  & .folha-anima {
+    animation: pt-descer var(--dur-curta) var(--curva-sair) forwards;
+  }
+  & .dialogo-anima {
+    animation: pt-encolher 150ms var(--curva-sair) forwards;
+  }
+  /* outra folha abriu no lugar: a cópia some rápido e sem véu duplo */
+  &[data-troca]::before {
+    animation: none;
+    opacity: 0;
+  }
+  &[data-troca] .folha-anima,
+  &[data-troca] .dialogo-anima {
+    animation: pt-sumir 120ms var(--curva-sair) forwards;
   }
 }
+
+/* Troca de estado dentro de um cartão (pendente -> tomada -> desfeito): o novo estado cresce de leve. */
+@utility anima-troca {
+  animation: pt-trocar var(--dur-media) var(--curva-mola) backwards;
+}
+/* Texto que muda (ex.: "pendente" -> "Tomada às 20:49"). */
+@utility anima-texto {
+  animation: pt-aparecer var(--dur-media) ease-out backwards;
+}
+
+/* Registro que acabou de mudar: um brilho verde que esmaece (camada por cima, só opacity). */
+@utility anima-brilho {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--color-ok) 16%, transparent);
+    pointer-events: none;
+    opacity: 0;
+    animation: pt-destaque 700ms ease-out 150ms backwards;
+  }
+}
+/* Linha nova numa lista (registro recém-feito): entra deslizando (use junto com anima-brilho). */
+@utility anima-nova {
+  animation: pt-entrar-lado var(--dur-longa) var(--curva-saida) backwards;
+}
+
+/* Item que saiu da lista (apagado, desfeito): desliza e some antes de ir embora. */
+@utility anima-sai {
+  pointer-events: none;
+  animation: pt-sair-lado var(--dur-curta) var(--curva-sair) forwards;
+}
+
+/* Celebração: círculo estala (mola), check se desenha, onda se expande uma vez. ~800 ms no total. */
+.check-estala {
+  animation: pt-estalar 420ms var(--curva-mola) backwards;
+}
+.traco-desenha {
+  stroke-dasharray: 1;
+  animation: pt-desenhar 380ms var(--curva-saida) 140ms backwards;
+}
+.onda {
+  opacity: 0;
+  animation: pt-onda 700ms var(--curva-saida) 100ms backwards;
+}
+.onda-2 {
+  animation-delay: 260ms;
+}
+.tudo-feito-entra {
+  animation: pt-trocar var(--dur-longa) var(--curva-mola) backwards;
+}
+
+/* Aviso (toast): entra de baixo com mola, sai descendo; a barrinha mostra quanto falta. */
 @utility aviso-anima {
-  animation: pt-entrar 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: pt-aviso-entra var(--dur-longa) var(--curva-mola) backwards;
+  &[data-saindo] {
+    animation: pt-aviso-sai var(--dur-curta) var(--curva-sair) forwards;
+  }
+  &[data-voltando] {
+    transition:
+      transform var(--dur-media) var(--curva-mola),
+      opacity var(--dur-curta) ease-out;
+  }
+}
+@utility tempo-anima {
+  transform-origin: left;
+  animation: pt-tempo linear forwards;
+  [data-pausado] & {
+    animation-play-state: paused;
+  }
+}
+
+/* Gráfico: a linha se desenha ao abrir, os pontos aparecem logo depois. */
+.grafico-linha {
+  stroke-dasharray: 1;
+  animation: pt-linha 700ms var(--curva-saida) 80ms backwards;
+}
+.grafico-ponto {
+  animation: pt-aparecer var(--dur-media) ease-out 520ms backwards;
+}
+
+/* Esqueleto de carregamento: blocos parados que só aparecem se demorar (sem brilho em loop). */
+@utility esqueleto {
+  @apply rounded-xl bg-sup;
+  animation: pt-aparecer var(--dur-media) ease-out backwards;
+}
+
+/* Barra de baixo: o fundo da aba escolhida desliza; o ícone dá uma encolhida no toque. */
+@utility aba-indicador {
+  transition: transform var(--dur-longa) var(--curva-mola);
 }
 
 @layer base {
@@ -227,17 +455,79 @@
   .btn-secundario,
   .btn-neutro,
   .btn-perigo,
-  .chip {
-    transition: transform 120ms ease-out, background-color 120ms ease-out;
+  .chip,
+  .icone-btn,
+  .btn-texto,
+  .link,
+  [role='tab'],
+  [role='radio'] {
+    transition:
+      transform var(--dur-toque) ease-out,
+      opacity var(--dur-toque) ease-out;
   }
   .btn:active:not(:disabled),
   .btn-primario:active:not(:disabled),
   .btn-secundario:active:not(:disabled),
   .btn-neutro:active:not(:disabled),
   .btn-perigo:active:not(:disabled),
-  .chip:active {
-    transform: scale(0.98);
+  .chip:active,
+  [role='tab']:active {
+    transform: scale(0.97);
   }
+  .icone-btn:active:not(:disabled) {
+    transform: scale(0.9);
+  }
+  .btn-texto:active:not(:disabled),
+  .link:active {
+    opacity: 0.7;
+  }
+  /* qualquer outro botão/link sem estado próprio: leve esmaecida no toque */
+  :where(button, a):active:not(:disabled) {
+    opacity: 0.88;
+  }
+}
+
+/* ---------- Transição entre telas (View Transitions API) ----------
+   A barra de baixo e os avisos ficam parados; só o conteúdo anda. Nada bloqueia o toque. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-media);
+  animation-timing-function: var(--curva-saida);
+}
+html[data-direcao='avancar']::view-transition-old(root) {
+  animation-name: vt-sai-esq;
+  animation-timing-function: var(--curva-sair);
+  animation-duration: var(--dur-curta);
+}
+html[data-direcao='avancar']::view-transition-new(root) {
+  animation-name: vt-entra-dir;
+}
+html[data-direcao='voltar']::view-transition-old(root) {
+  animation-name: vt-sai-dir;
+  animation-timing-function: var(--curva-sair);
+  animation-duration: var(--dur-curta);
+}
+html[data-direcao='voltar']::view-transition-new(root) {
+  animation-name: vt-entra-esq;
+}
+html[data-direcao='aba']::view-transition-old(root),
+html[data-direcao='aba']::view-transition-new(root),
+html[data-direcao='troca']::view-transition-old(root),
+html[data-direcao='troca']::view-transition-new(root) {
+  animation-duration: 160ms;
+}
+.vt-abas {
+  view-transition-name: abas;
+}
+.vt-avisos {
+  view-transition-name: avisos;
+}
+::view-transition-group(abas),
+::view-transition-group(avisos) {
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -246,5 +536,13 @@
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  [data-fantasma] {
+    display: none !important;
   }
 }

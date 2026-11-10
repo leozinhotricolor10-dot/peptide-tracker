@@ -24,6 +24,7 @@ import {
 } from '../dominio/calculos.ts'
 import { nomeComMg, nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import type { Frasco, ItemProtocolo, Substancia, UnidadeDose } from '../dominio/tipos.ts'
+import { NumeroAnimado } from '../ui/celebracao.tsx'
 import { Cabecalho, Carregando, Chips, Dialogo, NaoAchou, Nota, Tela, Vazio } from '../ui/base.tsx'
 import { useVoltar } from '../ui/navegar.ts'
 import { IcoAlerta, IcoEstoque, IcoMais } from '../ui/icones.tsx'
@@ -115,10 +116,10 @@ export function Estoque() {
             <div className="flex flex-col gap-1">
               <span className="flex justify-between gap-2 text-sm font-semibold">
                 <span>Restante</span>
-                <span>{s.mlRestante !== null ? `${fmtNum(s.mlRestante, 2)} mL de ${fmtNum(f.diluenteMl ?? 0)} mL` : `${fmtNum(s.mgRestante, 3)} mg de ${fmtNum(f.mgTotal)} mg`}</span>
+                <span>{s.mlRestante !== null ? <><NumeroAnimado valor={s.mlRestante} formatar={(v) => fmtNum(v, 2)} /> mL de {fmtNum(f.diluenteMl ?? 0)} mL</> : <><NumeroAnimado valor={s.mgRestante} formatar={(v) => fmtNum(v, 3)} /> mg de {fmtNum(f.mgTotal)} mg</>}</span>
               </span>
               <div className="h-2 overflow-hidden rounded-full bg-sup2" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(frac * 100)} aria-label="Saldo do frasco">
-                <div className={`h-full rounded-full ${frac <= LIMITE_ACABANDO ? 'bg-aviso' : 'bg-acento'}`} style={{ width: `${Math.max(0, Math.min(100, frac * 100))}%` }} />
+                <div className={`barra-anima h-full w-full rounded-full ${frac <= LIMITE_ACABANDO ? 'bg-aviso' : 'bg-acento'}`} style={{ transform: `translateX(${(Math.max(0, Math.min(1, frac)) - 1) * 100}%)` }} />
               </div>
               {doses !== null && <span className="text-sm font-semibold text-suave">{doses === 0 ? 'Menos de 1 dose restante' : `≈ ${doses} dose${doses === 1 ? '' : 's'} restante${doses === 1 ? '' : 's'}`} com {fmtDose(item!.doseValor, item!.doseUnidade)}</span>}
               {s.naoContabilizadas > 0 && <span className="text-xs text-fraco">{s.naoContabilizadas} registro(s) sem conversão para mg (em UI, ou em mL/unidades antes de reconstituir) não entram na conta.</span>}

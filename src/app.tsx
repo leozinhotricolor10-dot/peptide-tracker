@@ -112,11 +112,19 @@ function Abas() {
     { to: '/peso', t: 'Peso', I: IcoPeso },
     { to: '/estoque', t: 'Estoque', I: IcoEstoque },
   ]
+  const { pathname } = useLocation()
+  const ativa = Math.max(0, itens.findIndex((x) => x.to === pathname))
   return (
-    <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-20 border-t border-linha bg-sup">
-      <div className="mx-auto flex max-w-[480px] justify-between gap-1 px-3 pt-2 pb-[max(12px,env(safe-area-inset-bottom))]">
+    <nav aria-label="Navegação principal" className="vt-abas fixed inset-x-0 bottom-0 z-20 border-t border-linha bg-sup">
+      <div className="relative mx-auto grid max-w-[480px] grid-cols-4 gap-1 px-3 pt-2 pb-[max(12px,env(safe-area-inset-bottom))]">
+        {/* fundo da aba escolhida: um só, desliza de uma aba para a outra (só transform) */}
+        <span
+          aria-hidden="true"
+          className="aba-indicador absolute top-2 left-3 h-[52px] rounded-[10px] bg-selecionado"
+          style={{ width: 'calc((100% - 1.5rem - 0.75rem) / 4)', transform: `translateX(calc(${ativa} * (100% + 0.25rem)))` }}
+        />
         {itens.map(({ to, t, I }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => `flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[10px] ${isActive ? 'bg-selecionado text-acento' : 'text-fraco'}`}>
+          <NavLink key={to} to={to} className={({ isActive }) => `relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-[10px] ${isActive ? 'text-acento' : 'text-fraco'}`}>
             {({ isActive }) => (
               <>
                 <I tam={24} />
@@ -147,7 +155,7 @@ export function Raiz() {
   if (!aceite.valor && !publica) return <Navigate to="/boas-vindas" replace />
   const comAbas = ABAS.includes(loc.pathname)
   return (
-    <ToastProvider>
+    <ToastProvider alto={comAbas}>
       <DoseUIProvider>
         <Faixas />
         <main className={comAbas ? 'pb-[96px]' : ''}>

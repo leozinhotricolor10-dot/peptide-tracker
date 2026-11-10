@@ -2,19 +2,22 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { repo, useBase, useConfig, type Base } from '../dados/index.ts'
-import { estadoEfetivo, proximosSlots, slotsDoDia, statusSlot, type Slot, type StatusSlot } from '../dominio/agenda.ts'
+import { estadoEfetivo, proximosSlots, resumoHoje, slotsDoDia, statusSlot, type Slot, type StatusSlot } from '../dominio/agenda.ts'
 import { dataLonga, diaDe, diaRelativo, difDias, horaDe, somaDias } from '../dominio/datas.ts'
 import { LIMITE_ACABANDO, dataLimite, fmtDose, saldoFrasco } from '../dominio/calculos.ts'
 import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import { estoqueDoItem } from '../dominio/estoque.ts'
 import { bordaCor } from '../ui/cor.tsx'
-import type { Frasco } from '../dominio/tipos.ts'
+import type { Aplicacao, Frasco, Protocolo } from '../dominio/tipos.ts'
 import { Carregando, Dialogo, Tela, Vazio } from '../ui/base.tsx'
-import { IcoAlerta, IcoCheck, IcoEngrenagem, IcoEstoque, IcoProtocolos, IcoSeta, IcoSino, IcoX } from '../ui/icones.tsx'
+import { IcoAlerta, IcoEngrenagem, IcoEstoque, IcoProtocolos, IcoSeta, IcoSino, IcoX } from '../ui/icones.tsx'
 import { FrascoVencido, useDoseUI } from './dose.tsx'
 import { PrePermissao, AvisosBloqueados } from './inicio.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { BotaoAcao } from '../ui/acao.tsx'
+import { CheckAnimado, NumeroAnimado, TudoFeito } from '../ui/celebracao.tsx'
+import { useListaComSaida } from '../ui/base.tsx'
+import { useMudou, useRecente } from '../ui/movimento.ts'
 
 export const DIAS_AVISO_VENCIMENTO = 14
 
@@ -56,6 +59,22 @@ export function Hoje() {
   const reativar = useConfig('reativarAvisos')
   const [dialogo, setDialogo] = useState<null | 'backup' | 'pre' | 'bloq' | { frasco: Frasco }>(null)
 
+  // calculado antes dos retornos abaixo (hooks de animação precisam rodar sempre)
+  const slots = base ? slotsDoDia(base.protocolos, base.itens, hoje).map((s) => ({ s, st: statusSlot(s, base.aplicacoes, agora) })) : []
+  const { feitas, tudoFeito } = resumoHoje(slots.map((x) => x.st))
+  const proxHoje = slots.find((x) => x.st === 'pendente') ?? slots.find((x) => x.st === 'atrasada')
+  const pronto = !!base && ultimoBackup.carregado
+  const acabouAgora = useMudou(tudoFeito, pronto) && tudoFeito
+  const trocouProxima = useMudou(proxHoje ? proxHoje.s.chave + proxHoje.s.itemId : '', pronto)
+  const avulsas = useListaComSaida(
+    base
+      ? base.aplicacoes
+          .filter((a) => diaDe(new Date(a.dataHora)) === hoje && !slots.some((x) => x.s.itemId === a.itemId && x.s.chave === a.previsto))
+          .sort((a, b) => a.dataHora.localeCompare(b.dataHora))
+      : [],
+    (a) => a.id,
+  )
+
   if (!base || !ultimoBackup.carregado) return <Tela><CabecalhoHoje hoje={hoje} /><Carregando /></Tela>
 
   if (base.protocolos.length === 0) {
@@ -70,9 +89,6 @@ export function Hoje() {
     )
   }
 
-  const slots = slotsDoDia(base.protocolos, base.itens, hoje).map((s) => ({ s, st: statusSlot(s, base.aplicacoes, agora) }))
-  const feitas = slots.filter((x) => x.st === 'feita').length
-  const proxHoje = slots.find((x) => x.st === 'pendente') ?? slots.find((x) => x.st === 'atrasada')
   const futura = proxHoje ? undefined : proximosSlots(base.protocolos, base.itens, new Date(somaDias(hoje, 1) + 'T00:00:00'), 1)[0]
 
   const clicar = (s: Slot, st: StatusSlot) => {
@@ -126,19 +142,13 @@ export function Hoje() {
       )}
 
       {proxHoje ? (
-        <div className="flex flex-col gap-4 rounded-2xl bg-acento p-5 text-sobre-acento">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold tracking-wide text-acento-escuro uppercase">{proxHoje.st === 'atrasada' ? 'Dose atrasada' : 'Próxima dose'}</span>
-            <span className="rounded-full bg-sup px-2.5 py-1 text-[13px] font-bold text-acento">{proxHoje.s.horario}</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-[26px] leading-tight font-extrabold break-words">{nomeSubstancia(proxHoje.s.substanciaId, base.subs)}</span>
-            <span className="text-[15px] font-medium text-acento-escuro">{doseTexto(base, proxHoje.s)}</span>
-          </div>
-          <button type="button" className="btn h-12 bg-sup text-acento" onClick={() => clicar(proxHoje.s, proxHoje.st)}>Registrar dose</button>
-        </div>
+        <ProximaDose key={proxHoje.s.chave + proxHoje.s.itemId} trocou={trocouProxima} atrasada={proxHoje.st === 'atrasada'} horario={proxHoje.s.horario} nome={nomeSubstancia(proxHoje.s.substanciaId, base.subs)} dose={doseTexto(base, proxHoje.s)} registrar={() => clicar(proxHoje.s, proxHoje.st)} />
+      ) : tudoFeito ? (
+        <TudoFeito total={slots.length} animar={acabouAgora}>
+          {futura && <span className="mt-1 text-[13px] font-semibold text-suave">Próxima: {diaRelativo(futura.dia, hoje).toLowerCase()} às {futura.horario} · {nomeSubstancia(futura.substanciaId, base.subs)}</span>}
+        </TudoFeito>
       ) : futura ? (
-        <div className="card flex flex-col gap-1 p-5">
+        <div className="card anima-entrada flex flex-col gap-1 p-5">
           <span className="text-[13px] font-bold tracking-wide text-fraco uppercase">Próxima dose</span>
           <span className="text-xl font-extrabold">{nomeSubstancia(futura.substanciaId, base.subs)}</span>
           <span className="text-[15px] text-suave">{diaRelativo(futura.dia, hoje)} às {futura.horario} · {doseTexto(base, futura)}</span>
@@ -148,52 +158,26 @@ export function Hoje() {
       <section className="flex flex-col gap-2.5">
         <div className="flex items-baseline justify-between">
           <h2 className="text-[17px] font-bold">Doses de hoje</h2>
-          {slots.length > 0 && <span className="text-[13px] font-semibold text-fraco">{feitas} de {slots.length}</span>}
+          {slots.length > 0 && <span className="text-[13px] font-semibold text-fraco"><NumeroAnimado valor={feitas} /> de {slots.length}</span>}
         </div>
         {slots.length === 0 && <p className="m-0 card p-4 text-[15px] text-suave">Nenhuma dose prevista para hoje.</p>}
-        {slots.map(({ s, st }, k) => {
-          const ap = base.aplicacoes.find((a) => a.itemId === s.itemId && a.previsto === s.chave)
-          const prot = base.protocolos.find((p) => p.id === s.protocoloId)
-          const semFrasco = (st === 'pendente' || st === 'atrasada') && semFrascoIds.has(s.itemId)
-          return (
-            <button key={s.chave + s.itemId} type="button" onClick={() => clicar(s, st)} style={{ '--i': k, ...bordaCor(prot) } as CSSProperties} className="card tocavel anima-entrada flex min-h-[64px] items-center gap-3.5 border-l-[5px] px-4 py-3 text-left">
-              {st === 'feita' ? (
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ok-fundo text-ok"><IcoCheck tam={18} /></span>
-              ) : st === 'pulada' ? (
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sup2 text-erro"><IcoX tam={16} /></span>
-              ) : (
-                <span className={`h-8 w-8 shrink-0 rounded-full border-2 ${st === 'atrasada' ? 'border-aviso' : 'border-borda'}`} aria-hidden="true" />
-              )}
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-base font-bold break-words">{nomeSubstancia(s.substanciaId, base.subs)}</span>
-                <span className={`text-[13px] font-semibold ${st === 'atrasada' ? 'text-aviso' : st === 'pulada' ? 'text-erro' : st === 'feita' ? 'text-ok' : 'text-fraco'}`}>
-                  {st === 'feita' && ap ? `✓ Tomada às ${horaDe(new Date(ap.dataHora))} · ${fmtDose(ap.doseValor, ap.doseUnidade)}` : st === 'pulada' ? '✕ Não feita' : st === 'atrasada' ? `${doseTexto(base, s)} · atrasada` : `${doseTexto(base, s)} · pendente`}
-                </span>
-                {semFrasco && (
-                  <span className="mt-0.5 flex items-center gap-1 self-start rounded-full bg-aviso-fundo px-2 py-0.5 text-xs font-bold text-aviso-texto"><IcoAlerta tam={12} /> Sem frasco no estoque</span>
-                )}
-              </span>
-              <span className="text-sm font-bold">{s.horario}</span>
-            </button>
-          )
-        })}
-        {base.aplicacoes
-          .filter((a) => diaDe(new Date(a.dataHora)) === hoje && !slots.some((x) => x.s.itemId === a.itemId && x.s.chave === a.previsto))
-          .sort((a, b) => a.dataHora.localeCompare(b.dataHora))
-          .map((a) => (
-            <button key={a.id} type="button" onClick={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })} style={bordaCor(base.protocolos.find((p) => p.id === a.protocoloId))} className="card tocavel anima-entrada flex min-h-[64px] items-center gap-3.5 border-l-[5px] px-4 py-3 text-left">
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${a.status === 'feita' ? 'bg-ok-fundo text-ok' : 'bg-sup2 text-erro'}`}>
-                {a.status === 'feita' ? <IcoCheck tam={18} /> : <IcoX tam={16} />}
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-base font-bold break-words">{nomeSubstancia(a.substanciaId, base.subs)}</span>
-                <span className={`text-[13px] font-semibold ${a.status === 'feita' ? 'text-ok' : 'text-erro'}`}>
-                  {a.status === 'feita' ? `✓ Tomada · ${fmtDose(a.doseValor, a.doseUnidade)}` : '✕ Não feita'} · {a.previsto ? 'horário antigo' : 'registro avulso'}
-                </span>
-              </span>
-              <span className="text-sm font-bold">{horaDe(new Date(a.dataHora))}</span>
-            </button>
-          ))}
+        {slots.map(({ s, st }, k) => (
+          <LinhaDose
+            key={s.chave + s.itemId}
+            k={k}
+            s={s}
+            st={st}
+            ap={base.aplicacoes.find((a) => a.itemId === s.itemId && a.previsto === s.chave)}
+            prot={base.protocolos.find((p) => p.id === s.protocoloId)}
+            nome={nomeSubstancia(s.substanciaId, base.subs)}
+            dose={doseTexto(base, s)}
+            semFrasco={(st === 'pendente' || st === 'atrasada') && semFrascoIds.has(s.itemId)}
+            clicar={() => clicar(s, st)}
+          />
+        ))}
+        {avulsas.map(({ item: a, saindo }) => (
+          <LinhaAvulsa key={a.id} a={a} saindo={saindo} nome={nomeSubstancia(a.substanciaId, base.subs)} prot={base.protocolos.find((p) => p.id === a.protocoloId)} abrir={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })} />
+        ))}
       </section>
 
       {alertas.map((a, i) => (
@@ -254,5 +238,71 @@ export function Hoje() {
       )}
       {dialogo === 'bloq' && <AvisosBloqueados aoFechar={() => { setDialogo(null); void repo.delConfig('reativarAvisos') }} />}
     </Tela>
+  )
+}
+
+function ProximaDose({ trocou, atrasada, horario, nome, dose, registrar }: { trocou: boolean; atrasada: boolean; horario: string; nome: string; dose: string; registrar: () => void }) {
+  return (
+    <div className={`flex flex-col gap-4 rounded-2xl bg-acento p-5 text-sobre-acento ${trocou ? 'anima-troca' : ''}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-bold tracking-wide text-acento-escuro uppercase">{atrasada ? 'Dose atrasada' : 'Próxima dose'}</span>
+        <span className="rounded-full bg-sup px-2.5 py-1 text-[13px] font-bold text-acento">{horario}</span>
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-[26px] leading-tight font-extrabold break-words">{nome}</span>
+        <span className="text-[15px] font-medium text-acento-escuro">{dose}</span>
+      </div>
+      <button type="button" className="btn h-12 bg-sup text-acento" onClick={registrar}>Registrar dose</button>
+    </div>
+  )
+}
+
+/** Cartão de uma dose do dia. Quando o estado muda (registrar, desfazer), o ícone e o texto trocam com animação. */
+function LinhaDose({ k, s, st, ap, prot, nome, dose, semFrasco, clicar }: { k: number; s: Slot; st: StatusSlot; ap?: Aplicacao; prot?: Protocolo; nome: string; dose: string; semFrasco: boolean; clicar: () => void }) {
+  const mudou = useMudou(st)
+  const recente = useRecente(ap?.id)
+  return (
+    <button type="button" onClick={clicar} data-estado={st} style={{ '--i': k, ...bordaCor(prot) } as CSSProperties} className={`card tocavel anima-entrada flex min-h-[64px] items-center gap-3.5 border-l-[5px] px-4 py-3 text-left ${recente && st === 'feita' ? 'anima-brilho' : ''}`}>
+      <span key={st} className={`flex h-8 w-8 shrink-0 items-center justify-center ${mudou && st !== 'feita' ? 'anima-troca' : ''}`}>
+        {st === 'feita' ? (
+          <CheckAnimado tam={32} festa={mudou} animar={mudou} />
+        ) : st === 'pulada' ? (
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sup2 text-erro"><IcoX tam={16} /></span>
+        ) : (
+          <span className={`h-8 w-8 rounded-full border-2 ${st === 'atrasada' ? 'border-aviso' : 'border-borda'}`} aria-hidden="true" />
+        )}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-base font-bold break-words">{nome}</span>
+        <span key={st} className={`text-[13px] font-semibold ${mudou ? 'anima-texto' : ''} ${st === 'atrasada' ? 'text-aviso' : st === 'pulada' ? 'text-erro' : st === 'feita' ? 'text-ok' : 'text-fraco'}`}>
+          {st === 'feita' && ap ? `✓ Tomada às ${horaDe(new Date(ap.dataHora))} · ${fmtDose(ap.doseValor, ap.doseUnidade)}` : st === 'pulada' ? '✕ Não feita' : st === 'atrasada' ? `${dose} · atrasada` : `${dose} · pendente`}
+        </span>
+        {semFrasco && (
+          <span className="mt-0.5 flex items-center gap-1 self-start rounded-full bg-aviso-fundo px-2 py-0.5 text-xs font-bold text-aviso-texto"><IcoAlerta tam={12} /> Sem frasco no estoque</span>
+        )}
+      </span>
+      <span className="text-sm font-bold">{s.horario}</span>
+    </button>
+  )
+}
+
+/** Registro de hoje fora dos horários previstos (avulso ou de um horário antigo). */
+function LinhaAvulsa({ a, saindo, nome, prot, abrir }: { a: Aplicacao; saindo: boolean; nome: string; prot?: Protocolo; abrir: () => void }) {
+  const recente = useRecente(a.id)
+  return (
+    <button type="button" onClick={abrir} disabled={saindo} style={bordaCor(prot)} className={`card tocavel flex min-h-[64px] items-center gap-3.5 border-l-[5px] px-4 py-3 text-left ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : 'anima-entrada'}`}>
+      {a.status === 'feita' ? (
+        <CheckAnimado tam={32} festa={recente} animar={recente} />
+      ) : (
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sup2 text-erro"><IcoX tam={16} /></span>
+      )}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-base font-bold break-words">{nome}</span>
+        <span className={`text-[13px] font-semibold ${a.status === 'feita' ? 'text-ok' : 'text-erro'}`}>
+          {a.status === 'feita' ? `✓ Tomada · ${fmtDose(a.doseValor, a.doseUnidade)}` : '✕ Não feita'} · {a.previsto ? 'horário antigo' : 'registro avulso'}
+        </span>
+      </span>
+      <span className="text-sm font-bold">{horaDe(new Date(a.dataHora))}</span>
+    </button>
   )
 }

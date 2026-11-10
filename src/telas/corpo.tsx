@@ -6,6 +6,7 @@ import { dataBr, dataMedia, difDias, hojeStr, somaDias } from '../dominio/datas.
 import { erroNumero, fmtNum, lerNumero, numeroAmbiguo } from '../dominio/calculos.ts'
 import { nomeProtocolo } from '../dominio/nomes.ts'
 import type { Angulo, Foto, Medicao } from '../dominio/tipos.ts'
+import { NumeroAnimado } from '../ui/celebracao.tsx'
 import { Cabecalho, Carregando, Chips, Dialogo, NaoAchou, Nota, Tela, Vazio } from '../ui/base.tsx'
 import { useVoltar } from '../ui/navegar.ts'
 import { Grafico } from '../ui/Grafico.tsx'
@@ -90,7 +91,7 @@ export function Peso() {
         <Link to="/peso/medida/peso" className="flex items-end justify-between">
           <span className="flex flex-col gap-0.5">
             <span className="text-[13px] font-bold tracking-wide text-fraco uppercase">Peso atual</span>
-            <span className="text-[34px] leading-none font-extrabold">{atual ? <>{fmtNum(atual.valor, 1)} <span className="text-lg text-fraco">kg</span></> : '—'}</span>
+            <span className="text-[34px] leading-none font-extrabold">{atual ? <><NumeroAnimado valor={atual.valor} formatar={(v) => fmtNum(v, 1)} /> <span className="text-lg text-fraco">kg</span></> : '—'}</span>
           </span>
           {variacao(sPeso) !== null && <span className="rounded-full bg-selecionado px-3 py-1 text-sm font-bold text-acento">{fmtVar(variacao(sPeso), 'kg')} em 30 dias</span>}
         </Link>
@@ -238,7 +239,7 @@ export function DetalheMedida() {
     <Tela>
       <Cabecalho titulo={info.t} voltar />
       <div className="flex items-baseline gap-3">
-        <span className="text-[34px] font-extrabold">{atual ? `${fmtNum(atual.valor, 1)} ${info.u}` : '—'}</span>
+        <span className="text-[34px] font-extrabold">{atual ? <><NumeroAnimado valor={atual.valor} formatar={(v) => fmtNum(v, 1)} /> {info.u}</> : '—'}</span>
         {v !== null && <span className="text-sm font-bold text-suave">{fmtVar(v, info.u)} em 30 dias</span>}
       </div>
       <div className="card p-3">

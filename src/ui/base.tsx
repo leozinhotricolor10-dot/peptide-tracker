@@ -1,9 +1,12 @@
 // Peças visuais reaproveitadas pelas telas.
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router'
 import { IcoCheck, IcoFechar, IcoVoltar, IcoX } from './icones.tsx'
 import { useVoltar } from './navegar.ts'
+import { mesclarSaida, reduzirMovimento } from './movimento.ts'
+
+export { reduzirMovimento }
 
 /** Coluna central de celular (390px de referência; não quebra em telas maiores). */
 export function Tela({ children, className = '', semPadding = false }: { children: ReactNode; className?: string; semPadding?: boolean }) {
@@ -58,53 +61,66 @@ export function Passo({ n, total = 4 }: { n: number; total?: number }) {
   return <span className="text-[13px] font-bold tracking-wide text-acento uppercase">Passo {n} de {total}</span>
 }
 
-/** O aparelho pediu para reduzir movimento. */
-export function reduzirMovimento(): boolean {
-  try {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  } catch {
-    return false
-  }
-}
-
-/** Duração da saída da folha/diálogo (igual ao CSS). */
-const SAIDA_MS = 160
-
 /**
- * Fechar pelo X, por tocar fora ou pelo Esc: toca a animação de saída e só depois fecha.
- * Sem animação quando o aparelho pede menos movimento. Ações que fecham por conta própria
- * (salvar, apagar) continuam fechando na hora.
+ * Fantasma de saída: quando uma folha/diálogo fecha (X, tocar fora, Esc, salvar, apagar, cancelar,
+ * trocar de tela), a camada sai da tela na hora (nada espera a animação) e uma cópia inerte dela
+ * faz a animação de saída por cima, sem receber toque. Com "reduzir movimento", não há cópia.
  */
-function useFecharAnimado(aoFechar?: () => void): { saindo: boolean; fechar?: () => void } {
-  const [saindo, setSaindo] = useState(false)
-  const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  useEffect(() => () => clearTimeout(t.current), [])
-  if (!aoFechar) return { saindo }
-  const fechar = () => {
-    if (t.current !== undefined) return
-    if (reduzirMovimento()) return aoFechar()
-    setSaindo(true)
-    t.current = setTimeout(aoFechar, SAIDA_MS)
+function deixarFantasma(no: HTMLElement | null) {
+  if (!no || !no.isConnected || reduzirMovimento()) return
+  const copia = no.cloneNode(true) as HTMLElement
+  copia.setAttribute('data-fantasma', '')
+  copia.setAttribute('aria-hidden', 'true')
+  copia.setAttribute('inert', '')
+  copia.removeAttribute('data-camada')
+  copia.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'))
+  copia.querySelectorAll('[role]').forEach((el) => el.removeAttribute('role'))
+  const painel = no.firstElementChild as HTMLElement | null
+  // valores digitados não vão junto no cloneNode: copia campo a campo
+  const de = no.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select')
+  const para = copia.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select')
+  de.forEach((el, i) => {
+    if (para[i]) para[i].value = el.value
+  })
+  document.body.appendChild(copia)
+  if (painel) (copia.firstElementChild as HTMLElement | null)?.scrollTo(0, painel.scrollTop)
+  let removido = false
+  const remover = () => {
+    if (removido) return
+    removido = true
+    copia.remove()
   }
-  return { saindo, fechar }
+  // Abriu outra camada no lugar (ex.: "Fiz agora" troca a folha): a cópia só esmaece, rápido.
+  requestAnimationFrame(() => {
+    // a camada original continua na tela (React em modo de desenvolvimento remonta efeitos): sem fantasma
+    if (no.isConnected) return remover()
+    if (document.querySelector('[data-camada]')) copia.setAttribute('data-troca', '')
+  })
+  setTimeout(remover, 260)
 }
 
 /** Fundo escurecido + painel. Fecha com Esc e ao tocar fora. */
-function Camada({ aoFechar, children, alinhar, saindo }: { aoFechar?: () => void; children: ReactNode; alinhar: 'baixo' | 'centro'; saindo?: boolean }) {
+function Camada({ aoFechar, children, alinhar }: { aoFechar?: () => void; children: ReactNode; alinhar: 'baixo' | 'centro' }) {
+  const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => e.key === 'Escape' && aoFechar?.()
     window.addEventListener('keydown', tecla)
+    return () => window.removeEventListener('keydown', tecla)
+  }, [aoFechar])
+  useLayoutEffect(() => {
+    const no = ref.current
     const ov = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
-      window.removeEventListener('keydown', tecla)
       document.body.style.overflow = ov
+      deixarFantasma(no)
     }
-  }, [aoFechar])
+  }, [])
   return createPortal(
     <div
-      data-saindo={saindo || undefined}
-      className={`veu-anima fixed inset-0 z-40 flex justify-center bg-veu/85 ${alinhar === 'baixo' ? 'items-end' : 'items-center px-4'}`}
+      ref={ref}
+      data-camada=""
+      className={`veu-anima fixed inset-0 z-40 flex justify-center ${alinhar === 'baixo' ? 'items-end' : 'items-center px-4'}`}
       onMouseDown={(e) => e.target === e.currentTarget && aoFechar?.()}
     >
       {children}
@@ -114,15 +130,14 @@ function Camada({ aoFechar, children, alinhar, saindo }: { aoFechar?: () => void
 }
 
 /** Bottom sheet (M..). */
-export function Sheet({ titulo, sub, aoFechar: fecharJa, children }: { titulo: ReactNode; sub?: ReactNode; aoFechar?: () => void; children: ReactNode }) {
+export function Sheet({ titulo, sub, aoFechar, children }: { titulo: ReactNode; sub?: ReactNode; aoFechar?: () => void; children: ReactNode }) {
   const id = useId()
   const ref = useRef<HTMLDivElement>(null)
-  const { saindo, fechar: aoFechar } = useFecharAnimado(fecharJa)
   useEffect(() => {
     ref.current?.focus()
   }, [])
   return (
-    <Camada aoFechar={aoFechar} alinhar="baixo" saindo={saindo}>
+    <Camada aoFechar={aoFechar} alinhar="baixo">
       <div
         ref={ref}
         tabIndex={-1}
@@ -150,15 +165,14 @@ export function Sheet({ titulo, sub, aoFechar: fecharJa, children }: { titulo: R
 }
 
 /** Diálogo de confirmação (alertdialog). */
-export function Dialogo({ titulo, aoFechar: fecharJa, children, icone }: { titulo: ReactNode; aoFechar?: () => void; children: ReactNode; icone?: ReactNode }) {
+export function Dialogo({ titulo, aoFechar, children, icone }: { titulo: ReactNode; aoFechar?: () => void; children: ReactNode; icone?: ReactNode }) {
   const id = useId()
   const ref = useRef<HTMLDivElement>(null)
-  const { saindo, fechar: aoFechar } = useFecharAnimado(fecharJa)
   useEffect(() => {
     ref.current?.focus()
   }, [])
   return (
-    <Camada aoFechar={aoFechar} alinhar="centro" saindo={saindo}>
+    <Camada aoFechar={aoFechar} alinhar="centro">
       <div ref={ref} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby={id} className="dialogo-anima flex max-h-[90dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto rounded-2xl border border-linha bg-sup px-6 pt-7 pb-6 outline-none">
         {icone}
         <h2 id={id} className="text-[22px] font-extrabold">{titulo}</h2>
@@ -193,13 +207,20 @@ export function NaoAchou({ titulo, texto = 'Ele pode ter sido apagado.', para = 
 /** Depois disso, "Carregando…" vira uma mensagem com saída (nunca fica girando para sempre). */
 export const TETO_CARREGANDO_MS = 8000
 
-export function Carregando() {
-  const [demorou, setDemorou] = useState(false)
+/** Só depois disso o esqueleto aparece (carregar rápido não pisca nada na tela). */
+export const ESPERA_ESQUELETO_MS = 150
+
+export function Carregando({ linhas = 3 }: { linhas?: number }) {
+  const [fase, setFase] = useState<'espera' | 'esqueleto' | 'demorou'>('espera')
   useEffect(() => {
-    const t = setTimeout(() => setDemorou(true), TETO_CARREGANDO_MS)
-    return () => clearTimeout(t)
+    const a = setTimeout(() => setFase('esqueleto'), ESPERA_ESQUELETO_MS)
+    const b = setTimeout(() => setFase('demorou'), TETO_CARREGANDO_MS)
+    return () => {
+      clearTimeout(a)
+      clearTimeout(b)
+    }
   }, [])
-  if (demorou) {
+  if (fase === 'demorou') {
     return (
       <div role="alert" className="flex min-h-[40dvh] flex-col items-center justify-center gap-3 px-2 text-center">
         <b className="text-lg">Está demorando mais que o normal</b>
@@ -210,10 +231,47 @@ export function Carregando() {
     )
   }
   return (
-    <div role="status" className="flex min-h-[40dvh] items-center justify-center text-fraco">
-      Carregando…
+    <div role="status" className="flex min-h-[40dvh] flex-col gap-3">
+      <span className="sr-only">Carregando…</span>
+      {fase === 'esqueleto' &&
+        Array.from({ length: linhas }, (_, i) => (
+          <div key={i} aria-hidden="true" className="esqueleto flex h-[76px] flex-col justify-center gap-2.5 px-4" style={{ animationDelay: `${i * 60}ms` }}>
+            <span className="h-3.5 w-1/2 rounded-full bg-sup2" />
+            <span className="h-3 w-1/3 rounded-full bg-sup2" />
+          </div>
+        ))}
     </div>
   )
+}
+
+/**
+ * Lista com animação de saída: um item que some (apagado, desfeito) continua desenhado por
+ * ~200 ms com `saindo = true` (classe `anima-sai`) e só depois sai. Com "reduzir movimento", sai na hora.
+ */
+export function useListaComSaida<T>(itens: T[], chave: (x: T) => string): { item: T; saindo: boolean }[] {
+  const anteriores = useRef<{ item: T; saindo: boolean }[]>([])
+  const [, atualizar] = useState(0)
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  useEffect(() => {
+    const t = timers.current
+    return () => t.forEach((x) => clearTimeout(x))
+  }, [])
+  const lista = mesclarSaida(anteriores.current, itens, chave, reduzirMovimento())
+  for (const x of lista) {
+    if (!x.saindo) continue
+    const k = chave(x.item)
+    if (timers.current.has(k)) continue
+    timers.current.set(
+      k,
+      setTimeout(() => {
+        timers.current.delete(k)
+        anteriores.current = anteriores.current.filter((y) => !(y.saindo && chave(y.item) === k))
+        atualizar((n) => n + 1)
+      }, 200),
+    )
+  }
+  anteriores.current = lista
+  return lista
 }
 
 /** Status sempre com ícone + texto (nunca só cor). */

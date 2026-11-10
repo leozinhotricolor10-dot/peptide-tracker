@@ -350,6 +350,160 @@ await passo('cores distintas entre os protocolos e F5 mantém cores e frascos', 
   const b = await lerBanco()
   igual(new Set(b.protocolos.map((p) => p.cor)).size, b.protocolos.length, 'cores distintas no banco')
 })
+// ---------- movimento: celebração da dose, aviso novo, desfazer, reduzir movimento ----------
+/** Animações rodando agora, sem a barrinha de tempo do aviso (essa dura os 6 s de propósito). */
+const animando = () => page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running' && a.animationName !== 'pt-tempo').map((a) => a.animationName || a.constructor.name))
+const contraste = (seletor) => page.locator(seletor).first().evaluate((el) => {
+  const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number)
+  const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
+  let fundo = el
+  while (fundo && getComputedStyle(fundo).backgroundColor.replace(/\s/g, '').match(/rgba\(0,0,0,0\)|transparent/)) fundo = fundo.parentElement
+  const a = lum(rgb(getComputedStyle(el).color))
+  const b = lum(rgb(getComputedStyle(fundo).backgroundColor))
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+})
+await passo('registrar dose: celebração aparece e termina, aviso escuro com tempo e Desfazer, frasco conta 4 → 3', async () => {
+  await page.goto(BASE + '#/protocolos/' + tesa.id)
+  await page.getByText('Frasco: 4 doses restantes').waitFor()
+  const antes = (await lerBanco()).aplicacoes.length
+  await B('Registrar dose agora').click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Salvar registro' }).click()
+  const aviso = page.getByRole('status').filter({ hasText: 'Dose registrada' })
+  await aviso.waitFor()
+  igual(await aviso.getAttribute('data-festa'), 'true', 'aviso com celebração')
+  await aviso.locator('[data-celebracao] .onda').first().waitFor({ state: 'attached' })
+  await page.locator('main .anima-nova').first().waitFor() // linha nova em "Últimos registros"
+  igual(await aviso.evaluate((el) => getComputedStyle(el).backgroundColor), 'rgb(15, 28, 40)', 'aviso no tema escuro (não branco)')
+  igual(await aviso.locator('.tempo-anima').evaluate((el) => getComputedStyle(el).animationDuration), '6s', 'barrinha de tempo de 6 s')
+  const c = await contraste('[role=status] >> text=Desfazer')
+  if (c < 4.5) throw new Error(`contraste do Desfazer ${c.toFixed(2)}:1`)
+  const ct = await contraste('[role=status] >> text=Dose registrada')
+  if (ct < 4.5) throw new Error(`contraste do título do aviso ${ct.toFixed(2)}:1`)
+  await page.getByText('Frasco: 3 doses restantes').waitFor()
+  await page.waitForTimeout(1200)
+  const presas = await animando()
+  if (presas.length) throw new Error(`animação ainda rodando 1,2 s depois: ${presas.join(', ')}`)
+  igual(await page.locator('[data-fantasma]').count(), 0, 'cópia de saída da folha removida')
+  igual((await lerBanco()).aplicacoes.length, antes + 1, 'gravou na hora')
+})
+await passo('Desfazer: o registro sai da lista com animação e o frasco volta a 4', async () => {
+  const antes = (await lerBanco()).aplicacoes.length
+  await B('Desfazer').click()
+  await page.getByText('Frasco: 4 doses restantes').waitFor()
+  await page.waitForTimeout(500)
+  igual(await page.locator('main .anima-sai').count(), 0, 'linha que saiu foi removida')
+  igual((await lerBanco()).aplicacoes.length, antes - 1, 'registro apagado')
+  igual(await page.getByRole('status').filter({ hasText: 'Dose registrada' }).count(), 0, 'aviso fechou')
+})
+await passo('toques rápidos (registrar, desfazer, registrar) não quebram o estado', async () => {
+  const antes = (await lerBanco()).aplicacoes.length
+  for (let i = 0; i < 2; i++) {
+    await B('Registrar dose agora').click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Salvar registro' }).click()
+    if (i === 0) await B('Desfazer').click()
+  }
+  await page.getByText('Frasco: 3 doses restantes').waitFor()
+  await page.waitForTimeout(1300)
+  igual((await lerBanco()).aplicacoes.length, antes + 1, 'um registro só no fim')
+  igual(await page.getByRole('dialog').count(), 0, 'nenhuma folha aberta')
+  igual(await page.locator('[data-fantasma]').count(), 0, 'nenhuma cópia de saída sobrando')
+  const presas = await animando()
+  if (presas.length) throw new Error(`animação presa: ${presas.join(', ')}`)
+})
+await passo('gravação falha: a celebração volta atrás, aviso de erro, folha continua aberta com o motivo; depois salva', async () => {
+  const antes = (await lerBanco()).aplicacoes.length
+  await page.evaluate(() => {
+    window.__put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function () {
+      throw new DOMException('falha simulada', 'UnknownError')
+    }
+  })
+  await B('Registrar dose agora').click()
+  const folha = page.getByRole('dialog')
+  await folha.getByRole('button', { name: 'Salvar registro' }).click()
+  await page.getByRole('status').filter({ hasText: 'Não deu para registrar a dose' }).waitFor()
+  await folha.getByRole('alert').waitFor()
+  igual(await folha.count(), 1, 'folha continua aberta')
+  igual(await page.getByRole('status').filter({ hasText: 'Dose registrada' }).count(), 0, 'aviso de sucesso saiu')
+  await page.getByText('Frasco: 3 doses restantes').waitFor()
+  await page.evaluate(() => {
+    IDBObjectStore.prototype.put = window.__put
+  })
+  await folha.getByRole('button', { name: 'Salvar registro' }).click()
+  await page.getByRole('status').filter({ hasText: 'Dose registrada' }).waitFor()
+  await page.getByText('Frasco: 2 doses restantes').waitFor()
+  igual((await lerBanco()).aplicacoes.length, antes + 1, 'salvou na segunda tentativa')
+  await B('Desfazer').click()
+  await page.getByText('Frasco: 3 doses restantes').waitFor()
+})
+await passo('Hoje: registrar todas as doses do dia mostra "Tudo feito hoje"; desfazer volta', async () => {
+  await page.goto(BASE + '#/hoje')
+  await page.getByRole('heading', { name: 'Doses de hoje' }).waitFor()
+  for (let i = 0; i < 8 && !(await page.getByText('Tudo feito hoje').count()); i++) {
+    await page.locator('main').getByRole('button', { name: 'Registrar dose', exact: true }).click()
+    const fiz = page.getByRole('dialog').getByRole('button', { name: 'Fiz agora' })
+    const salvar = page.getByRole('dialog').getByRole('button', { name: 'Salvar registro' })
+    await fiz.or(salvar).first().waitFor()
+    if (await fiz.count()) await fiz.click()
+    await salvar.click()
+    await page.getByRole('status').filter({ hasText: 'Dose registrada' }).waitFor()
+    await page.waitForTimeout(300)
+  }
+  const tudo = page.getByRole('status').filter({ hasText: 'Tudo feito hoje' })
+  await tudo.waitFor()
+  await tudo.locator('[data-celebracao]').waitFor() // celebração maior só quando acabou de acontecer
+  const [feitas, total] = (await page.getByRole('heading', { name: 'Doses de hoje' }).locator('xpath=..').textContent()).match(/(\d+) de (\d+)/).slice(1)
+  igual(feitas, total, 'contador de hoje completo')
+  await page.waitForTimeout(1200)
+  const presas = await animando()
+  if (presas.length) throw new Error(`animação presa: ${presas.join(', ')}`)
+  await page.getByRole('status').filter({ hasText: 'Dose registrada' }).getByRole('button', { name: 'Desfazer' }).click()
+  await page.locator('main').getByRole('button', { name: 'Registrar dose', exact: true }).waitFor()
+  igual(await page.getByText('Tudo feito hoje').count(), 0, 'saiu do "Tudo feito"')
+})
+await passo('transição entre telas: direção certa, barra de baixo desliza, voltar/avançar sem piscar', async () => {
+  igual(await page.evaluate(() => typeof document.startViewTransition), 'function', 'navegador com View Transitions')
+  const indicador = () => page.locator('nav .aba-indicador').evaluate((el) => getComputedStyle(el).transform)
+  const t0 = await indicador()
+  await page.getByRole('navigation').getByRole('link', { name: 'Estoque' }).click()
+  await page.waitForURL(/#\/estoque$/)
+  igual(await page.evaluate(() => document.documentElement.dataset.direcao), 'aba', 'troca de aba esmaece')
+  await page.waitForTimeout(400)
+  if ((await indicador()) === t0) throw new Error('indicador da aba não andou')
+  await page.getByRole('navigation').getByRole('link', { name: 'Protocolos' }).click()
+  await page.locator(`a.card[href$="/protocolos/${tesa.id}"]`).click()
+  await page.waitForURL(/#\/protocolos\/[\w-]+$/)
+  igual(await page.evaluate(() => document.documentElement.dataset.direcao), 'avancar', 'abrir detalhe avança')
+  await page.goBack()
+  await page.waitForURL(/#\/protocolos$/)
+  igual(await page.evaluate(() => document.documentElement.dataset.direcao), 'voltar', 'voltar do celular volta')
+  await page.goForward()
+  await page.waitForURL(/#\/protocolos\/[\w-]+$/)
+  await page.getByRole('heading', { level: 1 }).waitFor()
+  await page.waitForTimeout(500)
+  igual(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length), 0, 'nada animando depois da troca')
+})
+await passo('com "reduzir movimento": registrar e desfazer funcionam sem nenhuma animação', async () => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto(BASE + '#/protocolos/' + tesa.id)
+  await page.getByText('Frasco: 3 doses restantes').waitFor()
+  await B('Registrar dose agora').click()
+  igual((await page.evaluate(() => document.getAnimations().length)), 0, 'folha abre sem animação')
+  await page.getByRole('dialog').getByRole('button', { name: 'Salvar registro' }).click()
+  await page.getByRole('status').filter({ hasText: 'Dose registrada' }).waitFor()
+  igual(await page.getByRole('dialog').count(), 0, 'folha fechou')
+  igual(await page.locator('[data-fantasma]').count(), 0, 'sem cópia de saída')
+  igual(await page.evaluate(() => document.getAnimations().length), 0, 'nenhuma animação')
+  await page.getByText('Frasco: 2 doses restantes').waitFor()
+  await B('Desfazer').click()
+  await page.getByText('Frasco: 3 doses restantes').waitFor()
+  igual(await page.evaluate(() => document.getAnimations().length), 0, 'desfazer sem animação')
+  await page.goto(BASE + '#/hoje')
+  await page.getByRole('navigation').getByRole('link', { name: 'Peso' }).click()
+  await page.waitForURL(/#\/peso$/)
+  igual(await page.evaluate(() => document.getAnimations().length), 0, 'troca de tela sem animação')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+})
 await passo('nenhum alvo de toque menor que 44 px nas telas novas', async () => {
   for (const rota of ['#/protocolos', '#/hoje', '#/estoque', '#/protocolos/' + reta.id]) {
     await page.goto(BASE + rota)

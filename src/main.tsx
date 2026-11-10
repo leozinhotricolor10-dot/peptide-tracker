@@ -20,6 +20,7 @@ import {
 } from './telas/protocolo-novo.tsx'
 import { CompararFotos, DetalheMedida, Fotos, NovaFoto, NovaMedicao, Peso } from './telas/corpo.tsx'
 import { Estoque, FormFrasco, Reconstituicao } from './telas/estoque.tsx'
+import { ligarTransicoes } from './ui/transicao.ts'
 import { Agenda, Ajustes, ApagarTudo, Backup, Lembretes, Privacidade, RestaurarInicio, Sobre, Substancias, Termos } from './telas/ajustes.tsx'
 
 // HashRouter (endereços como /peptide-tracker/#/hoje): o GitHub Pages só serve arquivos, então
@@ -85,6 +86,9 @@ const router = createHashRouter([
     ],
   },
 ])
+
+// Transição entre telas onde o navegador tem a View Transitions API (sem ela, troca direta).
+ligarTransicoes(router)
 
 const atualizarSW = registerSW({
   immediate: true,

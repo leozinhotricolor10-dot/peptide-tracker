@@ -81,10 +81,39 @@ Conferido no build servido como no Pages (390×844, toque), com e sem "reduzir m
 Tamanho do build (gzip): CSS 5,54 → 6,27 KB; JS do app 58,45 → 61,76 KB (inclui cor, estoque e animações; as animações são só CSS + ~20 linhas de JS para a saída das folhas). React e bibliotecas sem mudança.
 
 Limitações desta rodada:
-- Remover um item de uma lista não tem animação de saída (some na hora); só a entrada é animada.
-- Ações que fecham a folha por conta própria (salvar, apagar, cancelar) fecham na hora; a animação de saída é para o X, tocar fora e Esc.
+- ~~Remover um item de uma lista não tem animação de saída~~ e ~~ações que fecham a folha por conta própria fecham na hora~~: resolvidos em M04 e M05 abaixo.
 - Apagar protocolo: os frascos ligados continuam no Estoque, sem vínculo (como já era). O app não pergunta o que fazer com eles.
 - Doses em UI não descontam mg (o app não converte UI); o saldo e as "doses restantes" desses frascos não mudam com elas.
+
+## Rodada de 09/11/2026 (noite, 2): "sinto o app sem vida, sem fluidez"
+
+Relato do dono (celular, detalhe do protocolo, logo depois de registrar uma dose): "Quando eu registro a dose poderia aparecer uma animaçãozinha né? Aparece esse card branco de dose registrada, mas sinto o app sem vida, sem fluidez".
+
+| # | Tipo | O que mudou | Coberto por |
+|---|---|---|---|
+| M01 | Pedido | **Momento "dose registrada"** (~800 ms, otimista): no toque em Salvar, vibração curta (onde existe), o aviso aparece com um círculo que estala, um check que se desenha e uma onda verde que se expande uma vez; a linha nova em "Últimos registros", no Histórico e nos registros avulsos de Hoje entra deslizando com um brilho verde que esmaece; "Frasco: N doses restantes", o saldo do Estoque, o "N de M" de Hoje e o peso rolam do valor antigo ao novo (`useNumeroAnimado`, termina exatamente no valor final); em Hoje, o cartão da dose troca de estado com animação (círculo vazio → check desenhado com onda) e o cartão de destaque troca para a próxima dose com uma leve mola. A gravação começa na hora; a animação não espera nada. Se a gravação falhar, o aviso vira "Não deu para registrar a dose", a folha continua aberta com o motivo e o destaque não aparece (`comOtimismo`) | `ui/movimento.test.ts` (contagem, otimismo, destaque) + e2e passos 19, 22 |
+| M02 | Pedido | **Tudo feito hoje**: quando todas as doses previstas do dia foram tomadas (pular não conta), Hoje mostra o cartão "Tudo feito hoje" com check grande, duas ondas e a próxima dose (amanhã). A celebração maior só toca quando acabou de acontecer (abrir o app com tudo feito mostra o cartão parado). Desfazer volta para a dose pendente com animação | `resumoHoje` em `ui/movimento.test.ts` + e2e passo 23 |
+| M03 | Pedido | **Aviso (toast) novo, um componente para todos os avisos**: fundo escuro do tema (`sup2`) com borda, check animado (sucesso), ícone de informação ou de alerta (erro), botão Desfazer turquesa sobre fundo escuro (contraste 9,3:1; título 14,2:1; texto 9,0:1), entrada de baixo com mola, barrinha que mostra quanto falta para sumir (6 s; pausa com o dedo em cima), arrastar para o lado dispensa, saída descendo. Antes era um cartão branco que destoava do tema | `ui/movimento.test.ts` (relógio com pausa, arraste) + e2e passos 19–21 (cor, contraste, tempo, Desfazer) |
+| M04 | Pedido | **Saída de folhas e diálogos em qualquer fechamento** (antes só X, tocar fora e Esc): salvar, apagar, cancelar, trocar de folha e trocar de tela também animam. Técnica: a camada sai da tela na hora e uma cópia inerte (sem toque, sem leitor de tela) faz a saída por cima por 180 ms ("fantasma"); o véu escuro esmaece separado do painel. Nada espera a animação | e2e passos 19, 21 (cópia removida, nenhuma folha sobrando) |
+| M05 | Pedido | **Saída de itens de lista**: registro desfeito/apagado desliza e some (~200 ms) em "Últimos registros", Histórico e registros avulsos de Hoje (`useListaComSaida` / `mesclarSaida`) | `ui/movimento.test.ts` (lista com saída) + e2e passo 20 |
+| M06 | Pedido | **Transição entre telas** com a View Transitions API: abrir uma tela entra da direita, voltar (botão do app ou do celular) entra da esquerda, troca de aba e troca no mesmo lugar só esmaecem (160 ms). A barra de baixo e o aviso ficam parados. A camada da transição não segura toque. Sem a API no navegador, a troca continua direta | `ui/movimento.test.ts` (direção) + e2e passo 24 |
+| M07 | Pedido | **Barra de baixo**: um fundo só que desliza de uma aba para a outra com mola curta | e2e passo 24 |
+| M08 | Pedido | **Toque**: todo botão e link tem estado de pressionado (botões grandes e chips encolhem 3%, ícones 10%, links de texto esmaecem, o resto esmaece de leve) | navegador |
+| M09 | Pedido | **Carregando**: em vez do texto seco, nada nos primeiros 150 ms (carregar rápido não pisca) e depois blocos de esqueleto parados (sem brilho em loop); para leitor de tela continua "Carregando…" e o teto de 8 s continua | e2e passo 7 + revisão |
+| M10 | Pedido | **Gráfico de peso**: a linha se desenha ao abrir e ao trocar o período (700 ms), os pontos aparecem logo depois. Barra de saldo do Estoque passou a usar `transform` (antes `width`) e desliza ao mudar | navegador |
+| M11 | Técnica | Curvas e durações viraram tokens CSS em `:root` (`--curva-saida`, `--curva-mola`, `--curva-sair`; `--dur-toque` 120 ms … `--dur-longa` 340 ms, `--dur-festa` 800 ms). Só `transform`/`opacity` (e `stroke-dashoffset` nos checks e na linha do gráfico); nada em loop; sem blur, sem sombra animada; sem biblioteca nova. Histórico longo usa `content-visibility: auto` | revisão + e2e (nenhuma animação rodando 1,2 s depois, exceto a barrinha de tempo do aviso) |
+| M12 | Técnica | "Reduzir movimento" no aparelho: tudo desliga (inclusive a transição entre telas e a cópia de saída); registrar, desfazer e trocar de tela continuam funcionando, sem nenhuma animação | e2e passo 25 |
+
+Conferido no build servido como no Pages, Chrome 390×844 com toque e CPU 4× mais lenta, com capturas em sequência (0 a 1,4 s) do registro no detalhe do protocolo, do Desfazer e da última dose do dia em Hoje: a celebração roda e termina (nenhuma animação ativa 1,4 s depois, exceto a barrinha do aviso), a folha desce opaca com o véu esmaecendo, a linha nova aparece com o brilho, o contador do frasco rola 10 → 9 e volta 9 → 10 ao desfazer. Trocas rápidas de aba e voltar/avançar 4× seguidos terminam na tela certa, sem piscar nem travar. Hoje, Protocolos, Peso, Estoque e Histórico: nenhum alvo menor que 44 px, nenhum texto em inglês, console limpo.
+
+Tamanho do build (gzip): CSS 6,27 → 7,49 KB; JS do app 61,77 → 65,41 KB (+3,6 KB: aviso novo, celebração, contagem, lista com saída, transição entre telas). React e bibliotecas sem mudança (sem biblioteca nova).
+
+Limitações desta rodada:
+- A transição entre telas depende da View Transitions API (Chrome/Edge/Android recentes e Safari 18+). Sem ela (Firefox, iPhone antigo), a troca é direta, como antes. Ao abrir o app por um link direto e usar o voltar do celular para uma tela nunca visitada nesta sessão, essa primeira volta pode não animar.
+- Na tela de detalhe (sem barra de abas) o aviso fica perto da borda de baixo e cobre o botão "Registrar dose agora" pelos 6 s (dá para arrastar para o lado). Assim a linha nova de "Últimos registros" fica visível.
+- A vibração só existe em Android; iPhone não vibra por site.
+- Saída animada nas listas cobre registros de dose (Hoje, detalhe, Histórico). Frascos, medidas, fotos e substâncias apagados ainda somem na hora (a tela costuma mudar junto).
+- Testado em Chrome de computador simulando celular (toque e CPU lenta); não testado em aparelho Android/iPhone real.
 
 ## Conferido sem achado
 

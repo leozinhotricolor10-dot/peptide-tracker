@@ -13,7 +13,8 @@ import { Chips, Dialogo, Nota, Sheet } from '../ui/base.tsx'
 import { IcoAlerta } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { BotaoAcao } from '../ui/acao.tsx'
-import { mensagemDeErro } from '../dados/repo.ts'
+import { mensagemDeErro, novoId } from '../dados/repo.ts'
+import { comOtimismo, marcarRecente, vibrar } from '../ui/movimento.ts'
 
 type Pedido =
   | { tipo: 'registrar'; itemId: string; slot?: Slot; outroHorario?: boolean }
@@ -145,36 +146,53 @@ function Registrar({
     if (vencido && !ignorarVencido) return setDialogo('vencido')
     if (salvando) return
     setSalvando(true)
-    let ap: Aplicacao
-    try {
-      ap = await repo.registrarAplicacao({
-        id: edicao?.id,
-        protocoloId: edicao?.protocoloId ?? item!.protocoloId,
-        itemId: edicao?.itemId ?? item!.id,
-        substanciaId: subId!,
-        previsto: edicao ? edicao.previsto : slot?.chave,
-        dataHora: d.toISOString(),
-        doseValor: dose,
-        doseUnidade: unidade,
-        local,
-        frascoId: frascoId || undefined,
-        status: 'feita',
-        observacao: obs.trim() || undefined,
-      })
-    } catch (e) {
-      setSalvando(false)
-      return setErro(mensagemDeErro(e))
-    }
-    fechar()
-    toast({
-      titulo: edicao ? 'Registro atualizado' : 'Dose registrada',
-      texto: `${nome} · ${horaDe(d)}`,
-      desfazer: edicao
-        ? () => repo.restaurarAplicacao(edicao)
-        : async () => {
-            await repo.apagarAplicacao(ap.id)
-          },
-    })
+    // Otimista: a celebração (vibração, aviso com check, destaque na lista) começa no toque, junto
+    // com a gravação. Se a gravação falhar, o aviso vira erro e a folha continua aberta com o motivo.
+    const id = edicao?.id ?? novoId()
+    let gravacao: Promise<Aplicacao> | undefined
+    await comOtimismo(
+      () =>
+        (gravacao = repo.registrarAplicacao({
+          id,
+          protocoloId: edicao?.protocoloId ?? item!.protocoloId,
+          itemId: edicao?.itemId ?? item!.id,
+          substanciaId: subId!,
+          previsto: edicao ? edicao.previsto : slot?.chave,
+          dataHora: d.toISOString(),
+          doseValor: dose,
+          doseUnidade: unidade,
+          local,
+          frascoId: frascoId || undefined,
+          status: 'feita',
+          observacao: obs.trim() || undefined,
+        })),
+      {
+        antes: () => {
+          vibrar(edicao ? 10 : 18)
+          if (!edicao) marcarRecente(id)
+          toast({
+            festa: !edicao,
+            titulo: edicao ? 'Registro atualizado' : 'Dose registrada',
+            texto: `${nome} · ${horaDe(d)}`,
+            desfazer: edicao
+              ? async () => {
+                  await gravacao
+                  await repo.restaurarAplicacao(edicao)
+                }
+              : async () => {
+                  await gravacao
+                  await repo.apagarAplicacao(id)
+                },
+          })
+        },
+        depois: () => fechar(),
+        falhou: (e) => {
+          setSalvando(false)
+          setErro(mensagemDeErro(e))
+          toast({ tipo: 'erro', titulo: edicao ? 'Não deu para atualizar' : 'Não deu para registrar a dose', texto: 'Nada foi salvo. O motivo está na folha.' })
+        },
+      },
+    )
   }
 
   const frascoAcabou = async () => {

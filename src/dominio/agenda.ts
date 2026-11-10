@@ -212,3 +212,9 @@ export function frequenciaCurta(f: Frequencia, horarios: string[]): string {
       return `${f.dias.length * n}x por semana`
   }
 }
+
+/** Resumo das doses de hoje. "Tudo feito" só quando todas as previstas foram tomadas (pular não conta). */
+export function resumoHoje(status: StatusSlot[]): { feitas: number; total: number; tudoFeito: boolean } {
+  const feitas = status.filter((s) => s === 'feita').length
+  return { feitas, total: status.length, tudoFeito: status.length > 0 && feitas === status.length }
+}

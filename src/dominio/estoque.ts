@@ -95,11 +95,12 @@ export function estoqueDoItem(i: ItemProtocolo, frascos: Frasco[], aplicacoes: A
 }
 
 /** Texto curto para o cartão: "Frasco: 12 doses restantes" (+ "e mais 1 frasco"). */
-export function resumoEstoque(e: EstoqueDoItem): string {
+/** `doses` pode vir de fora (contagem animada na tela); o padrão é o valor calculado. */
+export function resumoEstoque(e: EstoqueDoItem, doses: number | null = e.doses): string {
   if (!e.frasco) return 'Sem frasco no estoque'
   const base =
-    e.doses !== null
-      ? `Frasco: ${e.doses === 0 ? 'menos de 1 dose restante' : `${e.doses} dose${e.doses === 1 ? '' : 's'} restante${e.doses === 1 ? '' : 's'}`}`
+    doses !== null
+      ? `Frasco: ${doses === 0 ? 'menos de 1 dose restante' : `${doses} dose${doses === 1 ? '' : 's'} restante${doses === 1 ? '' : 's'}`}`
       : e.mgRestante !== null
         ? `Frasco: ${e.mgRestante.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mg restantes`
         : 'Frasco no estoque'

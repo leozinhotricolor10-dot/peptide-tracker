@@ -59,8 +59,8 @@ export function Grafico({ pontos, marcos = [], unidade, altura = 170, descricao 
             </text>
           </g>
         ))}
-        <polyline points={linha} fill="none" stroke="#00E5C3" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-        {ordenados.map((p) => <circle key={p.dia + p.valor} cx={x(p.dia)} cy={y(p.valor)} r="3.5" fill="#00E5C3" />)}
+        <polyline key={linha} points={linha} pathLength={1} className="grafico-linha" fill="none" stroke="#00E5C3" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+        {ordenados.map((p) => <circle key={p.dia + p.valor + linha} className="grafico-ponto" cx={x(p.dia)} cy={y(p.valor)} r="3.5" fill="#00E5C3" />)}
         {ordenados.length > 1 && eixo.map((d) => (
           <text key={d} x={x(d)} y={H - 6} textAnchor={d === d0 ? 'start' : d === d1 ? 'end' : 'middle'} fontSize="10" fill="#A9BFCB">{dataEixo(d)}</text>
         ))}
