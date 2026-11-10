@@ -115,6 +115,28 @@ Limitações desta rodada:
 - Saída animada nas listas cobre registros de dose (Hoje, detalhe, Histórico). Frascos, medidas, fotos e substâncias apagados ainda somem na hora (a tela costuma mudar junto).
 - Testado em Chrome de computador simulando celular (toque e CPU lenta); não testado em aparelho Android/iPhone real.
 
+## Rodada de 09/11/2026 (noite, 3): Hoje como painel
+
+Pedido do dono: "seria legal na pagina inicial [...] ter um gerencial dele, resumo da semana com proximas doses".
+
+| # | Tipo | O que mudou | Coberto por |
+|---|---|---|---|
+| H01 | Pedido | **Sua semana** (seg a dom) abaixo das doses de hoje: 7 dias com pontinhos na cor dos protocolos e estado com ícone + número (previstas, feitas/previstas), hoje destacado; "X de Y doses tomadas nesta semana"; selo "Tudo feito nos últimos N dias de dose" só quando N > 1 | `dominio/painel.test.ts` (semana vazia, só semanal, pausa no meio, fim e encerrado na semana, virada de ano, horário de verão, sequência) + e2e passos 26, 27, 31 |
+| H02 | Pedido | **Doses de um dia** (tocar num dia): folha com o estado de cada dose; dia passado registra pelo fluxo de dose atrasada (a folha M32 agora diz "prevista ontem às …" quando a dose é de outro dia); dia futuro só mostra | e2e passos 28, 29 |
+| H03 | Pedido | **Atenção**: só aparece com algo a resolver; cada cartão é a ação (dose de ontem sem registro, frasco vencido/vencendo, frasco acabando com 2 doses ou menos e nenhum outro da substância, sem frasco, protocolo terminando em 7 dias, backup antigo) | `dominio/painel.test.ts` (dose atrasada, frasco acabando/vencido, sem frasco, terminando) + e2e passos 29, 30, 31 |
+| H04 | Pedido | **Próximas doses** (5, a partir de amanhã, agrupadas por dia, com a cor) e **Peso e estoque** (último peso e diferença desde o primeiro, sem julgar; frascos em uso e o mais perto de acabar) | `dominio/painel.test.ts` + e2e passo 26 |
+| H05 | Técnica | Contas puras em `dominio/painel.ts`; a tela faz uma conta só (`useMemo`) por mudança de dados ou a cada 30 s do relógio; registros indexados por dia previsto uma vez por conta. A lista "Doses de hoje" passou a usar a mesma conta (`dosesDoDia`), então os números de cima e da semana nunca divergem | revisão + e2e passo 27 |
+| H06 | Baixa | O aviso "frasco passou da data" aparecia também para frasco já vazio pelos registros (junto com "sem frasco"). Agora só frasco com saldo gera aviso de data | `dominio/painel.test.ts` |
+
+Conferido no build servido como no Pages (toque, 390×844 e 360×640): sem protocolos (painel não aparece, "Criar protocolo"), 1 protocolo semanal, 3 protocolos (diário, 2×/semana, blend) com todos os tipos de aviso, e com "reduzir movimento" (nenhuma animação na tela nem na folha do dia). Console limpo, nenhum alvo < 44 px (dia da semana com 46 px em 360), sem rolagem lateral, sem texto em inglês. Em 390×844 com 3 protocolos, a faixa da semana termina logo acima da barra de abas; em 360×640 ela fica logo abaixo da dobra.
+
+Tamanho do build (gzip): JS do app 65,41 → 69,66 KB; CSS 7,49 → 7,59 KB. Sem biblioteca nova.
+
+Limitações desta rodada:
+- Mudar a frequência de um protocolo muda os dias passados da semana também (o app não guarda o histórico da frequência; mesma limitação do Histórico).
+- Registro com horário antigo (o horário mudou depois) conta para o dia nos dias passados; hoje ele aparece à parte, como antes.
+- "Ver tudo" leva a Protocolos: o app ainda não tem uma agenda das doses futuras.
+
 ## Conferido sem achado
 
 - Datas: virada de mês, horário de verão (São Paulo 2018 e Nova York 2026), horário inexistente (02:30), ciclo e progresso atravessando o verão (testes A05).

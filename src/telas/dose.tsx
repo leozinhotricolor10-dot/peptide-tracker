@@ -334,7 +334,7 @@ export function FrascoVencido({
 function Atrasada({ base, slot, fechar, trocar }: { base: Base; slot: Slot; fechar: () => void; trocar: (p: Pedido) => void }) {
   const nome = nomeSubstancia(slot.substanciaId, base.subs)
   return (
-    <Sheet titulo="Ainda não registrada" sub={`${nome} · prevista às ${slot.horario}`} aoFechar={fechar}>
+    <Sheet titulo="Ainda não registrada" sub={`${nome} · prevista ${slot.dia === hojeStr() ? '' : diaRelativo(slot.dia, hojeStr()).toLowerCase() + ' '}às ${slot.horario}`} aoFechar={fechar}>
       <span className="text-[15px] font-bold">O que aconteceu com esta dose?</span>
       <button type="button" className="btn-primario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot })}>Fiz agora</button>
       <button type="button" className="btn-secundario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot, outroHorario: true })}>Fiz, mas em outro horário</button>
