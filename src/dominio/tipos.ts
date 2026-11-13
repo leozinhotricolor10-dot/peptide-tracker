@@ -80,6 +80,12 @@ export interface Aplicacao {
   doseUnidade: UnidadeDose
   local?: string
   frascoId?: string
+  /**
+   * Unidades da seringa (100 = 1 mL) desta dose, gravadas no registro com a diluição do frasco
+   * daquele momento: o histórico não muda se o frasco for diluído de outro jeito depois.
+   * Vazio em registros antigos ou quando não deu para converter (frasco lacrado, UI...).
+   */
+  unidadesSeringa?: number
   status: 'feita' | 'pulada'
   motivo?: string
   observacao?: string

@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { repo, useBase, type Base } from '../dados/index.ts'
 import { estadoEfetivo, frequenciaCurta, descreverFrequencia, progresso, proximosSlots, resumoDoDia, slotsDoDia, statusSlot, terminouEm } from '../dominio/agenda.ts'
 import { dataBr, dataCurta, dataDiaMes, diaDe, difDias, diaRelativo, hojeStr, horaDe, nomeMes, somaDias, dataMedia } from '../dominio/datas.ts'
-import { fmtDose } from '../dominio/calculos.ts'
+import { doseDoItem, textoDoItem, textoDoRegistro } from './dose-texto.ts'
 import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import type { Aplicacao, EstadoProtocolo, Protocolo } from '../dominio/tipos.ts'
 import { Carregando, Dialogo, NaoAchou, Nota, Sheet, StatusTomada, Tela, Vazio } from '../ui/base.tsx'
@@ -96,7 +96,7 @@ export function Protocolos() {
               {itens.map((i) => (
                 <span key={i.id} className="flex flex-wrap justify-between gap-x-3 text-[15px]">
                   <b className="break-words">{nomeSubstancia(i.substanciaId, base.subs)}</b>
-                  <span className="text-suave">{fmtDose(i.doseValor, i.doseUnidade)} · {frequenciaCurta(i.frequencia, i.horarios)}</span>
+                  <span className="text-suave">{textoDoItem(base, i.id)} · {frequenciaCurta(i.frequencia, i.horarios)}</span>
                 </span>
               ))}
             </div>
@@ -195,13 +195,17 @@ export function DetalheProtocolo() {
         {itens.map((i) => {
           const s = base.subs.get(i.substanciaId)
           const e = estado !== 'encerrado' ? estoqueDoItem(i, base.frascos, base.aplicacoes, hoje) : undefined
+          const du = doseDoItem(base, i.id, hoje)
           return (
             <div key={i.id} className="flex flex-col gap-1 border-t border-sup2 px-4 py-3 first:border-t-0">
               <span className="flex flex-wrap items-center gap-2 text-base font-bold">
                 {s?.nome ?? 'Substância'}
                 {s?.tipo === 'blend' && <span className="selo border border-borda text-suave">Blend</span>}
               </span>
-              <span className="text-sm text-suave">{fmtDose(i.doseValor, i.doseUnidade)} · {descreverFrequencia(i.frequencia, i.horarios)}</span>
+              <span className="text-sm text-suave">{textoDoItem(base, i.id)} · {descreverFrequencia(i.frequencia, i.horarios)}</span>
+              {estado !== 'encerrado' && du?.falta === 'lacrado' && du.frasco && (
+                <Link to={`/estoque/frasco/${du.frasco.id}/reconstituir`} className="link self-start">Informe a diluição para ver as unidades</Link>
+              )}
               {e && (
                 <div className="flex flex-wrap items-center gap-x-4 pt-1">
                   {e.frasco ? (
@@ -245,9 +249,12 @@ export function DetalheProtocolo() {
           <h2 className="text-[17px] font-bold">Próximas doses</h2>
           {proximas.length === 0 && <p className="m-0 text-sm text-fraco">{estado === 'pausado' ? 'Nenhuma enquanto estiver pausado.' : 'Nenhuma dose prevista.'}</p>}
           {proximas.map((s) => (
-            <div key={s.chave + s.itemId} className="flex min-h-11 items-center justify-between border-b border-sup2 text-[15px]">
-              <span>{diaRelativo(s.dia, hoje)} · <b>{nomeSubstancia(s.substanciaId, base.subs)}</b></span>
-              <span className="font-bold">{s.horario}</span>
+            <div key={s.chave + s.itemId} className="flex min-h-11 items-center justify-between gap-3 border-b border-sup2 py-1.5 text-[15px]">
+              <span className="flex min-w-0 flex-col">
+                <span>{diaRelativo(s.dia, hoje)} · <b>{nomeSubstancia(s.substanciaId, base.subs)}</b></span>
+                <span className="text-[13px] text-suave">{textoDoItem(base, s.itemId)}</span>
+              </span>
+              <span className="shrink-0 font-bold">{s.horario}</span>
             </div>
           ))}
         </section>
@@ -497,7 +504,7 @@ function UltimosRegistros({ registros, base, hoje, abrir }: { registros: Aplicac
   return (
     <>
       {lista.map(({ item: a, saindo }) => (
-        <LinhaRegistro key={a.id} a={a} saindo={saindo} texto={`${diaRelativo(diaDe(new Date(a.dataHora)), hoje)} ${horaDe(new Date(a.dataHora))} · ${nomeSubstancia(a.substanciaId, base.subs)}`} abrir={() => abrir(a.id)} />
+        <LinhaRegistro key={a.id} a={a} saindo={saindo} texto={`${diaRelativo(diaDe(new Date(a.dataHora)), hoje)} ${horaDe(new Date(a.dataHora))} · ${nomeSubstancia(a.substanciaId, base.subs)}${a.status === 'feita' ? ` · ${textoDoRegistro(base, a)}` : ''}`} abrir={() => abrir(a.id)} />
       ))}
     </>
   )
@@ -535,7 +542,7 @@ function LinhaHistorico({ a, saindo, base, filtro, abrir }: { a: Aplicacao; sain
     <div className={`flex items-center gap-3 border-t border-l-[5px] border-t-sup2 py-2.5 pr-1.5 pl-3 first:border-t-0 ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : ''}`} style={bordaCor(pr)}>
       <span className="flex flex-1 flex-col gap-0.5">
         <span className="text-[15px]">
-          <StatusTomada status={a.status} /> <span className="font-bold">· {horaDe(d)}{a.status === 'feita' ? ` · ${fmtDose(a.doseValor, a.doseUnidade)}` : ''}</span>
+          <StatusTomada status={a.status} /> <span className="font-bold">· {horaDe(d)}{a.status === 'feita' ? ` · ${textoDoRegistro(base, a)}` : ''}</span>
         </span>
         <span className="text-[13px] text-fraco">{pr && !filtro ? `${nomeProtocolo(pr, base.itens, base.subs)} · ` : ''}{nomeSubstancia(a.substanciaId, base.subs)}{extra ? ` · ${extra}` : ''}</span>
       </span>

@@ -107,6 +107,28 @@ describe('backup', () => {
     expect((await montarBackup(repo, false)).fotos).toHaveLength(0)
   })
 
+  it('unidades da seringa gravadas no registro: voltam do backup; backup antigo (sem o campo) entra sem elas; valor estranho é recusado', async () => {
+    await repo.salvarProtocolo(prot(), [{ id: 'i1', protocoloId: 'p1', substanciaId: 's1', doseValor: 2, doseUnidade: 'mg', frequencia: { tipo: 'diaria' }, horarios: ['09:00'], ordem: 0 }])
+    const base = { protocoloId: 'p1', itemId: 'i1', substanciaId: 's1', doseValor: 2, doseUnidade: 'mg' as const, status: 'feita' as const }
+    await repo.registrarAplicacao({ ...base, id: 'novo', dataHora: '2026-11-10T12:00:00.000Z', unidadesSeringa: 10 })
+    await repo.registrarAplicacao({ ...base, id: 'antigo', dataHora: '2026-11-09T12:00:00.000Z' })
+    const arquivo = await montarBackup(repo, false)
+    const texto = JSON.stringify(arquivo)
+    await repo.apagarTudo()
+    await aplicarBackup(repo, lerBackup(texto))
+    const aps = await repo.listarAplicacoes()
+    expect(aps.find((a) => a.id === 'novo')!.unidadesSeringa).toBe(10)
+    expect(aps.find((a) => a.id === 'antigo')!.unidadesSeringa).toBeUndefined()
+    // arquivo de uma versão anterior: o registro não tem o campo
+    const antigo = JSON.parse(texto)
+    for (const a of antigo.tabelas.aplicacoes) delete a.unidadesSeringa
+    expect(lerBackup(JSON.stringify(antigo)).contagens.aplicacoes).toBe(2)
+    // valor que não é número (arquivo editado à mão): o arquivo todo é recusado
+    const ruim = JSON.parse(texto)
+    ruim.tabelas.aplicacoes[0].unidadesSeringa = 'dez'
+    expect(() => lerBackup(JSON.stringify(ruim))).toThrow()
+  })
+
   it('arquivo inválido é recusado sem mexer nos dados', async () => {
     await repo.salvarProtocolo(prot(), [])
     expect(() => lerBackup('não é json')).toThrow()

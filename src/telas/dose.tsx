@@ -1,11 +1,13 @@
 // Registro de dose: M31/M35 registrar (simples/blend), M32 atrasada, M33 pular, M34 apagar,
 // E51 frasco sem saldo, M51 frasco vencido (ao escolher frasco). Abertos por useDoseUI().
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { repo, useBase, type Base } from '../dados/index.ts'
 import type { Slot } from '../dominio/agenda.ts'
 import { diaDe, horaDe, instante, dataBr, dataCurta, diaRelativo, hojeStr } from '../dominio/datas.ts'
-import { dataLimite, erroNumero, fmtDose, fmtNum, lerNumero, saldoFrasco } from '../dominio/calculos.ts'
+import { UNIDADES_POR_ML, dataLimite, erroNumero, fmtDose, fmtNum, lerNumero, saldoFrasco } from '../dominio/calculos.ts'
+import { doseDoRegistro, fmtUnidadesExtenso, mudancaDeUnidades, unidadesDaDose, type DoseUn, type MudancaUnidades } from '../dominio/unidades.ts'
+import { textoDoItem, textoDoRegistro } from './dose-texto.ts'
 import type { Aplicacao, Frasco, UnidadeDose } from '../dominio/tipos.ts'
 import { escolherFrasco } from '../dominio/estoque.ts'
 import { nomeComMg, nomeSubstancia } from '../dominio/nomes.ts'
@@ -137,6 +139,20 @@ function Registrar({
   const limite = frascoSel ? dataLimite(frascoSel) : undefined
   const vencido = !!limite && limite < hojeStr()
 
+  // Unidades na seringa com o frasco escolhido. Editando sem mudar dose nem frasco: as do registro
+  // (gravadas na hora; não mudam se o frasco foi diluído de outro jeito depois).
+  const doseN = lerNumero(doseTxt)
+  const inalterado = !!edicao && (edicao.frascoId ?? '') === frascoId && doseN === edicao.doseValor && unidade === edicao.doseUnidade
+  const du: DoseUn | null =
+    doseN === null || !(doseN > 0) ? null : inalterado ? doseDoRegistro(edicao!, base.frascos, blend) : unidadesDaDose(doseN, unidade, frascoSel, blend)
+  const troca = du && item && !edicao ? mudancaDeUnidades(item.id, base.aplicacoes, du, frascoId || undefined) : null
+  const atalhoDiluicao =
+    du?.falta === 'lacrado' && frascoSel
+      ? `/estoque/frasco/${frascoSel.id}/reconstituir`
+      : du?.falta === 'sem-frasco' && subId
+        ? `/estoque/frasco/novo?sub=${subId}${item ? `&item=${item.id}` : ''}`
+        : undefined
+
   const salvar = async (ignorarVencido = vencidoOk) => {
     const dose = lerNumero(doseTxt)
     if (dose === null || dose <= 0) return setErro(erroNumero(doseTxt, 'Informe a dose aplicada (número maior que zero).'))
@@ -163,6 +179,8 @@ function Registrar({
           doseUnidade: unidade,
           local,
           frascoId: frascoId || undefined,
+          // congela as unidades desta dose com a diluição de agora (histórico não muda depois)
+          unidadesSeringa: inalterado ? edicao!.unidadesSeringa : (unidadesDaDose(dose, unidade, frascoSel, blend).unidades ?? undefined),
           status: 'feita',
           observacao: obs.trim() || undefined,
         })),
@@ -220,7 +238,8 @@ function Registrar({
     <>
       <Sheet titulo={titulo} sub={sub2} aoFechar={fechar}>
         {blend && <Nota>Blend cadastrado por você. Os componentes ficam no cadastro do blend.</Nota>}
-        <div className="grid grid-cols-1 gap-2.5 min-[360px]:grid-cols-[1.3fr_1fr]">
+        {/* Um embaixo do outro: lado a lado, o campo de data e hora espremia a dose (o número sumia em 390 px). */}
+        <div className="grid grid-cols-1 gap-2.5">
           <label className="rotulo">
             Horário
             <input type="datetime-local" className="campo" value={quando} onChange={(e) => setQuando(e.target.value)} />
@@ -236,6 +255,7 @@ function Registrar({
           </div>
         </div>
         {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+        {du && <Seringa d={du} troca={troca} atalho={atalhoDiluicao} />}
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
           <legend className="mb-2 text-[13px] font-bold text-fraco">Local da aplicação <span className="font-medium">(opcional)</span></legend>
           <Chips rotulo="Local da aplicação" opcoes={LOCAIS.map((l) => ({ v: l, t: l }))} valor={local} aoMudar={(v) => setLocal(local === v ? undefined : v)} />
@@ -283,6 +303,42 @@ function Registrar({
         />
       )}
     </>
+  )
+}
+
+/**
+ * Quanto puxar na seringa para a dose digitada, com o frasco escolhido (mesma conta da calculadora).
+ * Avisa sem bloquear: fração (exato + marca mais próxima), menos de meia unidade, mais de 100
+ * unidades e a troca de frasco/diluição desde a última dose. Sem diluição: só um atalho discreto.
+ */
+function Seringa({ d, troca, atalho }: { d: DoseUn; troca: MudancaUnidades | null; atalho?: string }) {
+  if (d.unidades === null || d.ml === null) {
+    return atalho ? <Link to={atalho} className="link -mt-1 self-start">Informe a diluição para ver as unidades</Link> : null
+  }
+  const doseTxt = fmtDose(d.valor, d.unidade)
+  return (
+    <div aria-live="polite" data-seringa="" className="flex flex-col gap-1.5 rounded-xl border border-borda bg-sup2 px-4 py-3">
+      <span className="text-[13px] font-bold text-fraco">Puxe na seringa {d.unidade === 'mL' ? '' : `para ${doseTxt}`}</span>
+      <b className="text-[30px] leading-tight font-extrabold text-acento">{fmtUnidadesExtenso(d.unidades)}</b>
+      <span className="text-[13px] leading-snug text-suave">= {fmtNum(d.ml)} mL · seringa de insulina de {UNIDADES_POR_ML} unidades por mL</span>
+      {troca && (
+        <p className="m-0 rounded-lg bg-aviso-fundo px-3 py-2 text-sm font-bold text-aviso-texto">
+          {troca.frascoNovo ? 'Frasco novo' : 'A diluição do frasco mudou'}: agora são {fmtUnidadesExtenso(troca.agora)} (antes {fmtNum(troca.antes)}).
+        </p>
+      )}
+      {d.marca !== null && (
+        <p className="m-0 text-sm leading-relaxed text-suave">
+          O número exato não cai numa marca. A marca mais próxima é <b className="text-texto">{d.marca} unidades</b>
+          {d.doseDaMarca !== null ? <>, que dá <b className="text-texto">{fmtDose(d.doseDaMarca, d.unidade)}</b> em vez de {doseTxt}</> : ''}.
+        </p>
+      )}
+      {d.abaixoDaMenorMarca && (
+        <p className="m-0 rounded-lg bg-aviso-fundo px-3 py-2 text-sm font-semibold text-aviso-texto">Menos de meia unidade: a seringa de insulina não tem marca para isso. Confira os números.</p>
+      )}
+      {d.acimaDaSeringa && (
+        <p className="m-0 rounded-lg bg-aviso-fundo px-3 py-2 text-sm font-semibold text-aviso-texto">Passa de {UNIDADES_POR_ML} unidades: não cabe de uma vez numa seringa de 1 mL. Confira os números.</p>
+      )}
+    </div>
   )
 }
 
@@ -335,6 +391,7 @@ function Atrasada({ base, slot, fechar, trocar }: { base: Base; slot: Slot; fech
   const nome = nomeSubstancia(slot.substanciaId, base.subs)
   return (
     <Sheet titulo="Ainda não registrada" sub={`${nome} · prevista ${slot.dia === hojeStr() ? '' : diaRelativo(slot.dia, hojeStr()).toLowerCase() + ' '}às ${slot.horario}`} aoFechar={fechar}>
+      <span className="text-[15px] text-suave">Dose cadastrada: <b className="text-texto">{textoDoItem(base, slot.itemId)}</b></span>
       <span className="text-[15px] font-bold">O que aconteceu com esta dose?</span>
       <button type="button" className="btn-primario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot })}>Fiz agora</button>
       <button type="button" className="btn-secundario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot, outroHorario: true })}>Fiz, mas em outro horário</button>
@@ -406,7 +463,7 @@ function Apagar({ base, id, fechar, trocar }: { base: Base; id: string; fechar: 
   return (
     <Dialogo titulo="Apagar este registro?" aoFechar={fechar}>
       <p className="m-0 text-[15px] leading-relaxed text-suave">
-        <b className="text-texto">{nome} · {dataCurta(diaDe(d))} às {horaDe(d)} · {ap.status === 'feita' ? fmtDose(ap.doseValor, ap.doseUnidade) : 'não feita'}</b>
+        <b className="text-texto">{nome} · {dataCurta(diaDe(d))} às {horaDe(d)} · {ap.status === 'feita' ? textoDoRegistro(base, ap) : 'não feita'}</b>
         {ap.frascoId && ap.status === 'feita' && <><br />O saldo do frasco volta a contar esta dose.</>}
       </p>
       <BotaoAcao

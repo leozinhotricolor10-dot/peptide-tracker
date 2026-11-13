@@ -68,7 +68,7 @@ export interface Saldo {
   dosesFeitas: number
 }
 
-export function concentracaoDoFrasco(f: Frasco): number | null {
+export function concentracaoDoFrasco(f: Pick<Frasco, 'status' | 'mgTotal' | 'diluenteMl'>): number | null {
   if (f.status === 'fechado' || !f.diluenteMl) return null
   return concentracaoMgMl(f.mgTotal, f.diluenteMl)
 }
@@ -149,6 +149,23 @@ function lerCampoPositivo(txt: string): { v: number | null; erro?: string } {
 
 const QUASE = 1e-9
 
+export interface MarcaSeringa {
+  /** Unidades exatas (o inteiro, quando a conta só tem resíduo de ponto flutuante). */
+  exatas: number
+  /** Marca inteira mais próxima, só quando o exato não é inteiro e não fica abaixo de meia unidade. */
+  marca: number | null
+  /** Menos de meia unidade: não há marca para isso na seringa. */
+  abaixoDaMenorMarca: boolean
+}
+
+/** Onde as unidades caem na seringa de insulina (marcas de 1 em 1 unidade). */
+export function marcaDaSeringa(unidades: number): MarcaSeringa {
+  const redondo = Math.round(unidades)
+  const inteiro = Math.abs(unidades - redondo) < QUASE
+  const abaixo = !inteiro && redondo === 0
+  return { exatas: inteiro ? redondo : unidades, marca: inteiro || abaixo ? null : redondo, abaixoDaMenorMarca: abaixo }
+}
+
 export function calcularSeringa(e: { mgFrasco: string; diluenteMl: string; dose: string; unidade?: UnidadeDose; blend: boolean }): ResultadoSeringa {
   const mg = lerCampoPositivo(e.mgFrasco)
   const dil = lerCampoPositivo(e.diluenteMl)
@@ -168,11 +185,7 @@ export function calcularSeringa(e: { mgFrasco: string; diluenteMl: string; dose:
   if (precisaFrasco && conc === null) return { ...vazio, falta: 'frasco' }
   const vol = volumeDaDoseMl(dose, e.unidade, conc)
   if (vol === null) return { ...vazio, concMgMl: conc, falta: 'frasco' }
-  const exatas = unidadesNaSeringa(vol)
-  const redondo = Math.round(exatas)
-  const inteiro = Math.abs(exatas - redondo) < QUASE
-  const abaixo = !inteiro && redondo === 0
-  const marca = inteiro || abaixo ? null : redondo
+  const { exatas, marca, abaixoDaMenorMarca: abaixo } = marcaDaSeringa(unidadesNaSeringa(vol))
   let doseDaMarca: number | null = null
   if (marca !== null) {
     const mlMarca = marca / UNIDADES_POR_ML
@@ -184,7 +197,7 @@ export function calcularSeringa(e: { mgFrasco: string; diluenteMl: string; dose:
     ...vazio,
     concMgMl: conc,
     volumeMl: vol,
-    unidadesExatas: inteiro ? redondo : exatas,
+    unidadesExatas: exatas,
     marca,
     doseDaMarca,
     abaixoDaMenorMarca: abaixo,

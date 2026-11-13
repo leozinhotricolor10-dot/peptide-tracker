@@ -35,12 +35,20 @@ import { FrascoVencido, UNIDADES } from './dose.tsx'
 import { DIAS_AVISO_VENCIMENTO } from '../dominio/painel.ts'
 import { corDe } from '../dominio/cores.ts'
 import { dosesRestantes } from '../dominio/estoque.ts'
+import { fmtUnidades, unidadesDaDose } from '../dominio/unidades.ts'
 import { PontoCor } from '../ui/cor.tsx'
 
 function itemDoFrasco(base: Base, f: Frasco): ItemProtocolo | undefined {
   const ativos = new Set(base.protocolos.filter((p) => p.estado !== 'encerrado').map((p) => p.id))
   const cands = base.itens.filter((i) => i.substanciaId === f.substanciaId && ativos.has(i.protocoloId))
   return cands.find((i) => i.frascoId === f.id) ?? cands[0]
+}
+
+/** "Cada dose de 2 mg = 10 un na seringa" (frasco reconstituído e dose que converte); senão null. */
+function cadaDose(base: Base, f: Frasco, item: ItemProtocolo): string | null {
+  const d = unidadesDaDose(item.doseValor, item.doseUnidade, f, base.subs.get(f.substanciaId)?.tipo === 'blend')
+  if (d.unidades === null || d.unidade === 'mL') return null
+  return `Cada dose de ${fmtNum(d.valor)} ${d.unidade} = ${fmtUnidades(d.unidades)} na seringa`
 }
 
 function seloFrasco(f: Frasco, base: Base, hoje: string): { t: string; cls: string } {
@@ -100,6 +108,7 @@ export function Estoque() {
     const prot = item ? base.protocolos.find((p) => p.id === item.protocoloId) : undefined
     const emUsoF = f.status === 'fechado' || f.status === 'reconstituido'
     const doses = item && emUsoF ? dosesRestantes(f, base.aplicacoes, item.doseValor, item.doseUnidade) : null
+    const cada = item && emUsoF ? cadaDose(base, f, item) : null
     return (
       <div key={f.id} style={{ '--i': k, ...(prot && emUsoF ? { borderLeftColor: corDe(prot).hex } : {}) } as CSSProperties} className={`card anima-entrada flex flex-col gap-2.5 p-4 ${prot && emUsoF ? 'border-l-[5px]' : ''} ${selo.cls.includes('aviso') ? 'border-aviso' : ''}`}>
         <Link to={`/estoque/frasco/${f.id}`} className="flex items-start justify-between gap-2">
@@ -122,6 +131,7 @@ export function Estoque() {
                 <div className={`barra-anima h-full w-full rounded-full ${frac <= LIMITE_ACABANDO ? 'bg-aviso' : 'bg-acento'}`} style={{ transform: `translateX(${(Math.max(0, Math.min(1, frac)) - 1) * 100}%)` }} />
               </div>
               {doses !== null && <span className="text-sm font-semibold text-suave">{doses === 0 ? 'Menos de 1 dose restante' : `≈ ${doses} dose${doses === 1 ? '' : 's'} restante${doses === 1 ? '' : 's'}`} com {fmtDose(item!.doseValor, item!.doseUnidade)}</span>}
+              {cada && <span className="text-sm text-suave">{cada}</span>}
               {s.naoContabilizadas > 0 && <span className="text-xs text-fraco">{s.naoContabilizadas} registro(s) sem conversão para mg (em UI, ou em mL/unidades antes de reconstituir) não entram na conta.</span>}
             </div>
             {prot && (
@@ -341,6 +351,11 @@ function FormFrascoTela() {
         <label className="rotulo">Custo R$ (opcional)<input className="campo" inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} /></label>
       </div>
       <p className="m-0 text-[13px] text-fraco">Copie os dados do rótulo. O custo só serve para mostrar o custo por dose.</p>
+      {existente && (() => {
+        const it = itemDoFrasco(base, existente)
+        const cada = it ? cadaDose(base, existente, it) : null
+        return cada ? <Nota>{cada}, com a água informada ({fmtNum(existente.diluenteMl ?? 0)} mL).</Nota> : null
+      })()}
       {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
       <div className="mt-auto flex flex-col gap-2">
         {!existente ? (

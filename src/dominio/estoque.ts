@@ -78,11 +78,16 @@ export interface EstoqueDoItem {
   vencido: boolean
 }
 
-export function estoqueDoItem(i: ItemProtocolo, frascos: Frasco[], aplicacoes: Aplicacao[], hoje: string): EstoqueDoItem {
+/** Frasco que a próxima dose da linha usa: o ligado à linha (ou o último usado nela), senão o mais antigo não vencido. */
+export function frascoDaVez(i: Pick<ItemProtocolo, 'id' | 'substanciaId' | 'frascoId'>, frascos: Frasco[], aplicacoes: Aplicacao[], hoje: string): Frasco | undefined {
   const ultimo = aplicacoes
     .filter((a) => a.itemId === i.id && a.status === 'feita' && a.frascoId)
     .sort((a, b) => b.dataHora.localeCompare(a.dataHora))[0]
-  const frasco = escolherFrasco({ substanciaId: i.substanciaId, preferidos: [i.frascoId, ultimo?.frascoId], frascos, aplicacoes, hoje })
+  return escolherFrasco({ substanciaId: i.substanciaId, preferidos: [i.frascoId, ultimo?.frascoId], frascos, aplicacoes, hoje })
+}
+
+export function estoqueDoItem(i: ItemProtocolo, frascos: Frasco[], aplicacoes: Aplicacao[], hoje: string): EstoqueDoItem {
+  const frasco = frascoDaVez(i, frascos, aplicacoes, hoje)
   if (!frasco) return { outros: 0, doses: null, mgRestante: null, vencido: false }
   const outros = frascosNaOrdem(i.substanciaId, frascos, aplicacoes, hoje).length - 1
   return {

@@ -13,7 +13,8 @@ import { MAX_NOME_PROTOCOLO, nomeProtocolo } from '../dominio/nomes.ts'
 import { Carregando, Chips, Dialogo, NaoAchou, Nota, Tela } from '../ui/base.tsx'
 import { IcoAlerta, IcoBusca, IcoCheck, IcoEstoque, IcoFechar, IcoMais, IcoVoltar, IcoX } from '../ui/icones.tsx'
 import { CORES_PROTOCOLO, proximaCor } from '../dominio/cores.ts'
-import { frascosNaOrdem, frascoUsavel } from '../dominio/estoque.ts'
+import { escolherFrasco, frascosNaOrdem, frascoUsavel } from '../dominio/estoque.ts'
+import { textoDoseUn, unidadesDaDose } from '../dominio/unidades.ts'
 import { useToast } from '../ui/toast.tsx'
 import { useVoltar } from '../ui/navegar.ts'
 import { UNIDADES } from './dose.tsx'
@@ -710,9 +711,12 @@ export function PassoRevisao() {
         {r.itens.map((i, k) => {
           const frascos = i.substanciaId ? frascosNaOrdem(i.substanciaId, base.frascos, base.aplicacoes, hojeStr()) : []
           const novoFrasco = frascoNovoDe(i, r.inicio)
+          // unidades na seringa com o frasco que a dose vai usar: o novo da calculadora, o escolhido ou o automático
+          const frascoDaConta = novoFrasco ?? (i.substanciaId ? escolherFrasco({ substanciaId: i.substanciaId, preferidos: [i.frascoId], frascos: base.frascos, aplicacoes: base.aplicacoes, hoje: hojeStr() }) : undefined)
+          const doseDaLinha = i.doseUnidade ? textoDoseUn(unidadesDaDose(lerNumero(i.doseTxt) ?? 0, i.doseUnidade, frascoDaConta, !!i.substanciaId && base.subs.get(i.substanciaId)?.tipo === 'blend')) : 'sem dose'
           return (
             <div key={i.id} className="card flex flex-col gap-1.5 p-4">
-              <b className="text-lg break-words">{subNome(i) || 'Sem substância'} · {i.doseUnidade ? fmtDose(lerNumero(i.doseTxt) ?? 0, i.doseUnidade) : 'sem dose'}</b>
+              <b className="text-lg break-words">{subNome(i) || 'Sem substância'} · {doseDaLinha}</b>
               <span className="text-[15px] leading-normal text-suave">
                 {descreverFrequencia(frequenciaDe(i), i.horarios).replace(/^./, (c) => c.toUpperCase())}
                 {r.inicio && `, de ${dataCurta(r.inicio)}${fim ? ` a ${dataCurta(fim)}` : ' sem data de fim'}`}

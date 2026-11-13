@@ -203,6 +203,8 @@ export function aplicacao(v: unknown): Aplicacao {
     doseUnidade: umDe(o.doseUnidade, UNIDADES),
     local: strOpc(o.local, 100),
     frascoId: strOpc(o.frascoId, 200),
+    // opcional (backups de antes desta versão não têm): fica vazio, e a tela calcula pelo frasco
+    unidadesSeringa: numOpc(o.unidadesSeringa, 0),
     status: umDe(o.status, ['feita', 'pulada'] as const),
     motivo: strOpc(o.motivo, 200),
     observacao: strOpc(o.observacao),

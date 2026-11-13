@@ -6,7 +6,8 @@ import { Link, useNavigate } from 'react-router'
 import { repo, useBase, useConfig, type Base } from '../dados/index.ts'
 import { type Slot, type StatusSlot } from '../dominio/agenda.ts'
 import { dataCurta, dataDiaMes, dataLonga, diaDe, diaRelativo, difDias, horaDe, parseDia, somaDias } from '../dominio/datas.ts'
-import { fmtDose, fmtNum } from '../dominio/calculos.ts'
+import { fmtNum } from '../dominio/calculos.ts'
+import { textoDoItem, textoDoRegistro } from './dose-texto.ts'
 import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import {
   alertasPainel,
@@ -57,8 +58,7 @@ function CabecalhoHoje({ hoje, agora }: { hoje: string; agora: Date }) {
 }
 
 function doseTexto(base: Base, s: Slot): string {
-  const it = base.itens.find((i) => i.id === s.itemId)
-  return it ? fmtDose(it.doseValor, it.doseUnidade) : ''
+  return textoDoItem(base, s.itemId)
 }
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`
@@ -177,22 +177,25 @@ export function Hoje() {
           {slots.length > 0 && <span className="text-[13px] font-semibold text-fraco"><NumeroAnimado valor={feitas} /> de {slots.length}</span>}
         </div>
         {slots.length === 0 && <p className="m-0 card p-4 text-[15px] text-suave">Nenhuma dose prevista para hoje.</p>}
-        {slots.map(({ s, st }, k) => (
-          <LinhaDose
-            key={s.chave + s.itemId}
-            k={k}
-            s={s}
-            st={st}
-            ap={base.aplicacoes.find((a) => a.itemId === s.itemId && a.previsto === s.chave)}
-            prot={base.protocolos.find((p) => p.id === s.protocoloId)}
-            nome={nomeSubstancia(s.substanciaId, base.subs)}
-            dose={doseTexto(base, s)}
-            semFrasco={(st === 'pendente' || st === 'atrasada') && semFrascoIds.has(s.itemId)}
-            clicar={() => clicarDose(s, st)}
-          />
-        ))}
+        {slots.map(({ s, st }, k) => {
+          const ap = base.aplicacoes.find((a) => a.itemId === s.itemId && a.previsto === s.chave)
+          return (
+            <LinhaDose
+              key={s.chave + s.itemId}
+              k={k}
+              s={s}
+              st={st}
+              ap={ap}
+              prot={base.protocolos.find((p) => p.id === s.protocoloId)}
+              nome={nomeSubstancia(s.substanciaId, base.subs)}
+              dose={st === 'feita' && ap ? textoDoRegistro(base, ap) : doseTexto(base, s)}
+              semFrasco={(st === 'pendente' || st === 'atrasada') && semFrascoIds.has(s.itemId)}
+              clicar={() => clicarDose(s, st)}
+            />
+          )
+        })}
         {avulsas.map(({ item: a, saindo }) => (
-          <LinhaAvulsa key={a.id} a={a} saindo={saindo} nome={nomeSubstancia(a.substanciaId, base.subs)} prot={base.protocolos.find((p) => p.id === a.protocoloId)} abrir={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })} />
+          <LinhaAvulsa key={a.id} a={a} saindo={saindo} dose={textoDoRegistro(base, a)} nome={nomeSubstancia(a.substanciaId, base.subs)} prot={base.protocolos.find((p) => p.id === a.protocoloId)} abrir={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })} />
         ))}
       </section>
 
@@ -300,7 +303,7 @@ function LinhaDose({ k, s, st, ap, prot, nome, dose, semFrasco, clicar }: { k: n
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-base font-bold break-words">{nome}</span>
         <span key={st} className={`text-[13px] font-semibold ${mudou ? 'anima-texto' : ''} ${st === 'atrasada' ? 'text-aviso' : st === 'pulada' ? 'text-erro' : st === 'feita' ? 'text-ok' : 'text-fraco'}`}>
-          {st === 'feita' && ap ? `✓ Tomada às ${horaDe(new Date(ap.dataHora))} · ${fmtDose(ap.doseValor, ap.doseUnidade)}` : st === 'pulada' ? '✕ Não feita' : st === 'atrasada' ? `${dose} · atrasada` : `${dose} · pendente`}
+          {st === 'feita' && ap ? `✓ Tomada às ${horaDe(new Date(ap.dataHora))} · ${dose}` : st === 'pulada' ? '✕ Não feita' : st === 'atrasada' ? `${dose} · atrasada` : `${dose} · pendente`}
         </span>
         {semFrasco && (
           <span className="mt-0.5 flex items-center gap-1 self-start rounded-full bg-aviso-fundo px-2 py-0.5 text-xs font-bold text-aviso-texto"><IcoAlerta tam={12} /> Sem frasco no estoque</span>
@@ -312,7 +315,7 @@ function LinhaDose({ k, s, st, ap, prot, nome, dose, semFrasco, clicar }: { k: n
 }
 
 /** Registro de hoje fora dos horários previstos (avulso ou de um horário antigo). */
-function LinhaAvulsa({ a, saindo, nome, prot, abrir }: { a: Aplicacao; saindo: boolean; nome: string; prot?: Protocolo; abrir: () => void }) {
+function LinhaAvulsa({ a, saindo, dose, nome, prot, abrir }: { a: Aplicacao; saindo: boolean; dose: string; nome: string; prot?: Protocolo; abrir: () => void }) {
   const recente = useRecente(a.id)
   return (
     <button type="button" onClick={abrir} disabled={saindo} style={bordaCor(prot)} className={`card tocavel flex min-h-[64px] items-center gap-3.5 border-l-[5px] px-4 py-3 text-left ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : 'anima-entrada'}`}>
@@ -324,7 +327,7 @@ function LinhaAvulsa({ a, saindo, nome, prot, abrir }: { a: Aplicacao; saindo: b
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-base font-bold break-words">{nome}</span>
         <span className={`text-[13px] font-semibold ${a.status === 'feita' ? 'text-ok' : 'text-erro'}`}>
-          {a.status === 'feita' ? `✓ Tomada · ${fmtDose(a.doseValor, a.doseUnidade)}` : '✕ Não feita'} · {a.previsto ? 'horário antigo' : 'registro avulso'}
+          {a.status === 'feita' ? `✓ Tomada · ${dose}` : '✕ Não feita'} · {a.previsto ? 'horário antigo' : 'registro avulso'}
         </span>
       </span>
       <span className="text-sm font-bold">{horaDe(new Date(a.dataHora))}</span>
@@ -444,7 +447,7 @@ function LinhaDoDia({ d, hoje, base, clicar }: { d: DoseDoDia; hoje: string; bas
   const dose = doseTexto(base, d.slot)
   const texto =
     d.status === 'feita' && ap
-      ? `✓ Tomada às ${horaDe(new Date(ap.dataHora))} · ${fmtDose(ap.doseValor, ap.doseUnidade)}`
+      ? `✓ Tomada às ${horaDe(new Date(ap.dataHora))} · ${textoDoRegistro(base, ap)}`
       : d.status === 'pulada'
         ? '✕ Não feita'
         : d.status === 'atrasada'
@@ -584,7 +587,7 @@ function ProximasDoses({ grupos, base, hoje }: { grupos: { dia: string; doses: S
                   <span className="w-12 shrink-0 text-sm font-bold tabular-nums">{s.horario}</span>
                   <PontoCor protocolo={p} tam={10} />
                   <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{nomeSubstancia(s.substanciaId, base.subs)}</span>
-                  <span className="shrink-0 text-[13px] text-fraco">{doseTexto(base, s)}</span>
+                  <span className="max-w-[48%] text-right text-[13px] text-fraco">{doseTexto(base, s)}</span>
                 </Link>
               )
             })}

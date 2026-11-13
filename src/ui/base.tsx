@@ -144,7 +144,7 @@ export function Sheet({ titulo, sub, aoFechar, children }: { titulo: ReactNode; 
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}
-        className="folha-anima flex max-h-[92dvh] w-full max-w-[480px] flex-col gap-4 overflow-y-auto rounded-t-2xl bg-sup px-5 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] outline-none"
+        className="folha-anima flex max-h-[92dvh] w-full max-w-[480px] flex-col gap-4 overflow-y-auto rounded-t-2xl [&>*]:shrink-0 bg-sup px-5 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] outline-none"
       >
         <span aria-hidden="true" className="h-[5px] w-10 self-center rounded-full bg-borda" />
         <div className="flex items-start justify-between gap-2">

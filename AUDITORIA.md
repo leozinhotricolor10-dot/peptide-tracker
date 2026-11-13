@@ -137,6 +137,24 @@ Limitações desta rodada:
 - Registro com horário antigo (o horário mudou depois) conta para o dia nos dias passados; hoje ele aparece à parte, como antes.
 - "Ver tudo" leva a Protocolos: o app ainda não tem uma agenda das doses futuras.
 
+## Rodada de 12/11/2026: dose em unidades da seringa
+
+Pedido do dono: "a dose é mostrada como mg, mas tem que ser mostrada como unidades da seringa tbm, baseado no que ele diluiu (2mg - 10UI)".
+
+| # | Tipo | O que mudou | Coberto por |
+|---|---|---|---|
+| U01 | Pedido | Dose em massa mostra também as unidades da seringa: "2 mg · 10 un" em Hoje (cartão grande, doses de hoje, folha do dia, próximas), Protocolos, detalhe (linha, próximas, últimos registros), folha de dose, dose atrasada, Histórico, revisão do cadastro e Estoque/Frasco ("Cada dose de 2 mg = 10 un na seringa"). Rótulo "un": "UI" já é unidade de dose no app | `dominio/unidades.test.ts` + e2e passos 34–36 |
+| U02 | Técnica | Uma função pura (`dominio/unidades.ts`: `unidadesDaDose`, `doseComUnidades`, `doseDoRegistro`) usada por todas as telas, sobre as contas que já existiam (`concentracaoDoFrasco`, `volumeDaDoseMl`, `unidadesNaSeringa`). O arredondamento da seringa virou `marcaDaSeringa` e a calculadora passou a usar a mesma. A escolha do frasco da vez virou `frascoDaVez` (mesma regra do Estoque) | `dominio/unidades.test.ts`, `seringa.test.ts`, `estoque.test.ts` |
+| U03 | Pedido | Histórico congelado: o registro grava `unidadesSeringa` com a diluição daquela hora. Mudar a diluição muda as próximas doses e não o histórico. Registro antigo sem o campo: calcula pelo frasco apontado; frasco apagado: só mg. Editar sem mudar dose nem frasco mantém o número gravado | `dominio/unidades.test.ts` + e2e passo 36 |
+| U04 | Dados | Campo opcional, sem índice: não precisa de nova versão do banco (Dexie guarda o campo como veio). Backup: o campo vai e volta; backup antigo (sem o campo) entra normal; valor que não é número recusa o arquivo (mesma regra dos outros campos) | `dados/repo.test.ts` |
+| U05 | Pedido | Casos na folha de dose: fração (exato + marca mais próxima), menos de meia unidade e mais de 100 unidades (aviso, não bloqueia), troca de frasco/diluição desde o último registro ("Frasco novo: agora são 20 unidades (antes 10)"), sem frasco/lacrado (atalho "Informe a diluição para ver as unidades"), blend em mL (mL × 100), dose em unidades ou UI (não repete) | `dominio/unidades.test.ts` + e2e passos 35–37 |
+| U06 | Média | Folha de dose em 390 px: horário e dose lado a lado espremiam o campo da dose (26 px, o número sumia). Agora um embaixo do outro | e2e passo 38 (alvos ≥ 44 px na folha) |
+| U07 | Média | Folha (Sheet) mais alta que a tela: os botões encolhiam (ex.: "Salvar registro" com 24 px de altura) porque os filhos da coluna rolável podiam encolher. Agora não encolhem | e2e passo 38 |
+
+Conferido no build servido como no Pages (390×844 e 360×640): números iguais aos da calculadora (10 mg em 0,5 mL, 2 mg = 10 unidades = 0,1 mL), registrar grava 10, rediluir para 1 mL passa as próximas para 20 e o histórico fica em 10, Retatrutida com frasco lacrado e Semaglutida sem frasco mostram só mg. Sem rolagem lateral, nenhum texto com unidades cortado, nenhum alvo < 44 px na folha de dose, contraste do número grande ≥ 4,5:1, console limpo.
+
+Fora desta rodada: o número de unidades não aparece no lembrete/notificação (privacidade, sem mudança); o resumo de estoque de Hoje ("N doses restantes") continua sem unidades.
+
 ## Conferido sem achado
 
 - Datas: virada de mês, horário de verão (São Paulo 2018 e Nova York 2026), horário inexistente (02:30), ciclo e progresso atravessando o verão (testes A05).
