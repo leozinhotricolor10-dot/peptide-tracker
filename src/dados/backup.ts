@@ -2,12 +2,13 @@
 import type { Repo } from './repo.ts'
 import type { Aplicacao, ConfigItem, Foto, Frasco, ItemProtocolo, Medicao, Protocolo, Substancia } from '../dominio/tipos.ts'
 import { validarFotos, validarTabelas } from './validar.ts'
+import { resumoTexto } from '../dominio/backup-lembrete.ts'
 
 export const APP_BACKUP = 'peptide-tracker'
 export const FORMATO_BACKUP = 1
 
 /** Config que é do aparelho e não viaja no arquivo. */
-const CONFIG_LOCAL = new Set(['aceite', 'notificados', 'reativarAvisos', 'backupAdiadoAte'])
+const CONFIG_LOCAL = new Set(['aceite', 'notificados', 'reativarAvisos', 'backupAdiadoAte', 'backupImpressao'])
 
 interface FotoArquivo extends Omit<Foto, 'blob'> {
   dados: string
@@ -137,6 +138,31 @@ export async function aplicarBackup(repo: Repo, previa: PreviaBackup): Promise<v
     if (previa.exportadoEm && (!ultimo || ultimo < previa.exportadoEm)) await db.config.put({ chave: 'ultimoBackup', valor: previa.exportadoEm })
     if (previa.tinhaNotificacao) await db.config.put({ chave: 'reativarAvisos', valor: true })
   })
+  // os dados agora são iguais aos do arquivo: o lembrete só volta quando houver dado novo
+  if (previa.exportadoEm) await repo.setConfig('backupImpressao', await impressaoDados(repo))
+}
+
+/**
+ * Resumo dos dados da pessoa (sem as configurações do aparelho). Muda quando qualquer registro,
+ * protocolo, medição, frasco ou foto é criado, alterado ou apagado. Serve para o lembrete de
+ * backup não repetir quando nada mudou desde o último backup.
+ */
+export async function impressaoDados(repo: Repo): Promise<string> {
+  const db = repo.db
+  const fotos = (await db.fotos.toArray()).map((f) => [f.id, f.data, f.angulo, f.blob.size])
+  return resumoTexto(
+    JSON.stringify([
+      await db.substancias.toArray(), await db.protocolos.toArray(), await db.itens.toArray(),
+      await db.aplicacoes.toArray(), await db.medicoes.toArray(), await db.frascos.toArray(), fotos,
+    ]),
+  )
+}
+
+/** Grava que um backup foi feito agora (exportado ou compartilhado) e cala o "lembrar depois". */
+export async function registrarBackupFeito(repo: Repo, agora = new Date()): Promise<void> {
+  await repo.setConfig('ultimoBackup', agora.toISOString())
+  await repo.setConfig('backupImpressao', await impressaoDados(repo))
+  await repo.delConfig('backupAdiadoAte')
 }
 
 export function nomeArquivoBackup(agora = new Date()): string {

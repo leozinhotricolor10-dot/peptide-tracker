@@ -155,7 +155,7 @@ export function NovaMedicao() {
     for (const { c } of CAMPOS) n[c] = num(c)
     if (Object.values(n).some((v) => v === null || (typeof v === 'number' && v <= 0))) {
       const ambiguo = CAMPOS.find(({ c }) => numeroAmbiguo(vals[c]))
-      return setErro(ambiguo ? erroNumero(vals[ambiguo.c], '') : 'Confira os números: use só números maiores que zero.')
+      return setErro(ambiguo ? erroNumero(vals[ambiguo.c], '') : 'Confira os números: só valem números maiores que zero.')
     }
     if (n.peso === undefined && !CAMPOS.slice(1).some(({ c }) => n[c] !== undefined)) return setErro('Informe pelo menos o peso ou uma medida.')
     if (!data) return setErro('Informe a data.')

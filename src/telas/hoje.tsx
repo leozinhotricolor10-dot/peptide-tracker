@@ -1,9 +1,13 @@
-// T10 Hoje (painel), E10 Hoje vazio, M10 doses de um dia, N73 backup atrasado, M66 primeiro backup, N06 reativar avisos.
+// T10 Hoje (painel), E10 Hoje vazio, M10 doses de um dia, N73 lembrete de backup (primeiro e a cada 7 dias), N06 reativar avisos.
 // De cima para baixo: doses de hoje (ação principal), a semana, avisos, próximas doses e atalhos de peso e estoque.
 // As contas ficam em dominio/painel.ts (puras e testadas); aqui só se mostra.
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { repo, useBase, useConfig, type Base } from '../dados/index.ts'
+import { impressaoDados, tamanhoEstimado } from '../dados/backup.ts'
+import { adiarLembrete, LIMITE_COMPARTILHAR_BYTES, lembreteBackup, type LembreteBackup } from '../dominio/backup-lembrete.ts'
+import { AvisoRisco, useEnviarBackup } from './backup-envio.tsx'
 import { type Slot, type StatusSlot } from '../dominio/agenda.ts'
 import { dataCurta, dataDiaMes, dataLonga, diaDe, diaRelativo, difDias, horaDe, parseDia, somaDias } from '../dominio/datas.ts'
 import { fmtNum } from '../dominio/calculos.ts'
@@ -26,12 +30,11 @@ import {
 } from '../dominio/painel.ts'
 import { bordaCor, PontoCor } from '../ui/cor.tsx'
 import type { Aplicacao, Frasco, Protocolo } from '../dominio/tipos.ts'
-import { Carregando, Dialogo, Sheet, Tela, Vazio } from '../ui/base.tsx'
+import { Carregando, Sheet, Tela, Vazio } from '../ui/base.tsx'
 import { IcoAlerta, IcoCalendario, IcoCheck, IcoEngrenagem, IcoEstoque, IcoMais, IcoPeso, IcoProtocolos, IcoSeta, IcoSino, IcoX } from '../ui/icones.tsx'
 import { FrascoVencido, useDoseUI } from './dose.tsx'
 import { PrePermissao, AvisosBloqueados } from './inicio.tsx'
 import { useToast } from '../ui/toast.tsx'
-import { BotaoAcao } from '../ui/acao.tsx'
 import { CheckAnimado, NumeroAnimado, TudoFeito } from '../ui/celebracao.tsx'
 import { useListaComSaida } from '../ui/base.tsx'
 import { useMudou, useRecente } from '../ui/movimento.ts'
@@ -68,12 +71,17 @@ export function Hoje() {
   const agora = useAgora()
   const hoje = diaDe(agora)
   const abrir = useDoseUI()
-  const nav = useNavigate()
   const toast = useToast()
   const ultimoBackup = useConfig('ultimoBackup')
   const adiado = useConfig('backupAdiadoAte')
+  const primeiroUso = useConfig('primeiroUso')
+  const impressao = useConfig('backupImpressao')
+  // resumo dos dados agora: o lembrete só volta quando algo mudou desde o último backup
+  const impressaoAtual = useLiveQuery(() => impressaoDados(repo))
+  // fica no Hoje (não no cartão): o cartão some quando o backup dá certo, as mensagens não
+  const envio = useEnviarBackup()
   const reativar = useConfig('reativarAvisos')
-  const [dialogo, setDialogo] = useState<null | 'backup' | 'pre' | 'bloq' | { frasco: Frasco }>(null)
+  const [dialogo, setDialogo] = useState<null | 'pre' | 'bloq' | { frasco: Frasco }>(null)
   const [diaAberto, setDiaAberto] = useState<string | null>(null)
 
   // Todas as contas do painel de uma vez: só refazem quando os dados mudam ou o relógio anda (30 s),
@@ -135,10 +143,15 @@ export function Hoje() {
 
   const semFrascoIds = new Set(painel.alertas.flatMap((a) => (a.tipo === 'sem-frasco' ? [a.itemId] : [])))
 
-  const diasBackup = ultimoBackup.valor ? difDias(diaDe(new Date(ultimoBackup.valor)), hoje) : null
-  const adiadoAtivo = !!adiado.valor && adiado.valor > hoje
-  const mostrarN73 = diasBackup !== null && diasBackup > 30 && !adiadoAtivo
-  const mostrarSemBackup = diasBackup === null && !adiadoAtivo
+  const lembrete = lembreteBackup({
+    hoje,
+    ultimoBackup: ultimoBackup.valor,
+    adiadoAte: adiado.valor,
+    primeiroUso: primeiroUso.valor,
+    registros: base.aplicacoes.filter((a) => a.status === 'feita').length,
+    temDados: base.protocolos.length > 0 || base.aplicacoes.length > 0 || base.medicoes.length > 0 || base.frascos.length > 0,
+    dadosNovos: impressao.valor ? impressaoAtual !== undefined && impressao.valor !== impressaoAtual : true,
+  })
 
   // dia aberto na folha: recalculado a cada render para refletir um registro feito com a folha aberta
   const resumoAberto = diaAberto ? (painel.semana.dias.find((d) => d.dia === diaAberto) ?? resumirDia(diaAberto, dosesDoDia(base.protocolos, base.itens, painel.porDia, diaAberto, agora))) : null
@@ -208,26 +221,12 @@ export function Hoje() {
         abrirFrasco={(f) => setDialogo({ frasco: f })}
         abrirOntem={(doses) => (doses.length === 1 ? abrir({ tipo: 'atrasada', slot: doses[0] }) : setDiaAberto(somaDias(hoje, -1)))}
       >
-        {mostrarN73 && (
-          <div role="status" className="flex flex-col gap-2 rounded-xl bg-aviso-fundo p-4">
-            <span className="text-sm font-semibold text-aviso-texto">Seu último backup foi há {diasBackup} dias. Salve uma cópia para não perder seus registros.</span>
-            <div className="flex gap-2">
-              <button type="button" className="btn-texto flex-1 text-aviso-texto" onClick={() => repo.setConfig('backupAdiadoAte', somaDias(hoje, 7))}>Lembrar depois</button>
-              <Link to="/ajustes/backup" className="btn-primario h-11 flex-1">Fazer backup</Link>
-            </div>
-          </div>
-        )}
+        {lembrete && <LembreteDoBackup lembrete={lembrete} hoje={hoje} envio={envio} />}
       </Atencao>
 
       <ProximasDoses grupos={painel.proximas} base={base} hoje={hoje} />
 
       <Atalhos peso={painel.peso} estoque={painel.estoque} base={base} />
-
-      {mostrarSemBackup && (
-        <button type="button" onClick={() => setDialogo('backup')} className="card flex min-h-11 items-center px-4 py-3 text-left text-sm font-semibold text-suave">
-          Ainda sem backup ·<b className="ml-1 text-acento">Fazer agora</b>
-        </button>
-      )}
 
       {resumoAberto && (
         <FolhaDia
@@ -241,14 +240,7 @@ export function Hoje() {
           }}
         />
       )}
-      {dialogo === 'backup' && (
-        <Dialogo titulo="Faça seu primeiro backup" aoFechar={() => setDialogo(null)}>
-          <p className="m-0 text-[15px] leading-relaxed text-suave">Seus registros existem só neste aparelho. Se você apagar o app, limpar os dados do navegador ou perder o celular sem um backup, eles não voltam.</p>
-          <p className="m-0 text-[15px] text-suave">Leva menos de um minuto. Guarde o arquivo num lugar só seu.</p>
-          <button type="button" className="btn-primario" onClick={() => nav('/ajustes/backup')}>Fazer backup agora</button>
-          <BotaoAcao className="btn-texto" acao={async () => { await repo.setConfig('backupAdiadoAte', somaDias(hoje, 1)); setDialogo(null) }}>Lembrar amanhã</BotaoAcao>
-        </Dialogo>
-      )}
+      {envio.dialogos}
       {typeof dialogo === 'object' && dialogo !== null && (
         <FrascoVencido frasco={dialogo.frasco} base={base} aoFechar={() => setDialogo(null)} manter={() => setDialogo(null)} />
       )}
@@ -628,6 +620,38 @@ function Atalhos({ peso, estoque, base }: { peso: ReturnType<typeof resumoPeso>;
           </span>
           <IcoSeta tam={18} className="text-acento" />
         </Link>
+      </div>
+    </section>
+  )
+}
+
+/** N73: lembrete de backup em Atenção. Ação direta (enviar agora) e "Lembrar depois" (3 dias). */
+function LembreteDoBackup({ lembrete, hoje, envio }: { lembrete: LembreteBackup; hoje: string; envio: ReturnType<typeof useEnviarBackup> }) {
+  const nav = useNavigate()
+  const enviarAgora = async () => {
+    // arquivo grande demais para mandar com fotos: a tela Backup oferece "sem fotos"
+    const est = await tamanhoEstimado(repo, true)
+    if (est.bytes > LIMITE_COMPARTILHAR_BYTES) return nav('/ajustes/backup')
+    await envio.enviar(true)
+  }
+  return (
+    <section aria-labelledby="t-lembrete-backup" data-lembrete-backup="" className="flex flex-col gap-2.5 rounded-xl border border-aviso/40 bg-aviso-fundo p-4">
+      <span className="flex items-start gap-2">
+        <IcoAlerta tam={22} className="mt-0.5 shrink-0 text-aviso" />
+        <b id="t-lembrete-backup" className="text-[15px] text-aviso-texto">
+          {lembrete.tipo === 'primeiro' ? 'Você ainda não tem backup' : `Último backup há ${lembrete.dias} dias`}
+        </b>
+      </span>
+      {lembrete.tipo === 'primeiro' ? (
+        <AvisoRisco compacto />
+      ) : (
+        <p className="m-0 text-sm leading-relaxed font-semibold text-aviso-texto">Você registrou coisas novas desde então. Uma cópia atualizada protege esses registros.</p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-texto flex-1 text-aviso-texto" onClick={() => void repo.setConfig('backupAdiadoAte', adiarLembrete(hoje))}>Lembrar depois</button>
+        <button type="button" className="btn-primario h-11 flex-[2] whitespace-nowrap" disabled={envio.ocupado} aria-busy={envio.ocupado} onClick={() => void enviarAgora()}>
+          {envio.ocupado ? 'Preparando…' : 'Enviar backup agora'}
+        </button>
       </div>
     </section>
   )

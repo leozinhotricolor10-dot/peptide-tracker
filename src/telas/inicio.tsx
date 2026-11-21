@@ -53,7 +53,6 @@ export function Aviso() {
   const aceitar = async () => {
     await repo.setConfig('aceite', { versao: VERSAO_AVISO, em: new Date().toISOString() })
     if (!(await repo.getConfig('primeiroUso'))) await repo.setConfig('primeiroUso', hojeStr())
-    void navigator.storage?.persist?.().catch(() => false)
     nav(params.get('depois') === 'hoje' || onboarding.valor ? '/hoje' : '/instalar?primeiro=1', { replace: true })
   }
   return (

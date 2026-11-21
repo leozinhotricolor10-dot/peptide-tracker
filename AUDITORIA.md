@@ -155,6 +155,25 @@ Conferido no build servido como no Pages (390×844 e 360×640): números iguais 
 
 Fora desta rodada: o número de unidades não aparece no lembrete/notificação (privacidade, sem mudança); o resumo de estoque de Hoje ("N doses restantes") continua sem unidades.
 
+## Rodada de 21/11/2026: tom descritivo e backup assistido
+
+Itens 3 e 4 do plano de ação da avaliação (docs/AVALIACAO-SHARK-TANK.md).
+
+| # | Tipo | O que mudou | Coberto por |
+|---|---|---|---|
+| D01 | Risco regulatório | Toda conta de seringa descreve a equivalência em vez de mandar puxar: calculadora ("250 mcg equivalem a 10 unidades", "na seringa (0,1 mL)"), folha de dose, troca de frasco ("agora a mesma dose equivale a…"), marca mais próxima ("Na marca mais próxima, de 8 unidades, ficam…"), Estoque ("Cada dose de 2 mg equivale a 10 un"), Reconstituição, notas do cadastro e da dose atrasada. Números iguais | e2e passos 6, 35, 36 |
+| D02 | Risco regulatório | Linha fixa abaixo da calculadora: "O app só converte os números que você digitou. Ele não indica dose." (a nota antiga "O app não sugere doses; use a que você definiu" saiu para não duplicar) | e2e passo 6 |
+| D03 | Teste | `src/textos.test.ts` extrai os textos de tela (strings e texto de JSX, sem comentários) e falha com puxe/puxar, aplique/aplicar, injete, tome/tomar, use/usar, recomendamos, ideal, deve; exceções listadas uma a uma (ações do app sem relação com dose). Conferido contra o código antigo: acha os 8 textos que foram trocados | `textos.test.ts` |
+| B01 | Pedido | "Enviar backup para mim" (Web Share API com arquivo). Chrome do Android não compartilha .json: manda o mesmo conteúdo como .txt (importar aceita .json e .txt). Sem suporte: baixa e explica onde ficou. Cancelar não é erro (aviso neutro, não conta como backup); navegador que pede novo toque: diálogo "Arquivo pronto" com Enviar; falha: mensagem + "Baixar o arquivo" | `dados/backup-assistido.test.ts` + e2e passos 40–42 |
+| B02 | Pedido | Data do último backup gravada ao enviar ou baixar; tela Backup mostra "Último backup: há 12 dias (03/11)" ou "Você ainda não fez nenhum backup" | `dominio/backup-lembrete.test.ts` + e2e 40 |
+| B03 | Pedido | Lembrete em Atenção (Hoje): nunca fez e há dados → 3º registro de dose ou 1 dia de uso; depois a cada 7 dias só com dado novo (resumo dos dados guardado no aparelho no momento do backup, não vai no arquivo; restaurar também grava). "Enviar backup agora" direto do cartão (arquivo > 50 MB com fotos leva à tela Backup); "Lembrar depois" = 3 dias. Substitui o aviso de 30 dias e o diálogo do primeiro backup | `backup-lembrete.test.ts`, `backup-assistido.test.ts` + e2e 39–41 |
+| B04 | Pedido | Aviso de risco curto (tela Backup e primeiro lembrete); no iPhone (detecção simples por user agent) + apagamento de dados de sites sem uso e pedido para instalar quando não instalado | `backup-lembrete.test.ts` (iOS) + e2e 39, 42 |
+| B05 | Pedido | `navigator.storage.persist()` ao criar protocolo novo e a cada backup (antes era no aceite do aviso); estado na tela Backup: protegido / não protegido / navegador não informa | `backup-assistido.test.ts` + e2e 42 |
+| B06 | Pedido | Tamanho aproximado antes de enviar; com fotos acima de ~50 MB aparece "Enviar sem fotos (X)" | e2e 42 (tamanho) |
+| B07 | Média | O diálogo de resultado do envio ficava dentro do cartão do lembrete e sumia junto com ele quando o backup dava certo; passou para o Hoje | e2e 40 |
+
+Conferido no build servido como no Pages (390×844 e 360×640): Hoje com o lembrete, tela Backup e diálogo de erro sem rolagem lateral, sem alvo < 44 px (checkbox medido pela linha inteira), sem texto em inglês; console limpo. Fora desta rodada: senha/criptografia do arquivo de backup (próximo passo).
+
 ## Conferido sem achado
 
 - Datas: virada de mês, horário de verão (São Paulo 2018 e Nova York 2026), horário inexistente (02:30), ciclo e progresso atravessando o verão (testes A05).
@@ -170,7 +189,7 @@ Fora desta rodada: o número de unidades não aparece no lembrete/notificação 
 - O ciclo "X dias sim / Y não" conta pelo calendário desde o início, inclusive durante uma pausa manual.
 - Com duas abas abertas, o aviso dentro do app aparece nas duas (a notificação do sistema é uma só).
 - O relógio do aparelho manda: mudar o relógio muda o "hoje" do app.
-- O arquivo de backup não é criptografado: quem tiver o arquivo vê os dados. Limites: arquivo até 300 MB, foto até 40 MB, até 2.000 fotos.
+- O arquivo de backup não é criptografado: quem tiver o arquivo vê os dados (senha no arquivo é o próximo passo). Mandar o backup por WhatsApp/e-mail deixa uma cópia nesses serviços; o app avisa para mandar só para si. Limites: arquivo até 300 MB, foto até 40 MB, até 2.000 fotos.
 - Fotos HEIC dependem de o navegador conseguir abrir.
 - 4 avisos de segurança "low" no `npm audit` (pacote `deepmerge`, usado só na ferramenta que gera o service worker; não vai para o app e não há correção publicada).
 - Testado em Chrome de computador simulando celular; não testado em iPhone/Android reais nem a instalação real (o botão "Instalar" depende do navegador).

@@ -1,5 +1,6 @@
 // Instalar na tela inicial: Android/PC usam o evento beforeinstallprompt; iPhone só por instruções.
 import { useSyncExternalStore } from 'react'
+import { ehIOSDe } from '../dominio/backup-lembrete.ts'
 
 interface EventoInstalar extends Event {
   prompt: () => Promise<void>
@@ -25,8 +26,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function ehIOS(): boolean {
-  const ua = navigator.userAgent
-  return /iPhone|iPad|iPod/i.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1)
+  return ehIOSDe(navigator.userAgent, navigator.maxTouchPoints)
 }
 
 export function rodandoInstalado(): boolean {

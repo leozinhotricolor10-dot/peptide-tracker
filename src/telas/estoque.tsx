@@ -35,7 +35,7 @@ import { FrascoVencido, UNIDADES } from './dose.tsx'
 import { DIAS_AVISO_VENCIMENTO } from '../dominio/painel.ts'
 import { corDe } from '../dominio/cores.ts'
 import { dosesRestantes } from '../dominio/estoque.ts'
-import { fmtUnidades, unidadesDaDose } from '../dominio/unidades.ts'
+import { equivale, fmtUnidades, SO_CONVERTE, unidadesDaDose } from '../dominio/unidades.ts'
 import { PontoCor } from '../ui/cor.tsx'
 
 function itemDoFrasco(base: Base, f: Frasco): ItemProtocolo | undefined {
@@ -44,11 +44,11 @@ function itemDoFrasco(base: Base, f: Frasco): ItemProtocolo | undefined {
   return cands.find((i) => i.frascoId === f.id) ?? cands[0]
 }
 
-/** "Cada dose de 2 mg = 10 un na seringa" (frasco reconstituído e dose que converte); senão null. */
+/** "Cada dose de 2 mg equivale a 10 un na seringa" (frasco reconstituído e dose que converte); senão null. */
 function cadaDose(base: Base, f: Frasco, item: ItemProtocolo): string | null {
   const d = unidadesDaDose(item.doseValor, item.doseUnidade, f, base.subs.get(f.substanciaId)?.tipo === 'blend')
   if (d.unidades === null || d.unidade === 'mL') return null
-  return `Cada dose de ${fmtNum(d.valor)} ${d.unidade} = ${fmtUnidades(d.unidades)} na seringa`
+  return `Cada dose de ${fmtNum(d.valor)} ${d.unidade} equivale a ${fmtUnidades(d.unidades)} na seringa`
 }
 
 function seloFrasco(f: Frasco, base: Base, hoje: string): { t: string; cls: string } {
@@ -523,8 +523,8 @@ export function Reconstituicao() {
 
       {dose && vol !== null && (
         <Conta
-          titulo={item ? `Para a dose que você cadastrou (${fmtDose(dose.v, dose.u)})` : `Para a dose ${fmtDose(dose.v, dose.u)}`}
-          valor={`${fmtNum(unidadesNaSeringa(vol))} unidades`}
+          titulo={item ? `A dose que você cadastrou (${fmtDose(dose.v, dose.u)}) ${equivale(dose.v)} a` : `${fmtDose(dose.v, dose.u)} ${equivale(dose.v)} a`}
+          valor={`${fmtNum(unidadesNaSeringa(vol))} unidades na seringa`}
           detalhe={
             !blend && doseMcg !== null && conc
               ? `${fmtNum(doseMcg * 1000)} mcg ÷ ${fmtNum(conc * 1000)} mcg/mL = ${fmtNum(vol)} mL · seringa de ${UNIDADES_POR_ML} unidades por mL`
@@ -546,7 +546,7 @@ export function Reconstituicao() {
       <Nota tipo="aviso">
         {blend
           ? 'Em blend, o app não calcula quanto de cada componente vai em cada dose. Mostra só o que você informou e converte volume.'
-          : 'Confira a conta. A dose é decisão sua; o app só converte o número que você informou, sem arredondar.'}
+          : `Confira a conta. A dose é decisão sua. ${SO_CONVERTE} A conta não arredonda.`}
       </Nota>
       <button type="button" className="btn-primario mt-auto" onClick={salvar}>Salvar</button>
     </Tela>

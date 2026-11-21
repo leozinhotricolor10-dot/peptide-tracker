@@ -6,7 +6,7 @@ import { repo, useBase, type Base } from '../dados/index.ts'
 import type { Slot } from '../dominio/agenda.ts'
 import { diaDe, horaDe, instante, dataBr, dataCurta, diaRelativo, hojeStr } from '../dominio/datas.ts'
 import { UNIDADES_POR_ML, dataLimite, erroNumero, fmtDose, fmtNum, lerNumero, saldoFrasco } from '../dominio/calculos.ts'
-import { doseDoRegistro, fmtUnidadesExtenso, mudancaDeUnidades, unidadesDaDose, type DoseUn, type MudancaUnidades } from '../dominio/unidades.ts'
+import { doseDoRegistro, equivale, fmtUnidadesExtenso, mudancaDeUnidades, unidadesDaDose, type DoseUn, type MudancaUnidades } from '../dominio/unidades.ts'
 import { textoDoItem, textoDoRegistro } from './dose-texto.ts'
 import type { Aplicacao, Frasco, UnidadeDose } from '../dominio/tipos.ts'
 import { escolherFrasco } from '../dominio/estoque.ts'
@@ -307,7 +307,7 @@ function Registrar({
 }
 
 /**
- * Quanto puxar na seringa para a dose digitada, com o frasco escolhido (mesma conta da calculadora).
+ * A quantas unidades da seringa a dose digitada equivale, com o frasco escolhido (mesma conta da calculadora).
  * Avisa sem bloquear: fração (exato + marca mais próxima), menos de meia unidade, mais de 100
  * unidades e a troca de frasco/diluição desde a última dose. Sem diluição: só um atalho discreto.
  */
@@ -318,18 +318,18 @@ function Seringa({ d, troca, atalho }: { d: DoseUn; troca: MudancaUnidades | nul
   const doseTxt = fmtDose(d.valor, d.unidade)
   return (
     <div aria-live="polite" data-seringa="" className="flex flex-col gap-1.5 rounded-xl border border-borda bg-sup2 px-4 py-3">
-      <span className="text-[13px] font-bold text-fraco">Puxe na seringa {d.unidade === 'mL' ? '' : `para ${doseTxt}`}</span>
+      <span className="text-[13px] font-bold text-fraco">{doseTxt} {equivale(d.valor)} a</span>
       <b className="text-[30px] leading-tight font-extrabold text-acento">{fmtUnidadesExtenso(d.unidades)}</b>
-      <span className="text-[13px] leading-snug text-suave">= {fmtNum(d.ml)} mL · seringa de insulina de {UNIDADES_POR_ML} unidades por mL</span>
+      <span className="text-[13px] leading-snug text-suave">na seringa ({fmtNum(d.ml)} mL) · seringa de insulina de {UNIDADES_POR_ML} unidades por mL</span>
       {troca && (
         <p className="m-0 rounded-lg bg-aviso-fundo px-3 py-2 text-sm font-bold text-aviso-texto">
-          {troca.frascoNovo ? 'Frasco novo' : 'A diluição do frasco mudou'}: agora são {fmtUnidadesExtenso(troca.agora)} (antes {fmtNum(troca.antes)}).
+          {troca.frascoNovo ? 'Frasco novo' : 'A diluição do frasco mudou'}: agora a mesma dose equivale a {fmtUnidadesExtenso(troca.agora)} (antes {fmtNum(troca.antes)}).
         </p>
       )}
       {d.marca !== null && (
         <p className="m-0 text-sm leading-relaxed text-suave">
-          O número exato não cai numa marca. A marca mais próxima é <b className="text-texto">{d.marca} unidades</b>
-          {d.doseDaMarca !== null ? <>, que dá <b className="text-texto">{fmtDose(d.doseDaMarca, d.unidade)}</b> em vez de {doseTxt}</> : ''}.
+          O número exato fica entre duas marcas. Na marca mais próxima, de <b className="text-texto">{d.marca} unidades</b>
+          {d.doseDaMarca !== null ? <>, ficam <b className="text-texto">{fmtDose(d.doseDaMarca, d.unidade)}</b> (e não {doseTxt})</> : ''}.
         </p>
       )}
       {d.abaixoDaMenorMarca && (
@@ -396,7 +396,7 @@ function Atrasada({ base, slot, fechar, trocar }: { base: Base; slot: Slot; fech
       <button type="button" className="btn-primario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot })}>Fiz agora</button>
       <button type="button" className="btn-secundario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot, outroHorario: true })}>Fiz, mas em outro horário</button>
       <button type="button" className="btn-neutro" onClick={() => trocar({ tipo: 'pular', slot })}>Não fiz</button>
-      <p className="m-0 text-[13px] text-fraco">O app não diz se você deve aplicar ou não. Ele só guarda o que você informar.</p>
+      <p className="m-0 text-[13px] text-fraco">O app não decide nada por você. Ele só guarda o que você informar.</p>
     </Sheet>
   )
 }

@@ -4,7 +4,9 @@ import { useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useNavigate } from 'react-router'
 import { repo, useBase, useConfig, type Base } from '../dados/index.ts'
-import { aplicarBackup, fmtBytes, lerBackup, montarBackup, nomeArquivoBackup, tamanhoEstimado, TAMANHO_MAX_BACKUP, type PreviaBackup } from '../dados/backup.ts'
+import { aplicarBackup, fmtBytes, lerBackup, tamanhoEstimado, TAMANHO_MAX_BACKUP, type PreviaBackup } from '../dados/backup.ts'
+import { LIMITE_COMPARTILHAR_BYTES, textoUltimoBackup } from '../dominio/backup-lembrete.ts'
+import { AvisoRisco, EstadoDoArmazenamento, useEnviarBackup } from './backup-envio.tsx'
 import { comTeto, ehCotaCheia, mensagemDeErro } from '../dados/repo.ts'
 import { estadoEfetivo, descreverFrequencia, proximosSlots } from '../dominio/agenda.ts'
 import { dataBr, diaDe, diaRelativo, difDias, hojeStr, instante } from '../dominio/datas.ts'
@@ -12,7 +14,7 @@ import { gerarIcs, TITULO_AGENDA } from '../dominio/ics.ts'
 import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import { Cabecalho, Carregando, Dialogo, Nota, Tela } from '../ui/base.tsx'
 import { useVoltar } from '../ui/navegar.ts'
-import { IcoAlerta, IcoArquivo, IcoDownload, IcoMais, IcoSeta, IcoUpload } from '../ui/icones.tsx'
+import { IcoAlerta, IcoArquivo, IcoCheck, IcoCompartilhar, IcoDownload, IcoMais, IcoSeta, IcoUpload } from '../ui/icones.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { BotaoAcao } from '../ui/acao.tsx'
 import { baixarArquivo } from '../sistema/imagem.ts'
@@ -145,7 +147,7 @@ export function Lembretes() {
       <div className="flex flex-col gap-2 rounded-xl bg-aviso-fundo p-4 text-sm leading-relaxed text-aviso-texto">
         <b className="flex items-center gap-2"><IcoAlerta tam={18} /> Limite desta versão (sem servidor)</b>
         <span>A notificação é criada pelo próprio aparelho, sem servidor. Por isso ela só chega com o app aberto ou aberto há pouco tempo. <b>Com o app fechado, o aviso não é garantido</b> (isso exige um servidor de avisos, previsto para uma próxima versão).</span>
-        <span>Para não esquecer com o app fechado, use a <b>agenda do celular</b>: ela avisa sempre, mesmo sem internet.</span>
+        <span>Com o app fechado, quem avisa é a <b>agenda do celular</b>: ela avisa sempre, mesmo sem internet.</span>
         {temGatilhos() && <span>Este navegador permite agendar avisos no aparelho: as doses das próximas 24 h ficam agendadas ao abrir o app.</span>}
       </div>
 
@@ -272,7 +274,7 @@ function Restaurador({ aoRestaurar, children }: { aoRestaurar: (p: PreviaBackup)
   }
   return (
     <>
-      <input ref={input} type="file" accept="application/json,.json" hidden data-testid="arquivo-backup" onChange={(e) => ler(e.target.files?.[0])} />
+      <input ref={input} type="file" accept="application/json,.json,text/plain,.txt" hidden data-testid="arquivo-backup" onChange={(e) => ler(e.target.files?.[0])} />
       {children(() => input.current?.click())}
       {previa && (
         <Dialogo titulo="Restaurar este backup?" aoFechar={() => setPrevia(null)}>
@@ -331,58 +333,62 @@ export function Backup() {
   const toast = useToast()
   const nav = useNavigate()
   const [fotos, setFotos] = useState(true)
-  const [exportando, setExportando] = useState(false)
   const [ajuda, setAjuda] = useState(false)
+  const envio = useEnviarBackup()
   const est = useLiveQuery(() => tamanhoEstimado(repo, fotos), [fotos])
-  const exportar = async () => {
-    setExportando(true)
-    try {
-      const arq = await montarBackup(repo, fotos)
-      baixarArquivo(new Blob([JSON.stringify(arq)], { type: 'application/json' }), nomeArquivoBackup())
-      await repo.setConfig('ultimoBackup', new Date().toISOString())
-      await repo.delConfig('backupAdiadoAte')
-      toast({ titulo: 'Backup exportado', texto: `${arq.fotos.length} foto(s) incluídas · confira a pasta de downloads` })
-    } catch {
-      toast({ tipo: 'info', titulo: 'Não deu para exportar', texto: fotos ? 'Tente sem as fotos (arquivo menor).' : 'Tente de novo.' })
-    } finally {
-      setExportando(false)
-    }
-  }
+  const estSem = useLiveQuery(() => tamanhoEstimado(repo, false), [])
+  const grande = fotos && !!est && est.bytes > LIMITE_COMPARTILHAR_BYTES
   return (
     <Tela>
       <Cabecalho titulo="Backup" voltar />
-      <p className="m-0 text-[15px] leading-relaxed text-suave">Sem conta, seus dados existem só neste aparelho. Uma cópia salva protege contra perda ou troca de celular.</p>
-      <section className="card flex flex-col gap-3 p-4">
-        <div className="flex items-baseline justify-between">
-          <b className="text-lg">Salvar uma cópia</b>
-          <span className="text-[13px] text-fraco">Última: {ultimo.valor ? dataBr(diaDe(new Date(ultimo.valor))) : 'nunca'}</span>
-        </div>
-        <span className="text-sm text-suave">Protocolos, doses, medições, frascos e fotos em um arquivo.</span>
+      <AvisoRisco />
+      <section aria-label="Situação do backup" className="card flex flex-col gap-2 p-4">
+        <span className={`flex items-start gap-2 text-[15px] font-bold ${ultimo.valor ? '' : 'text-aviso-texto'}`}>
+          {ultimo.valor ? <IcoCheck tam={20} className="mt-0.5 shrink-0 text-ok" /> : <IcoAlerta tam={20} className="mt-0.5 shrink-0 text-aviso" />}
+          <span data-ultimo-backup="">{ultimo.carregado ? textoUltimoBackup(ultimo.valor, hojeStr()) : '…'}</span>
+        </span>
+        <EstadoDoArmazenamento />
+      </section>
+      <section aria-labelledby="t-enviar-backup" className="card flex flex-col gap-3 p-4">
+        <b id="t-enviar-backup" className="text-lg">Enviar uma cópia para você</b>
+        <span className="text-sm leading-relaxed text-suave">Protocolos, doses, medições, frascos e fotos em um arquivo. Mande para o seu WhatsApp, e-mail ou Drive: se o celular sumir, o arquivo continua lá.</span>
         <div className="flex min-h-11 items-center justify-between gap-2 rounded-[10px] bg-fundo px-3 text-sm">
-          <span className="text-suave">Tamanho estimado</span>
-          <b>{est ? fmtBytes(est.bytes) : '…'} · {est?.fotos ?? 0} foto{est?.fotos === 1 ? '' : 's'}</b>
+          <span className="text-suave">Tamanho aproximado</span>
+          <b data-tamanho-backup="">{est ? fmtBytes(est.bytes) : '…'} · {est?.fotos ?? 0} foto{est?.fotos === 1 ? '' : 's'}{fotos ? '' : ' fora'}</b>
         </div>
         <label className="flex min-h-11 items-center gap-3">
           <input type="checkbox" className="h-6 w-6 shrink-0" checked={fotos} onChange={(e) => setFotos(e.target.checked)} />
           <b className="text-[15px]">Incluir fotos</b>
-          <span className="text-[13px] font-semibold text-fraco">(desmarque se o arquivo ficar grande)</span>
+          <span className="text-[13px] font-semibold text-fraco">(o arquivo fica maior)</span>
         </label>
-        <button type="button" className="btn-primario" disabled={exportando} onClick={exportar}><IcoDownload tam={20} /> {exportando ? 'Exportando…' : 'Exportar backup'}</button>
+        {grande && (
+          <div role="status" className="flex flex-col gap-2 rounded-xl bg-aviso-fundo px-4 py-3 text-sm font-semibold text-aviso-texto">
+            <span className="flex items-start gap-2"><IcoAlerta tam={18} className="mt-0.5 shrink-0 text-aviso" /> Com fotos, o arquivo fica com cerca de {fmtBytes(est.bytes)}. Arquivos desse tamanho costumam não passar por WhatsApp e e-mail.</span>
+            <button type="button" className="btn-secundario" disabled={envio.ocupado} onClick={() => void envio.enviar(false)}>
+              <IcoCompartilhar tam={20} /> Enviar sem fotos{estSem ? ` (${fmtBytes(estSem.bytes)})` : ''}
+            </button>
+          </div>
+        )}
+        <button type="button" className="btn-primario" disabled={envio.ocupado} aria-busy={envio.ocupado} onClick={() => void envio.enviar(fotos)}>
+          <IcoCompartilhar tam={20} /> {envio.ocupado ? 'Preparando…' : 'Enviar backup para mim'}
+        </button>
+        <button type="button" className="btn-texto" disabled={envio.ocupado} onClick={() => void envio.enviar(fotos, true)}><IcoDownload tam={20} /> Só baixar o arquivo</button>
       </section>
-      <Nota tipo="aviso">Exportar é sempre liberado. O arquivo tem seus dados de saúde e fotos. Guarde em um lugar só seu e não compartilhe.</Nota>
+      <Nota tipo="aviso">O arquivo tem seus dados de saúde e fotos, sem senha. Mande só para você mesmo e guarde num lugar só seu.</Nota>
       <section className="card flex flex-col gap-3 p-4">
         <b className="text-lg">Restaurar de um arquivo</b>
-        <span className="text-sm text-suave">Use ao trocar de celular. Você vê o conteúdo antes de confirmar.</span>
+        <span className="text-sm text-suave">Serve para trocar de celular. Você vê o conteúdo antes de confirmar.</span>
         <Restaurador aoRestaurar={() => { toast({ titulo: 'Backup restaurado' }); nav('/hoje', { replace: true }) }}>
           {(abrir) => <button type="button" className="btn-secundario" onClick={abrir}><IcoUpload tam={20} /> Escolher arquivo</button>}
         </Restaurador>
         <button type="button" className="link self-start" aria-expanded={ajuda} onClick={() => setAjuda(!ajuda)}>O arquivo não abre?</button>
         {ajuda && (
           <p className="m-0 text-[13px] leading-relaxed text-suave">
-            Use o arquivo .json exportado por este app, sem abrir nem salvar em outro programa. No celular, ele costuma estar em Downloads ou na pasta onde você guardou. Arquivos de outra versão mais nova do app pedem que você atualize primeiro.
+            Escolha o arquivo de backup deste app (termina em .json, ou .txt quando foi enviado pelo celular), sem abrir nem salvar em outro programa. No celular, ele costuma estar em Downloads, no WhatsApp ou no e-mail para onde você mandou. Arquivos de uma versão mais nova do app pedem que você atualize primeiro.
           </p>
         )}
       </section>
+      {envio.dialogos}
     </Tela>
   )
 }
@@ -394,7 +400,7 @@ export function RestaurarInicio() {
   return (
     <Tela className="min-h-dvh">
       <Cabecalho titulo="Restaurar backup" voltar />
-      <p className="m-0 text-[15px] leading-relaxed text-suave">Escolha o arquivo de backup exportado pelo app (termina em .json). Você vê o conteúdo antes de confirmar.</p>
+      <p className="m-0 text-[15px] leading-relaxed text-suave">Escolha o arquivo de backup do app (termina em .json, ou .txt quando foi enviado pelo celular). Você vê o conteúdo antes de confirmar.</p>
       <Nota>Nada sai do aparelho: o arquivo é lido aqui mesmo.</Nota>
       <Restaurador aoRestaurar={() => nav(aceite.valor ? '/hoje' : '/aviso?depois=hoje', { replace: true })}>
         {(abrir) => <button type="button" className="btn-primario mt-auto" onClick={abrir}><IcoUpload tam={20} /> Escolher arquivo</button>}

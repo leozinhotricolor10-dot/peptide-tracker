@@ -82,6 +82,8 @@ export interface ConfigMapa {
   canais: { agenda: boolean; notificacao: boolean }
   ultimoBackup: string
   backupAdiadoAte: string
+  /** Resumo dos dados no último backup (fica no aparelho, não vai no arquivo). */
+  backupImpressao: string
   primeiroUso: string
   reativarAvisos: boolean
   sugestoesVersao: number

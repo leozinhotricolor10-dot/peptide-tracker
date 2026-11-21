@@ -1,5 +1,6 @@
 // Novo/editar protocolo: T21 substância (+E21), M25 criar substância, T26 editor de blend,
 // T22 dose, T23 frequência, T24 duração e revisão, M24 salvar alteração, M26 sair sem salvar.
+import { pedirArmazenamentoPersistente } from '../sistema/armazenamento.ts'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { repo, useBase } from '../dados/index.ts'
@@ -498,9 +499,9 @@ export function PassoDose() {
         <Chips rotulo="Unidade" opcoes={UNIDADES.map((u) => ({ v: u, t: u }))} valor={it.doseUnidade} aoMudar={(v: UnidadeDose) => { rascunho.mudarItem(() => ({ doseUnidade: v })); setErro('') }} />
       </fieldset>
       {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
-      {blend && <Nota>Em blend, use a dose do frasco todo (mL ou unidades), como você aplica.</Nota>}
+      {blend && <Nota>Em blend, a dose é do frasco todo, em mL ou unidades.</Nota>}
       <CalculadoraSeringa it={it} blend={blend} frascoLigado={frascoLigado} ligadoUsavel={ligadoUsavel} somaBlendMg={blend ? somaComponentesMg(sub.componentes) : null} />
-      <Nota tipo="aviso">Confira a unidade: 1 mg = 1.000 mcg. O app não sugere doses; use a que você definiu e confira a conta.</Nota>
+      <Nota tipo="aviso">Confira a unidade: 1 mg = 1.000 mcg. A dose é a que você definiu.</Nota>
     </Etapa>
   )
 }
@@ -625,6 +626,8 @@ export function PassoRevisao() {
       setErros([mensagemDeErro(e)])
       return
     }
+    // primeiro protocolo (ou um novo): pede ao navegador para não apagar os dados (sem janela no Chrome/Safari)
+    if (r.modo !== 'editar') void pedirArmazenamentoPersistente()
     const destino = `/protocolos/${protocolo.id}`
     // Fecha o cadastro: nenhum passo reabre depois disto (voltar, F5, link antigo).
     rascunho.fechar(destino)

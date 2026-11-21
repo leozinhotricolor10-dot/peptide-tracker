@@ -7,6 +7,7 @@ import type { Frasco } from '../dominio/tipos.ts'
 import { hojeStr } from '../dominio/datas.ts'
 import { IcoEstoque } from '../ui/icones.tsx'
 import { frascoDoCalculo, rascunho, type ItemRascunho } from './rascunho.ts'
+import { equivale, SO_CONVERTE } from '../dominio/unidades.ts'
 
 /** Número para um campo editável (sem ponto de milhar, que o app recusa por ser ambíguo). */
 const paraCampo = (n: number) => fmtNum(n).replace(/\./g, '')
@@ -42,7 +43,7 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, ligadoUsavel, soma
   const novo = frascoDoCalculo(it, hojeStr(), ligadoUsavel)
 
   let falta: string | null = null
-  if (c.falta === 'ui') falta = 'Dose em UI não é convertida: o app não sabe quantas UI há em cada mg. Para usar a calculadora, escolha mg, mcg, mL ou unidades.'
+  if (c.falta === 'ui') falta = 'Dose em UI não é convertida: o app não sabe quantas UI há em cada mg. A calculadora converte mg, mcg, mL ou unidades.'
   else if (c.falta === 'blend-mg') falta = 'Em blend, informe a dose em mL ou unidades para ver a conta. O app não converte mg de blend.'
   else if (c.falta === 'dose') falta = algumCampo ? 'Digite a dose e escolha a unidade acima para ver a conta.' : null
   else if (c.falta === 'frasco') falta = 'Preencha quanto tem no frasco (mg) e quanto de água você colocou (mL) para ver a conta.'
@@ -53,7 +54,7 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, ligadoUsavel, soma
     <section aria-labelledby="calc-titulo" className="card flex flex-col gap-3 p-4">
       <div className="flex flex-col gap-0.5">
         <h2 id="calc-titulo" className="text-[17px] font-bold">Calculadora da seringa</h2>
-        <span className="text-[13px] leading-snug text-fraco">Opcional. Com os números do seu frasco, o app mostra quanto puxar na seringa e guarda o frasco no Estoque.</span>
+        <span className="text-[13px] leading-snug text-fraco">Opcional. Com os números do seu frasco, o app mostra a quantas unidades da seringa a dose digitada equivale e guarda o frasco no Estoque.</span>
       </div>
       <div className="grid grid-cols-2 items-end gap-2.5">
         <label className="rotulo text-sm">
@@ -93,16 +94,16 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, ligadoUsavel, soma
           <>
             <div className="h-px bg-sup2" />
             <Linha
-              titulo={`Puxe na seringa para ${doseTxt}`}
+              titulo={it.doseUnidade === 'unidades' ? 'Na seringa, essa dose ocupa' : `${doseTxt} ${equivale(dose ?? 0)} a`}
               valor={`${fmtNum(c.unidadesExatas)} unidade${c.unidadesExatas === 1 ? '' : 's'}`}
-              detalhe={`= ${fmtNum(c.volumeMl)} mL · seringa de insulina de ${UNIDADES_POR_ML} unidades por mL (as marcas que muita gente chama de “UI”)`}
+              detalhe={`na seringa (${fmtNum(c.volumeMl)} mL) · seringa de insulina de ${UNIDADES_POR_ML} unidades por mL (as marcas que muita gente chama de “UI”)`}
               destaque
             />
             {c.mgDaDoseEmVolume !== null && <span className="text-[13px] text-suave">Essa dose tem {fmtNum(c.mgDaDoseEmVolume)} mg ({fmtNum(c.mgDaDoseEmVolume * 1000)} mcg).</span>}
             {c.marca !== null && (
               <p className="m-0 rounded-xl bg-sup2 px-3 py-2.5 text-sm leading-relaxed text-suave">
-                O número exato não cai numa marca. A marca mais próxima é <b className="text-texto">{c.marca} unidades</b>
-                {c.doseDaMarca !== null && it.doseUnidade ? <>, que dá <b className="text-texto">{fmtDose(c.doseDaMarca, it.doseUnidade)}</b> em vez de {doseTxt}</> : ''}.
+                O número exato fica entre duas marcas. Na marca mais próxima, de <b className="text-texto">{c.marca} unidades</b>
+                {c.doseDaMarca !== null && it.doseUnidade ? <>, ficam <b className="text-texto">{fmtDose(c.doseDaMarca, it.doseUnidade)}</b> (e não {doseTxt})</> : ''}.
               </p>
             )}
             {c.abaixoDaMenorMarca && (
@@ -122,6 +123,7 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, ligadoUsavel, soma
         )}
         {falta && <span className="text-[13px] leading-snug text-fraco">{falta}</span>}
       </div>
+      <p data-so-converte="" className="m-0 text-[13px] leading-snug font-semibold text-fraco">{SO_CONVERTE}</p>
 
       {/* Regra do dono: todo frasco informado vai para o Estoque (sem interruptor). */}
       <div className="flex items-start gap-2.5 border-t border-sup2 pt-3">
@@ -130,7 +132,7 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, ligadoUsavel, soma
           {ligadoUsavel ? (
             <>
               <b className="text-[15px]">Frasco já no Estoque</b>
-              <span className="text-[13px] text-fraco">{mesmoDoLigado ? 'São os números do frasco já ligado a este protocolo.' : 'Este protocolo já tem um frasco ligado. Para um frasco novo, use Estoque > Frasco.'}</span>
+              <span className="text-[13px] text-fraco">{mesmoDoLigado ? 'São os números do frasco já ligado a este protocolo.' : 'Este protocolo já tem um frasco ligado. Um frasco novo entra por Estoque > Frasco.'}</span>
             </>
           ) : novo ? (
             <>

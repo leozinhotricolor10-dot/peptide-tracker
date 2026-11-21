@@ -144,6 +144,17 @@ export function fmtUnidadesExtenso(n: number): string {
   return `${fmtNum(n)}${NBSP}unidade${Math.abs(n - 1) < QUASE ? '' : 's'}`
 }
 
+/**
+ * Verbo de equivalência concordando com o número ("1 mg equivale", "250 mcg equivalem"). O app
+ * descreve a conversão; nunca diz quanto puxar ou aplicar.
+ */
+export function equivale(valor: number): string {
+  return Math.abs(valor) < 2 ? 'equivale' : 'equivalem'
+}
+
+/** Texto fixo perto de toda conta de seringa. */
+export const SO_CONVERTE = 'O app só converte os números que você digitou. Ele não indica dose.'
+
 /** "2 mg · 10 un", "0,1 mL · 10 un" ou só "2 mg" quando não dá para converter. */
 export function textoDoseUn(d: Pick<DoseUn, 'valor' | 'unidade' | 'unidades'>): string {
   const massa = `${fmtNum(d.valor)}${NBSP}${d.unidade}`

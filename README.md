@@ -3,7 +3,7 @@
 Diário pessoal de protocolos, doses, peso, medidas, fotos e estoque de frascos. App web instalável (PWA) para celular.
 
 - **Só registro**: não recomenda substância, dose ou protocolo, não vende nada. Uso para maiores de 18 anos.
-- **Sem conta e sem servidor**: tudo fica no aparelho (IndexedDB). Backup é um arquivo que a pessoa exporta e importa.
+- **Sem conta e sem servidor**: tudo fica no aparelho (IndexedDB). Backup é um arquivo que a pessoa envia para si mesma (compartilhar do celular: WhatsApp, e-mail, Drive) ou baixa, e importa depois; o app lembra de fazer.
 - **Funciona sem internet** depois da primeira abertura.
 - Avisos de dose: chegam com o app aberto ou aberto há pouco; com o app fechado, o app gera um arquivo de agenda (.ics) que o celular avisa sempre.
 

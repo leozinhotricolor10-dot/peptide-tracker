@@ -27,6 +27,8 @@ async function passo(nome, fn) {
     process.exit(1)
   }
 }
+const CAPTURAS = process.env.E2E_CAPTURAS // pasta opcional para salvar capturas de tela
+const capturar = async (nome) => { if (CAPTURAS) await page.screenshot({ path: `${CAPTURAS}/${nome}.png` }) }
 const B = (nome) => page.getByRole('button', { name: nome, exact: true })
 const L = (nome) => page.getByRole('link', { name: nome, exact: true })
 const h1 = () => page.locator('h1').first().textContent()
@@ -102,10 +104,16 @@ await passo('calculadora do passo 2: 5 mg em 2 mL, 250 mcg = 10 unidades, 20 dos
   await page.getByLabel('No frasco (mg)').fill('10')
   await page.getByLabel('Água que você pôs (mL)').fill('3')
   await calc.getByText('7,5 unidades').waitFor()
-  await calc.getByText(/marca mais próxima é 8 unidades/).waitFor()
+  await calc.getByText(/Na marca mais próxima, de 8 unidades, ficam 266,6\d*\s*mcg \(e não 250\s*mcg\)/).waitFor()
   await page.getByLabel('No frasco (mg)').fill('5')
   await page.getByLabel('Água que você pôs (mL)').fill('2')
   for (const t of ['2,5 mg/mL', '10 unidades', '20 doses']) await calc.getByText(t, { exact: true }).waitFor()
+  // tom descritivo: equivalência, nunca "Puxe"; e a linha fixa de que o app só converte
+  await calc.getByText(/^250\s*mcg equivalem a$/).waitFor()
+  await calc.getByText(/^na seringa \(0,1 mL\)/).waitFor()
+  await calc.getByText('O app só converte os números que você digitou. Ele não indica dose.', { exact: true }).waitFor()
+  igual(await page.getByText(/\b(Puxe|puxar|Aplique|Injete|Tome)\b/).count(), 0, 'nenhum verbo de instrução de dose')
+  await capturar('calculadora-descritiva-390')
   // sem interruptor: o frasco informado sempre vai para o Estoque
   igual(await page.getByRole('switch').count(), 0, 'interruptor de guardar frasco removido')
   await calc.getByText('O frasco entra no Estoque para você acompanhar o saldo').waitFor()
@@ -651,8 +659,6 @@ await passo('nenhum alvo de toque menor que 44 px nas telas novas', async () => 
 // ---------- dose também em unidades da seringa ("2 mg · 10 un") ----------
 const DOSE_10 = /2\s*mg · 10\s*un/
 const DOSE_20 = /2\s*mg · 20\s*un/
-const CAPTURAS = process.env.E2E_CAPTURAS // pasta opcional para salvar capturas de tela
-const capturar = async (nome) => { if (CAPTURAS) await page.screenshot({ path: `${CAPTURAS}/${nome}.png` }) }
 let ipa
 await passo('unidades: cadastro com a calculadora (10 mg em 0,5 mL, dose 2 mg) mostra "2 mg · 10 un" na revisão, no detalhe, em Protocolos e em Hoje', async () => {
   await page.goto(BASE + '#/protocolos')
@@ -688,7 +694,8 @@ await passo('unidades: folha de dose mostra as unidades grandes e o mL; o regist
   const folha = page.getByRole('dialog')
   const seringa = folha.locator('[data-seringa]')
   await seringa.getByText('10 unidades', { exact: true }).waitFor()
-  await seringa.getByText(/= 0,1 mL/).waitFor()
+  await seringa.getByText(/^2\s*mg equivalem a$/).waitFor()
+  await seringa.getByText(/na seringa \(0,1 mL\)/).waitFor()
   const c = await contraste('[data-seringa] b')
   if (c < 4.5) throw new Error(`contraste das unidades ${c.toFixed(2)}`)
   // digitar outra dose recalcula na hora (sem salvar)
@@ -716,14 +723,14 @@ await passo('unidades: mudar a diluição do frasco muda as próximas doses e n�
   await B('Salvar').click()
   await page.getByRole('status').filter({ hasText: 'Reconstituição salva' }).waitFor()
   await page.goto(BASE + '#/estoque')
-  await page.locator('div.card', { has: page.locator(`a[href$="/estoque/frasco/${linha.frascoId}"]`) }).getByText(/Cada dose de 2\s*mg = 20\s*un na seringa/).waitFor()
+  await page.locator('div.card', { has: page.locator(`a[href$="/estoque/frasco/${linha.frascoId}"]`) }).getByText(/Cada dose de 2\s*mg equivale a 20\s*un na seringa/).waitFor()
   await page.goto(BASE + '#/protocolos/' + ipa.id)
   await page.locator('main').getByText(/2\s*mg · 20\s*un · todo dia/i).waitFor()
   await page.getByRole('button', { name: /Ipamorelina · 2\s*mg · 10\s*un/ }).waitFor() // o registro feito continua com 10
   await B('Registrar dose agora').click()
   const seringa = page.getByRole('dialog').locator('[data-seringa]')
   await seringa.getByText('20 unidades', { exact: true }).waitFor()
-  await seringa.getByText(/A diluição do frasco mudou: agora são 20\s*unidades \(antes 10\)/).waitFor()
+  await seringa.getByText(/A diluição do frasco mudou: agora a mesma dose equivale a 20\s*unidades \(antes 10\)/).waitFor()
   await page.keyboard.press('Escape')
   await page.getByRole('dialog').waitFor({ state: 'detached' })
   await page.goto(BASE + '#/historico?p=' + ipa.id)
@@ -794,6 +801,141 @@ await passo('unidades em 360 × 640: sem rolagem lateral, sem alvo pequeno, núm
   if (larg[0] > larg[1]) throw new Error(`folha de dose: rolagem lateral ${larg.join(' > ')}`)
   await capturar('folha-de-dose-360')
   await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 390, height: 844 })
+})
+// ---------- backup assistido ----------
+const lembrete = () => page.locator('[data-lembrete-backup]')
+const lerConfig = (chave) => page.evaluate(async (k) => {
+  const r = indexedDB.open('peptide-tracker')
+  const db = await new Promise((ok, falha) => { r.onsuccess = () => ok(r.result); r.onerror = () => falha(r.error) })
+  const v = await new Promise((ok) => { const q = db.transaction('config').objectStore('config').get(k); q.onsuccess = () => ok(q.result?.valor) })
+  db.close()
+  return v
+}, chave)
+const gravarConfig = (chave, valor) => page.evaluate(async ([k, v]) => {
+  const r = indexedDB.open('peptide-tracker')
+  const db = await new Promise((ok, falha) => { r.onsuccess = () => ok(r.result); r.onerror = () => falha(r.error) })
+  await new Promise((ok) => { const t = db.transaction('config', 'readwrite'); t.objectStore('config').put({ chave: k, valor: v }); t.oncomplete = ok })
+  db.close()
+}, [chave, valor])
+/** Tela sem rolagem lateral, sem alvo < 44 px (checkbox conta pela linha inteira) e sem texto em inglês. */
+const conferirTela = async (onde, raiz = '#root') => {
+  const larg = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
+  if (larg[0] > larg[1]) throw new Error(`${onde}: rolagem lateral ${larg.join(' > ')}`)
+  const pequenos = await page.evaluate((r) =>
+    [...document.querySelectorAll(`${r} a, ${r} button, ${r} select, ${r} input`)]
+      .filter((el) => el.offsetParent !== null || el.closest('label')?.offsetParent)
+      .map((el) => (el.matches('input[type=checkbox]') && el.closest('label')) || el)
+      .map((el) => ({ t: (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 30), r: el.getBoundingClientRect() }))
+      .filter((x) => x.r.height < 43.5 || x.r.width < 43.5)
+      .map((x) => `${x.t} ${Math.round(x.r.width)}x${Math.round(x.r.height)}`), raiz)
+  if (pequenos.length) throw new Error(`${onde}: alvo pequeno ${pequenos.join(', ')}`)
+  const ingles = (await page.locator(raiz).first().innerText()).match(/\b(Share|Cancel|Download|Error|undefined|NaN|null|Storage|Send|Backup saved)\b/g)
+  if (ingles) throw new Error(`${onde}: texto em inglês ${ingles.join(', ')}`)
+}
+const RISCO = 'Seus dados ficam só neste aparelho. Se trocar de celular, limpar o navegador ou desinstalar o app, só o backup traz tudo de volta.'
+await passo('backup: depois dos registros de dose, o lembrete aparece em Atenção na Hoje, com o aviso de risco (390 e 360)', async () => {
+  igual(await lerConfig('ultimoBackup'), undefined, 'ainda sem backup')
+  await page.goto(BASE + '#/hoje')
+  await lembrete().waitFor()
+  igual(await page.locator('section[aria-labelledby="t-atencao"] [data-lembrete-backup]').count(), 1, 'lembrete dentro de Atenção')
+  await lembrete().getByText('Você ainda não tem backup', { exact: true }).waitFor()
+  await lembrete().getByText(RISCO, { exact: true }).waitFor()
+  await lembrete().getByRole('button', { name: 'Enviar backup agora' }).waitFor()
+  await lembrete().getByRole('button', { name: 'Lembrar depois' }).waitFor()
+  await lembrete().evaluate((el) => el.scrollIntoView({ block: 'center' }))
+  await conferirTela('Hoje com lembrete (390)')
+  await capturar('hoje-lembrete-backup-390')
+  await page.setViewportSize({ width: 360, height: 640 })
+  await page.waitForTimeout(300)
+  await lembrete().evaluate((el) => el.scrollIntoView({ block: 'center' }))
+  await conferirTela('Hoje com lembrete (360)')
+  await capturar('hoje-lembrete-backup-360')
+  await page.setViewportSize({ width: 390, height: 844 })
+})
+await passo('backup: "Enviar backup agora" sem compartilhar no navegador baixa o arquivo com a data, explica onde ficou, grava a data e o lembrete some (F5 mantém)', async () => {
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
+    Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true })
+  })
+  const [baixado] = await Promise.all([page.waitForEvent('download'), lembrete().getByRole('button', { name: 'Enviar backup agora' }).click()])
+  if (!/^peptide-tracker-backup-\d{4}-\d{2}-\d{2}\.json$/.test(baixado.suggestedFilename())) throw new Error(`nome do arquivo: ${baixado.suggestedFilename()}`)
+  const conteudo = JSON.parse(await (await import('node:fs/promises')).readFile(await baixado.path(), 'utf8'))
+  igual(conteudo.app, 'peptide-tracker', 'arquivo é o backup do app')
+  igual(conteudo.tabelas.aplicacoes.length > 0, true, 'arquivo com os registros')
+  const dlg = page.getByRole('alertdialog', { name: 'Backup salvo no aparelho' })
+  await dlg.getByText(/Downloads/).first().waitFor()
+  await dlg.getByText(baixado.suggestedFilename()).waitFor()
+  await B('Entendi').click()
+  await lembrete().waitFor({ state: 'detached' })
+  if (!(await lerConfig('ultimoBackup'))) throw new Error('data do último backup não foi gravada')
+  await page.reload()
+  await page.getByRole('heading', { name: 'Sua semana' }).waitFor()
+  await page.waitForTimeout(500)
+  igual(await lembrete().count(), 0, 'lembrete continua fora depois do F5')
+  await page.goto(BASE + '#/ajustes/backup')
+  await page.locator('[data-ultimo-backup]').getByText(/^Último backup: hoje \(\d{2}\/\d{2}\)$/).waitFor()
+})
+await passo('backup: 7 dias sem backup e com registro novo, o lembrete volta; "Enviar backup agora" usa o compartilhar do sistema e o lembrete some (F5 mantém)', async () => {
+  const oitoDias = new Date(Date.now() - 8 * 86400000).toISOString()
+  await gravarConfig('ultimoBackup', oitoDias)
+  await page.goto(BASE + '#/hoje')
+  await page.getByRole('heading', { name: 'Sua semana' }).waitFor()
+  await page.waitForTimeout(500)
+  igual(await lembrete().count(), 0, 'sem dado novo desde o backup: sem lembrete, mesmo 8 dias depois')
+  // dado novo: um registro avulso
+  await page.goto(BASE + '#/protocolos/' + ipa.id)
+  await B('Registrar dose agora').click()
+  await B('Salvar registro').click()
+  await page.getByRole('dialog').waitFor({ state: 'detached' })
+  await page.goto(BASE + '#/hoje')
+  await lembrete().getByText('Último backup há 8 dias', { exact: true }).waitFor()
+  await page.evaluate(() => {
+    window.__enviados = []
+    Object.defineProperty(navigator, 'canShare', { value: (d) => !!d?.files?.length, configurable: true })
+    Object.defineProperty(navigator, 'share', { value: async (d) => { window.__enviados.push(d.files.map((f) => `${f.name}|${f.type}|${f.size}`)) }, configurable: true })
+  })
+  await lembrete().getByRole('button', { name: 'Enviar backup agora' }).click()
+  await page.getByRole('status').filter({ hasText: 'Backup enviado' }).waitFor()
+  const enviados = await page.evaluate(() => window.__enviados)
+  igual(enviados.length, 1, 'um compartilhamento')
+  if (!/^peptide-tracker-backup-\d{4}-\d{2}-\d{2}\.json\|application\/json\|\d+$/.test(enviados[0][0])) throw new Error(`arquivo compartilhado: ${enviados[0][0]}`)
+  await lembrete().waitFor({ state: 'detached' })
+  const novo = await lerConfig('ultimoBackup')
+  if (!novo || novo <= oitoDias) throw new Error('data do último backup não atualizou')
+  await page.reload()
+  await page.getByRole('heading', { name: 'Sua semana' }).waitFor()
+  await page.waitForTimeout(500)
+  igual(await lembrete().count(), 0, 'lembrete continua fora depois do F5')
+})
+await passo('backup: tela Backup mostra último backup, armazenamento e tamanho; cancelar o envio não é erro e não muda a data (360 × 640)', async () => {
+  await page.setViewportSize({ width: 360, height: 640 })
+  await page.goto(BASE + '#/ajustes/backup')
+  await page.getByText(RISCO, { exact: true }).waitFor()
+  await page.locator('[data-ultimo-backup]').getByText(/^Último backup: hoje/).waitFor()
+  await page.getByText(/^(Armazenamento protegido|Não protegido|Este navegador não informa)/).waitFor()
+  await page.locator('[data-tamanho-backup]').getByText(/\d+(,\d)?\s*(B|KB|MB) · \d+ fotos?/).waitFor()
+  await conferirTela('Backup (360)')
+  await capturar('backup-360')
+  await B('Enviar backup para mim').evaluate((el) => el.scrollIntoView({ block: 'center' }))
+  await capturar('backup-botoes-360')
+  const antes = await lerConfig('ultimoBackup')
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
+    Object.defineProperty(navigator, 'share', { value: async () => { throw new DOMException('cancelado', 'AbortError') }, configurable: true })
+  })
+  await B('Enviar backup para mim').click()
+  await page.getByRole('status').filter({ hasText: 'Envio cancelado' }).waitFor()
+  igual(await page.getByRole('alertdialog').count(), 0, 'cancelar não abre erro')
+  igual(await lerConfig('ultimoBackup'), antes, 'cancelar não conta como backup')
+  // falha do sistema: mensagem clara com a opção de baixar
+  await page.evaluate(() => Object.defineProperty(navigator, 'share', { value: async () => { throw new TypeError('falhou') }, configurable: true }))
+  await B('Enviar backup para mim').click()
+  const erro = page.getByRole('alertdialog', { name: 'Não deu para enviar' })
+  await erro.getByText(/não conseguiu abrir o envio/).waitFor()
+  await page.waitForTimeout(400) // fim da animação de entrada do diálogo
+  await conferirTela('erro do envio (360)', '[role=alertdialog]')
+  await erro.getByRole('button', { name: 'Fechar' }).click()
   await page.setViewportSize({ width: 390, height: 844 })
 })
 await passo('nenhum erro ou aviso no console e nenhum HTTP com erro', async () => {
