@@ -257,17 +257,17 @@ function Registrar({
         {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
         {du && <Seringa d={du} troca={troca} atalho={atalhoDiluicao} />}
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-          <legend className="mb-2 text-[13px] font-bold text-fraco">Local da aplicação <span className="font-medium">(opcional)</span></legend>
+          <legend className="mb-2 text-sm font-bold text-fraco">Local da aplicação <span className="font-medium">(opcional)</span></legend>
           <Chips rotulo="Local da aplicação" opcoes={LOCAIS.map((l) => ({ v: l, t: l }))} valor={local} aoMudar={(v) => setLocal(local === v ? undefined : v)} />
           {ultimo?.local && (
-            <span className="text-[13px] text-fraco">
+            <span className="text-sm text-fraco">
               Último registrado: {ultimo.local.toLowerCase()}, {diaRelativo(diaDe(new Date(ultimo.dataHora)), hojeStr()).toLowerCase()} {horaDe(new Date(ultimo.dataHora))}.
             </span>
           )}
         </fieldset>
         <label className="rotulo">
           Frasco usado
-          <select className="campo text-[15px] font-semibold" value={frascoId} onChange={(e) => { setFrascoId(e.target.value); setVencidoOk(false) }}>
+          <select className="campo text-sm font-semibold" value={frascoId} onChange={(e) => { setFrascoId(e.target.value); setVencidoOk(false) }}>
             <option value="">Sem frasco ligado</option>
             {frascos.map((f) => <option key={f.id} value={f.id}>{descreverFrasco(f, base)}</option>)}
           </select>
@@ -276,15 +276,15 @@ function Registrar({
         {!edicao && <button type="button" className="link -mt-2 self-start" onClick={frascoAcabou}>{frascoSel ? 'Frasco acabou?' : frascos.length ? 'Nenhum frasco com saldo?' : 'Cadastrar frasco'}</button>}
         <label className="rotulo">
           <span>Observação <span className="font-medium">(opcional)</span></span>
-          <textarea rows={2} className="campo h-auto py-2.5 text-[15px] font-medium" placeholder="Como foi, algo a lembrar" value={obs} onChange={(e) => setObs(e.target.value)} />
+          <textarea rows={2} className="campo h-auto py-2.5 text-sm font-medium" placeholder="Como foi, algo a lembrar" value={obs} onChange={(e) => setObs(e.target.value)} />
         </label>
-        {blend && <p className="m-0 text-[13px] text-fraco">Fica registrada a dose do blend como você informou. O app não divide por componente.</p>}
+        {blend && <p className="m-0 text-sm text-fraco">Fica registrada a dose do blend como você informou. O app não divide por componente.</p>}
         <button type="button" className="btn-primario" onClick={() => salvar()}>Salvar registro</button>
         {slot && !edicao && <button type="button" className="btn-texto -mt-2" onClick={() => trocar({ tipo: 'pular', slot })}>Não fiz esta dose</button>}
       </Sheet>
       {dialogo === 'sem-saldo' && (
         <Dialogo titulo={base.frascos.some((f) => f.substanciaId === subId) ? `Nenhum frasco de ${nome} com saldo` : `Nenhum frasco de ${nome} cadastrado`} aoFechar={() => setDialogo(null)}>
-          <p className="m-0 text-[15px] leading-relaxed text-suave">
+          <p className="m-0 text-base leading-relaxed text-suave">
             {base.frascos.some((f) => f.substanciaId === subId) ? 'Pelos seus registros, o último frasco acabou. ' : ''}Você pode cadastrar um frasco ou registrar a dose sem ligar a um frasco.
           </p>
           <button type="button" className="btn-primario" onClick={() => { fechar(); nav(`/estoque/frasco/novo?sub=${subId}`) }}>Cadastrar frasco</button>
@@ -318,16 +318,16 @@ function Seringa({ d, troca, atalho }: { d: DoseUn; troca: MudancaUnidades | nul
   const doseTxt = fmtDose(d.valor, d.unidade)
   return (
     <div aria-live="polite" data-seringa="" className="flex flex-col gap-1.5 rounded-xl border border-borda bg-sup2 px-4 py-3">
-      <span className="text-[13px] font-bold text-fraco">{doseTxt} {equivale(d.valor)} a</span>
+      <span className="text-sm font-bold text-fraco">{doseTxt} {equivale(d.valor)} a</span>
       <b className="text-[30px] leading-tight font-extrabold text-acento">{fmtUnidadesExtenso(d.unidades)}</b>
-      <span className="text-[13px] leading-snug text-suave">na seringa ({fmtNum(d.ml)} mL) · seringa de insulina de {UNIDADES_POR_ML} unidades por mL</span>
+      <span className="text-sm leading-snug text-suave">na seringa ({fmtNum(d.ml)} mL) · seringa de insulina de {UNIDADES_POR_ML} unidades por mL</span>
       {troca && (
         <p className="m-0 rounded-lg bg-aviso-fundo px-3 py-2 text-sm font-bold text-aviso-texto">
           {troca.frascoNovo ? 'Frasco novo' : 'A diluição do frasco mudou'}: agora a mesma dose equivale a {fmtUnidadesExtenso(troca.agora)} (antes {fmtNum(troca.antes)}).
         </p>
       )}
       {d.marca !== null && (
-        <p className="m-0 text-sm leading-relaxed text-suave">
+        <p className="m-0 text-base leading-relaxed text-suave">
           O número exato fica entre duas marcas. Na marca mais próxima, de <b className="text-texto">{d.marca} unidades</b>
           {d.doseDaMarca !== null ? <>, ficam <b className="text-texto">{fmtDose(d.doseDaMarca, d.unidade)}</b> (e não {doseTxt})</> : ''}.
         </p>
@@ -365,11 +365,11 @@ export function FrascoVencido({
   const nome = nomeSubstancia(frasco.substanciaId, base.subs)
   return (
     <Dialogo titulo={passou ? `Frasco de ${nome} passou da data` : `Frasco de ${nome} vence em breve`} aoFechar={aoFechar} icone={<IcoAlerta className="text-aviso" tam={28} />}>
-      <p className="m-0 text-[15px] leading-relaxed text-suave">
+      <p className="m-0 text-base leading-relaxed text-suave">
         Você informou usar até <b className="text-texto">{limite ? dataBr(limite) : '—'}</b>.
         {s.mlRestante !== null ? ` Restam cerca de ${fmtNum(s.mlRestante, 2)} mL pelos registros.` : ` Restam cerca de ${fmtNum(s.mgRestante, 3)} mg pelos registros.`}
       </p>
-      <p className="m-0 text-[15px] leading-relaxed text-suave">O que fazer com ele é decisão sua. Marcar como descartado tira o frasco da lista de uso.</p>
+      <p className="m-0 text-base leading-relaxed text-suave">O que fazer com ele é decisão sua. Marcar como descartado tira o frasco da lista de uso.</p>
       <BotaoAcao
         className="btn-primario"
         ocupadoTexto="Gravando…"
@@ -391,12 +391,12 @@ function Atrasada({ base, slot, fechar, trocar }: { base: Base; slot: Slot; fech
   const nome = nomeSubstancia(slot.substanciaId, base.subs)
   return (
     <Sheet titulo="Ainda não registrada" sub={`${nome} · prevista ${slot.dia === hojeStr() ? '' : diaRelativo(slot.dia, hojeStr()).toLowerCase() + ' '}às ${slot.horario}`} aoFechar={fechar}>
-      <span className="text-[15px] text-suave">Dose cadastrada: <b className="text-texto">{textoDoItem(base, slot.itemId)}</b></span>
-      <span className="text-[15px] font-bold">O que aconteceu com esta dose?</span>
+      <span className="text-sm text-suave">Dose cadastrada: <b className="text-texto">{textoDoItem(base, slot.itemId)}</b></span>
+      <span className="text-sm font-bold">O que aconteceu com esta dose?</span>
       <button type="button" className="btn-primario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot })}>Fiz agora</button>
       <button type="button" className="btn-secundario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot, outroHorario: true })}>Fiz, mas em outro horário</button>
       <button type="button" className="btn-neutro" onClick={() => trocar({ tipo: 'pular', slot })}>Não fiz</button>
-      <p className="m-0 text-[13px] text-fraco">O app não decide nada por você. Ele só guarda o que você informar.</p>
+      <p className="m-0 text-sm text-fraco">O app não decide nada por você. Ele só guarda o que você informar.</p>
     </Sheet>
   )
 }
@@ -408,11 +408,11 @@ function Pular({ base, slot, fechar, trocar }: { base: Base; slot: Slot; fechar:
   const nome = nomeSubstancia(slot.substanciaId, base.subs)
   return (
     <Sheet titulo="Marcar como não feita" aoFechar={fechar}>
-      <p className="m-0 text-[15px] leading-relaxed text-suave">
+      <p className="m-0 text-base leading-relaxed text-suave">
         {nome} · {slot.horario}. Fica no histórico como “não feita” e o lembrete desta dose para.
       </p>
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-[13px] font-bold text-fraco">Motivo (opcional)</legend>
+        <legend className="mb-2 text-sm font-bold text-fraco">Motivo (opcional)</legend>
         <Chips rotulo="Motivo" opcoes={MOTIVOS.map((m) => ({ v: m, t: m }))} valor={motivo} aoMudar={(v) => setMotivo(motivo === v ? undefined : v)} />
       </fieldset>
       <BotaoAcao
@@ -462,7 +462,7 @@ function Apagar({ base, id, fechar, trocar }: { base: Base; id: string; fechar: 
   const nome = nomeSubstancia(ap.substanciaId, base.subs)
   return (
     <Dialogo titulo="Apagar este registro?" aoFechar={fechar}>
-      <p className="m-0 text-[15px] leading-relaxed text-suave">
+      <p className="m-0 text-base leading-relaxed text-suave">
         <b className="text-texto">{nome} · {dataCurta(diaDe(d))} às {horaDe(d)} · {ap.status === 'feita' ? textoDoRegistro(base, ap) : 'não feita'}</b>
         {ap.frascoId && ap.status === 'feita' && <><br />O saldo do frasco volta a contar esta dose.</>}
       </p>

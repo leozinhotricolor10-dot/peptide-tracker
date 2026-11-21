@@ -133,10 +133,10 @@ export function useEnviarBackup() {
     <>
       {estado?.tipo === 'baixado' && (
         <Dialogo titulo="Backup salvo no aparelho" aoFechar={() => setEstado(null)} icone={<IcoCheck className="text-ok" tam={28} />}>
-          <p className="m-0 text-[15px] leading-relaxed text-suave">
+          <p className="m-0 text-base leading-relaxed text-suave">
             Este navegador não abre o envio direto, então o arquivo <b className="break-all text-texto">{estado.nome}</b> foi baixado.
           </p>
-          <p className="m-0 text-[15px] leading-relaxed text-suave">
+          <p className="m-0 text-base leading-relaxed text-suave">
             Ele fica na pasta <b className="text-texto">Downloads</b> (no iPhone: app Arquivos › Downloads; no Android: app Arquivos ou Downloads; no computador: pasta de downloads do navegador). De lá, dá para mandar para você mesmo por WhatsApp, e-mail ou Drive.
           </p>
           <button type="button" className="btn-primario" onClick={() => setEstado(null)}>Entendi</button>
@@ -144,7 +144,7 @@ export function useEnviarBackup() {
       )}
       {estado?.tipo === 'pronto' && (
         <Dialogo titulo="Arquivo pronto" aoFechar={() => setEstado(null)} icone={<IcoCompartilhar className="text-acento" tam={28} />}>
-          <p className="m-0 text-[15px] leading-relaxed text-suave">O arquivo demorou um pouco para ficar pronto. Toque em Enviar para escolher para onde mandar.</p>
+          <p className="m-0 text-base leading-relaxed text-suave">O arquivo demorou um pouco para ficar pronto. Toque em Enviar para escolher para onde mandar.</p>
           <button
             type="button"
             className="btn-primario"
@@ -160,7 +160,7 @@ export function useEnviarBackup() {
       )}
       {estado?.tipo === 'erro' && (
         <Dialogo titulo="Não deu para enviar" aoFechar={() => setEstado(null)} icone={<IcoAlerta className="text-aviso" tam={28} />}>
-          <p className="m-0 text-[15px] leading-relaxed text-suave">{estado.mensagem} Nenhum dado seu foi alterado.</p>
+          <p className="m-0 text-base leading-relaxed text-suave">{estado.mensagem} Nenhum dado seu foi alterado.</p>
           {estado.arquivo && (
             <button
               type="button"

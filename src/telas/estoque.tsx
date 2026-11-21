@@ -71,15 +71,15 @@ export function Estoque() {
   const [verAntigos, setVerAntigos] = useState(false)
   const cab = (
     <div className="flex items-center justify-between">
-      <h1 className="text-[32px] leading-tight font-extrabold tracking-tight">Estoque</h1>
-      <Link to="/estoque/frasco/novo" className="flex h-11 items-center gap-1.5 rounded-[10px] bg-acento px-4 text-[15px] font-bold text-sobre-acento"><IcoMais tam={20} /> Frasco</Link>
+      <h1 className="text-titulo leading-tight font-extrabold tracking-tight">Estoque</h1>
+      <Link to="/estoque/frasco/novo" className="flex h-11 items-center gap-1.5 rounded-[10px] bg-acento px-4 text-sm font-bold text-sobre-acento"><IcoMais tam={20} /> Frasco</Link>
     </div>
   )
   if (!base) return <Tela>{cab}<Carregando /></Tela>
   if (!base.frascos.length) {
     return (
       <Tela>
-        <h1 className="text-[32px] font-extrabold">Estoque</h1>
+        <h1 className="text-titulo font-extrabold">Estoque</h1>
         <Vazio icone={<IcoEstoque tam={30} />} titulo="Nenhum frasco cadastrado" texto="Cadastre seus frascos para ver quanto resta, quando vencem e as unidades na seringa. É opcional: o app funciona sem isso.">
           <Link to="/estoque/frasco/novo" className="btn-primario">Adicionar frasco</Link>
         </Vazio>
@@ -113,8 +113,8 @@ export function Estoque() {
       <div key={f.id} style={{ '--i': k, ...(prot && emUsoF ? { borderLeftColor: corDe(prot).hex } : {}) } as CSSProperties} className={`card anima-entrada flex flex-col gap-2.5 p-4 ${prot && emUsoF ? 'border-l-[5px]' : ''} ${selo.cls.includes('aviso') ? 'border-aviso' : ''}`}>
         <Link to={`/estoque/frasco/${f.id}`} className="flex items-start justify-between gap-2">
           <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-[17px] font-extrabold break-words">{nomeComMg(nome, f.mgTotal)}</span>
-            <span className="text-[13px] text-fraco">
+            <span className="text-lg font-extrabold break-words">{nomeComMg(nome, f.mgTotal)}</span>
+            <span className="text-sm text-fraco">
               {f.status === 'reconstituido' && f.reconstituidoEm ? `Reconstituído em ${dataDiaMes(f.reconstituidoEm)} · ${fmtNum(f.diluenteMl ?? 0)} mL` : f.status === 'fechado' ? `Fechado${f.validade ? ` · validade ${dataBr(f.validade)}` : ''}` : f.lote ? `Lote ${f.lote}` : 'Fora de uso'}
             </span>
           </span>
@@ -132,14 +132,14 @@ export function Estoque() {
               </div>
               {doses !== null && <span className="text-sm font-semibold text-suave">{doses === 0 ? 'Menos de 1 dose restante' : `≈ ${doses} dose${doses === 1 ? '' : 's'} restante${doses === 1 ? '' : 's'}`} com {fmtDose(item!.doseValor, item!.doseUnidade)}</span>}
               {cada && <span className="text-sm text-suave">{cada}</span>}
-              {s.naoContabilizadas > 0 && <span className="text-xs text-fraco">{s.naoContabilizadas} registro(s) sem conversão para mg (em UI, ou em mL/unidades antes de reconstituir) não entram na conta.</span>}
+              {s.naoContabilizadas > 0 && <span className="text-mini text-fraco">{s.naoContabilizadas} registro(s) sem conversão para mg (em UI, ou em mL/unidades antes de reconstituir) não entram na conta.</span>}
             </div>
             {prot && (
-              <Link to={`/protocolos/${prot.id}`} className="flex min-h-11 items-center gap-2 text-[13px] font-semibold text-suave">
+              <Link to={`/protocolos/${prot.id}`} className="flex min-h-11 items-center gap-2 text-sm font-semibold text-suave">
                 <PontoCor protocolo={prot} /> Protocolo: <span className="text-texto">{nomeProtocolo(prot, base.itens, base.subs)}</span>
               </Link>
             )}
-            <div className="flex flex-wrap justify-between gap-x-3 border-t border-sup2 pt-2.5 text-[13px] text-suave">
+            <div className="flex flex-wrap justify-between gap-x-3 border-t border-sup2 pt-2.5 text-sm text-suave">
               <span>{lim ? `Validade: ${dataDiaMes(lim)}` : 'Sem validade informada'}</span>
               {custo !== null && <span>Custo: {fmtReais(custo)} por dose</span>}
             </div>
@@ -161,11 +161,11 @@ export function Estoque() {
     <Tela>
       {cab}
       <div className="grid grid-cols-3 gap-2">
-        <div className="card flex flex-col gap-0.5 p-3"><span className="text-xs font-bold text-fraco">Em uso</span><b className="text-xl">{emUso.length}</b></div>
-        <div className={`card flex flex-col gap-0.5 p-3 ${vencendo ? 'border-aviso/40 bg-aviso-fundo' : ''}`}><span className={`text-xs font-bold ${vencendo ? 'text-aviso-texto' : 'text-fraco'}`}>Vencem em {DIAS_AVISO_VENCIMENTO} dias</span><b className={`text-xl ${vencendo ? 'text-aviso' : ''}`}>{vencendo}</b></div>
-        <div className="card flex flex-col gap-0.5 p-3"><span className="text-xs font-bold text-fraco">Gasto no mês</span><b className="text-base">{fmtReais(gastoMes)}</b></div>
+        <div className="card flex flex-col gap-0.5 p-3"><span className="text-mini font-bold text-fraco">Em uso</span><b className="text-xl">{emUso.length}</b></div>
+        <div className={`card flex flex-col gap-0.5 p-3 ${vencendo ? 'border-aviso/40 bg-aviso-fundo' : ''}`}><span className={`text-mini font-bold ${vencendo ? 'text-aviso-texto' : 'text-fraco'}`}>Vencem em {DIAS_AVISO_VENCIMENTO} dias</span><b className={`text-xl ${vencendo ? 'text-aviso' : ''}`}>{vencendo}</b></div>
+        <div className="card flex flex-col gap-0.5 p-3"><span className="text-mini font-bold text-fraco">Gasto no mês</span><b className="text-base">{fmtReais(gastoMes)}</b></div>
       </div>
-      {emUso.length === 0 && <p className="m-0 card p-4 text-[15px] text-suave">Nenhum frasco em uso.</p>}
+      {emUso.length === 0 && <p className="m-0 card p-4 text-sm text-suave">Nenhum frasco em uso.</p>}
       {emUso.sort((a, b) => (a.status === b.status ? 0 : a.status === 'reconstituido' ? -1 : 1)).map((f, k) => card(f, k))}
       {antigos.length > 0 && (
         <>
@@ -190,7 +190,7 @@ function EscolherSubstancia({ base, valor, aoEscolher }: { base: Base; valor?: s
   if (!aberto && atual) {
     return (
       <div className="flex items-center justify-between gap-2 rounded-xl border border-borda bg-sup px-3 py-2">
-        <span className="flex flex-col"><b className="text-base">{atual.nome}</b><span className="text-xs text-fraco">{atual.tipo === 'blend' ? 'Blend' : 'Simples'}</span></span>
+        <span className="flex flex-col"><b className="text-base">{atual.nome}</b><span className="text-mini text-fraco">{atual.tipo === 'blend' ? 'Blend' : 'Simples'}</span></span>
         <button type="button" className="link" onClick={() => setAberto(true)}>Trocar</button>
       </div>
     )
@@ -222,10 +222,10 @@ function EscolherSubstancia({ base, valor, aoEscolher }: { base: Base; valor?: s
         })}
         {q && (
           <>
-            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-[15px] font-bold text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q)); setAberto(false) })}>
+            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-sm font-bold text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q)); setAberto(false) })}>
               <IcoMais tam={18} /> Criar “{q}”
             </button>
-            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-[15px] font-bold text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q, 'blend')); setAberto(false) })}>
+            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-sm font-bold text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q, 'blend')); setAberto(false) })}>
               <IcoMais tam={18} /> É um blend? Criar “{q}” como blend
             </button>
           </>
@@ -350,7 +350,7 @@ function FormFrascoTela() {
         <label className="rotulo">Lote (opcional)<input className="campo" value={lote} onChange={(e) => setLote(e.target.value)} /></label>
         <label className="rotulo">Custo R$ (opcional)<input className="campo" inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} /></label>
       </div>
-      <p className="m-0 text-[13px] text-fraco">Copie os dados do rótulo. O custo só serve para mostrar o custo por dose.</p>
+      <p className="m-0 text-sm text-fraco">Copie os dados do rótulo. O custo só serve para mostrar o custo por dose.</p>
       {existente && (() => {
         const it = itemDoFrasco(base, existente)
         const cada = it ? cadaDose(base, existente, it) : null
@@ -382,14 +382,14 @@ function FormFrascoTela() {
       </div>
       {confirmaData && (
         <Dialogo titulo="Validade já passou" aoFechar={() => setConfirmaData(null)} icone={<IcoAlerta className="text-aviso" tam={28} />}>
-          <p className="m-0 text-[15px] text-suave">A data de validade informada ({dataBr(validade)}) é anterior a hoje. Quer salvar assim mesmo?</p>
+          <p className="m-0 text-sm text-suave">A data de validade informada ({dataBr(validade)}) é anterior a hoje. Quer salvar assim mesmo?</p>
           <button type="button" className="btn-primario" onClick={() => { const f = confirmaData; setConfirmaData(null); f() }}>Salvar assim mesmo</button>
           <button type="button" className="btn-texto" onClick={() => setConfirmaData(null)}>Corrigir a data</button>
         </Dialogo>
       )}
       {apagar && existente && (
         <Dialogo titulo="Apagar este frasco?" aoFechar={() => setApagar(false)}>
-          <p className="m-0 text-[15px] text-suave">Os registros de dose continuam no histórico, só deixam de apontar para este frasco. Para guardar o histórico do frasco, prefira “Acabou” ou “Descartar”.</p>
+          <p className="m-0 text-sm text-suave">Os registros de dose continuam no histórico, só deixam de apontar para este frasco. Para guardar o histórico do frasco, prefira “Acabou” ou “Descartar”.</p>
           <BotaoAcao
             className="btn-perigo"
             ocupadoTexto="Apagando…"
@@ -416,7 +416,7 @@ function FormFrascoTela() {
 function Conta({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe?: string }) {
   return (
     <div className="card flex flex-col gap-1 p-4">
-      <span className="text-[13px] font-bold tracking-wide text-fraco uppercase">{titulo}</span>
+      <span className="text-xs font-bold tracking-wide text-fraco uppercase">{titulo}</span>
       <b className="text-[26px] leading-tight">{valor}</b>
       {detalhe && <span className="text-sm text-suave">{detalhe}</span>}
     </div>
@@ -480,15 +480,15 @@ export function Reconstituicao() {
       <Cabecalho titulo="Reconstituição" sub={`${sub?.nome ?? ''} · ${blend ? 'blend' : `frasco de ${fmtNum(frasco.mgTotal)} mg`}`} voltar />
       {blend && (
         <section className="card flex flex-col p-4">
-          <span className="mb-2 text-[13px] font-bold tracking-wide text-fraco uppercase">No frasco, como você informou</span>
+          <span className="mb-2 text-xs font-bold tracking-wide text-fraco uppercase">No frasco, como você informou</span>
           {comps.length === 0 && <span className="text-sm text-fraco">Nenhum componente informado. <Link to={`/novo/blend?id=${sub!.id}`} className="font-bold text-acento">Adicionar</Link></span>}
           {comps.map((c, i) => (
-            <div key={i} className="flex min-h-9 items-center justify-between border-b border-sup2 text-[15px]">
+            <div key={i} className="flex min-h-9 items-center justify-between border-b border-sup2 text-sm">
               <span>{c.nome}</span><b>{c.quantidade !== undefined ? `${fmtNum(c.quantidade)} ${c.unidade ?? 'mg'}` : 'sem quantidade'}</b>
             </div>
           ))}
-          {soma !== null && <div className="flex min-h-9 items-center justify-between text-[15px] font-extrabold"><span>Total</span><span>{fmtNum(soma)} mg</span></div>}
-          <span className="mt-1 text-xs text-fraco">Frasco cadastrado com {fmtNum(frasco.mgTotal)} mg.</span>
+          {soma !== null && <div className="flex min-h-9 items-center justify-between text-sm font-extrabold"><span>Total</span><span>{fmtNum(soma)} mg</span></div>}
+          <span className="mt-1 text-mini text-fraco">Frasco cadastrado com {fmtNum(frasco.mgTotal)} mg.</span>
         </section>
       )}
       <div className="grid grid-cols-2 gap-2.5">

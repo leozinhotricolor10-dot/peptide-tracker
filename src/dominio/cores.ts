@@ -1,7 +1,8 @@
 // Cor de cada protocolo: só para reconhecer o cartão de relance. O nome continua sempre visível
-// (a cor nunca é a única forma de distinguir). Paleta pensada para o fundo escuro do app:
+// (a cor nunca é a única forma de distinguir). Paleta pensada para o fundo preto do app:
 // tons claros (contraste >= 4,5:1 com o fundo e com os cartões), longe dos verdes/vermelhos/âmbar
-// de status e do turquesa de destaque. Testado em cores.test.ts.
+// de status (o destaque do app é branco, sem matiz). Os ids nunca mudam (ficam gravados nos
+// protocolos e no backup); só os hex podem mudar. Testado em cores.test.ts.
 import type { Protocolo } from './tipos.ts'
 
 export interface CorProtocolo {
@@ -12,14 +13,14 @@ export interface CorProtocolo {
 
 /** Ordem = ordem da atribuição automática (as primeiras são as mais diferentes entre si). */
 export const CORES_PROTOCOLO: readonly CorProtocolo[] = [
-  { id: 'azul', nome: 'Azul', hex: '#5aa9ff' },
-  { id: 'rosa', nome: 'Rosa', hex: '#ff7eb3' },
-  { id: 'amarelo', nome: 'Amarelo', hex: '#f4e66a' },
-  { id: 'violeta', nome: 'Violeta', hex: '#b394ff' },
-  { id: 'celeste', nome: 'Celeste', hex: '#9fe0ff' },
-  { id: 'magenta', nome: 'Magenta', hex: '#ea84f5' },
-  { id: 'prata', nome: 'Prata', hex: '#c8d2da' },
-  { id: 'lima', nome: 'Lima', hex: '#d2ef7a' },
+  { id: 'azul', nome: 'Azul', hex: '#5db4ff' },
+  { id: 'rosa', nome: 'Rosa', hex: '#ff85b8' },
+  { id: 'amarelo', nome: 'Amarelo', hex: '#f2e26e' },
+  { id: 'violeta', nome: 'Violeta', hex: '#d99cff' },
+  { id: 'celeste', nome: 'Celeste', hex: '#9fe3ff' },
+  { id: 'magenta', nome: 'Magenta', hex: '#f08ae0' },
+  { id: 'prata', nome: 'Prata', hex: '#c9cfda' },
+  { id: 'lima', nome: 'Lima', hex: '#cfee7c' },
 ]
 
 const POR_ID = new Map(CORES_PROTOCOLO.map((c) => [c.id, c]))

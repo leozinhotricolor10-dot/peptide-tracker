@@ -64,7 +64,7 @@ export function Peso() {
   const [periodo, setPeriodo] = useState<7 | 30 | 90>(30)
   const cab = (
     <div className="flex items-center justify-between">
-      <h1 className="text-[32px] leading-tight font-extrabold tracking-tight">Peso e medidas</h1>
+      <h1 className="text-titulo leading-tight font-extrabold tracking-tight">Peso e medidas</h1>
       <Link to="/peso/medicao/nova" aria-label="Adicionar registro" className="icone-btn bg-acento text-sobre-acento"><IcoMais /></Link>
     </div>
   )
@@ -72,7 +72,7 @@ export function Peso() {
   if (!base.medicoes.length && !fotos.length) {
     return (
       <Tela>
-        <h1 className="text-[32px] font-extrabold">Peso e medidas</h1>
+        <h1 className="text-titulo font-extrabold">Peso e medidas</h1>
         <Vazio icone={<IcoPeso tam={30} />} titulo="Comece pelo peso de hoje" texto="Só o peso já basta. Medidas e fotos são opcionais e dá para incluir quando quiser.">
           <Link to="/peso/medicao/nova" className="btn-primario">Registrar peso</Link>
           <Link to="/peso/fotos" className="btn-texto">Fotos de progresso</Link>
@@ -90,7 +90,7 @@ export function Peso() {
       <div className="card flex flex-col gap-3 p-4">
         <Link to="/peso/medida/peso" className="flex items-end justify-between">
           <span className="flex flex-col gap-0.5">
-            <span className="text-[13px] font-bold tracking-wide text-fraco uppercase">Peso atual</span>
+            <span className="text-xs font-bold tracking-wide text-fraco uppercase">Peso atual</span>
             <span className="text-[34px] leading-none font-extrabold">{atual ? <><NumeroAnimado valor={atual.valor} formatar={(v) => fmtNum(v, 1)} /> <span className="text-lg text-fraco">kg</span></> : '—'}</span>
           </span>
           {variacao(sPeso) !== null && <span className="rounded-full bg-selecionado px-3 py-1 text-sm font-bold text-acento">{fmtVar(variacao(sPeso), 'kg')} em 30 dias</span>}
@@ -108,9 +108,9 @@ export function Peso() {
           const v = s[s.length - 1]
           return (
             <Link key={c} to={`/peso/medida/${c}`} className="card flex min-h-[84px] flex-col gap-1 p-3.5">
-              <span className="text-[13px] font-bold text-fraco">{t}</span>
+              <span className="text-sm font-bold text-fraco">{t}</span>
               <span className="text-xl font-extrabold">{v ? `${fmtNum(v.valor, 1)} ${u}` : '—'}</span>
-              <span className="text-xs font-semibold text-suave">{v ? fmtVar(variacao(s), u) || 'Só 1 registro' : 'Sem registro'}</span>
+              <span className="text-mini font-semibold text-suave">{v ? fmtVar(variacao(s), u) || 'Só 1 registro' : 'Sem registro'}</span>
             </Link>
           )
         })}
@@ -190,7 +190,7 @@ export function NovaMedicao() {
         <label className="rotulo">Peso (kg)<input className="campo" inputMode="decimal" autoFocus={!existente} placeholder="Ex.: 84,2" value={vals.peso} onChange={(e) => { setVals({ ...vals, peso: e.target.value }); setErro('') }} /></label>
       </div>
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-[13px] font-bold text-fraco">Medidas em cm (opcional)</legend>
+        <legend className="mb-2 text-sm font-bold text-fraco">Medidas em cm (opcional)</legend>
         <div className="grid grid-cols-2 gap-2.5">
           {CAMPOS.slice(1).map(({ c, t }) => (
             <label key={c} className="rotulo">{t}<input className="campo" inputMode="decimal" value={vals[c]} onChange={(e) => { setVals({ ...vals, [c]: e.target.value }); setErro('') }} /></label>
@@ -217,7 +217,7 @@ export function NovaMedicao() {
       </div>
       {confirmar && (
         <Dialogo titulo="Confira o valor" aoFechar={() => setConfirmar(null)}>
-          <p className="m-0 text-[15px] text-suave">{confirmar}</p>
+          <p className="m-0 text-sm text-suave">{confirmar}</p>
           <button type="button" className="btn-primario" onClick={() => { setConfirmar(null); void salvar(true) }}>Sim, salvar</button>
           <button type="button" className="btn-texto" onClick={() => setConfirmar(null)}>Corrigir</button>
         </Dialogo>
@@ -246,12 +246,12 @@ export function DetalheMedida() {
         <Grafico pontos={s} marcos={marcos(base)} unidade={info.u} descricao={`${info.t} ao longo do tempo`} />
       </div>
       {s.length === 1 && <Nota>Só 1 registro até agora. Com mais medições, a linha aparece.</Nota>}
-      <p className="m-0 text-[13px] leading-relaxed text-fraco">A linha tracejada marca quando um protocolo começou. O app não afirma que uma coisa causou a outra.</p>
+      <p className="m-0 text-sm leading-relaxed text-fraco">A linha tracejada marca quando um protocolo começou. O app não afirma que uma coisa causou a outra.</p>
       {s.length === 0 && <Vazio titulo="Sem registros" texto={`Ainda não há ${info.t.toLowerCase()} registrado.`}><Link className="btn-primario" to="/peso/medicao/nova">Registrar</Link></Vazio>}
       <div className="card flex flex-col">
         {[...s].reverse().map((p) => (
           <Link key={p.id} to={`/peso/medicao/${p.id}`} className="flex min-h-[52px] items-center justify-between border-t border-sup2 px-4 first:border-t-0">
-            <span className="text-[15px] text-suave">{dataBr(p.dia)}</span>
+            <span className="text-sm text-suave">{dataBr(p.dia)}</span>
             <span className="flex items-center gap-2 text-base font-bold">{fmtNum(p.valor, 1)} {info.u} <IcoSeta tam={16} className="text-fraco" /></span>
           </Link>
         ))}
@@ -272,7 +272,7 @@ function Miniatura({ foto, aoAbrir }: { foto: Foto; aoAbrir: () => void }) {
   return (
     <button type="button" onClick={aoAbrir} aria-label={`Foto ${rot}, ${dataMedia(foto.data)}`} className="relative aspect-[3/4] overflow-hidden rounded-xl border border-linha bg-sup2">
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
-      <span className="absolute inset-x-0 bottom-0 bg-veu/80 py-1 text-center text-xs font-bold">{rot}</span>
+      <span className="absolute inset-x-0 bottom-0 bg-veu/80 py-1 text-center text-mini font-bold">{rot}</span>
     </button>
   )
 }
@@ -363,7 +363,7 @@ export function NovaFoto() {
     <Tela className="min-h-dvh">
       <Cabecalho titulo="Nova foto" fechar={() => voltarOu('/peso/fotos')} />
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-[13px] font-bold text-fraco">Ângulo</legend>
+        <legend className="mb-2 text-sm font-bold text-fraco">Ângulo</legend>
         <Chips rotulo="Ângulo" opcoes={ANGULOS} valor={angulo} aoMudar={setAngulo} />
       </fieldset>
       <label className="rotulo">Data<input type="date" className="campo" value={data} max={hojeStr()} onChange={(e) => setData(e.target.value)} /></label>
@@ -378,7 +378,7 @@ export function NovaFoto() {
         <button type="button" className="btn-primario" disabled={estado === 'comprimindo'} onClick={() => camera.current?.click()}><IcoCamera tam={20} /> Câmera</button>
         <button type="button" className="btn-secundario" disabled={estado === 'comprimindo'} onClick={() => galeria.current?.click()}><IcoImagem tam={20} /> Galeria</button>
       </div>
-      <p className="m-0 text-center text-[13px] text-fraco">A foto é reduzida e guardada só aqui. Não vai para a galeria do celular.</p>
+      <p className="m-0 text-center text-sm text-fraco">A foto é reduzida e guardada só aqui. Não vai para a galeria do celular.</p>
     </Tela>
   )
 }
@@ -388,9 +388,9 @@ function ImagemComparar({ foto, peso }: { foto?: Foto; peso?: number }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-xl border border-linha bg-sup2">
-        {url ? <img src={url} alt={foto ? `Foto de ${dataBr(foto.data)}` : ''} className="h-full w-full object-cover" /> : <span className="px-2 text-center text-xs text-fraco">Sem foto deste ângulo</span>}
+        {url ? <img src={url} alt={foto ? `Foto de ${dataBr(foto.data)}` : ''} className="h-full w-full object-cover" /> : <span className="px-2 text-center text-mini text-fraco">Sem foto deste ângulo</span>}
       </div>
-      {foto && <span className="text-center text-[13px] font-bold">{dataBr(foto.data)}{peso !== undefined ? ` · ${fmtNum(peso, 1)} kg` : ''}</span>}
+      {foto && <span className="text-center text-sm font-bold">{dataBr(foto.data)}{peso !== undefined ? ` · ${fmtNum(peso, 1)} kg` : ''}</span>}
     </div>
   )
 }

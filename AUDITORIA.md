@@ -70,7 +70,7 @@ Pedidos do dono (celular, tela Protocolos): uma cor por protocolo; todo frasco n
 
 | # | Tipo | O que mudou | Coberto por |
 |---|---|---|---|
-| P01 | Pedido | Cada protocolo tem uma cor (paleta de 8 em `dominio/cores.ts`, todas com contraste ≥ 4,5:1 nos fundos do app e longe do turquesa e das cores de status). A cor aparece na borda esquerda do cartão (Protocolos, Hoje, Estoque, Histórico, detalhe) e numa bolinha ao lado do nome; o nome sempre aparece (a cor nunca é a única pista). Atribuição automática estável (primeira cor livre; com todas em uso, a menos usada). Troca na revisão do cadastro e no Editar (bolinhas de 44 px, a escolhida com ✓). Banco v2 dá cores diferentes aos protocolos que já existiam, na ordem de criação. Backup leva a cor; backup antigo (sem cor) ou com cor desconhecida importa e recebe cores automáticas distintas | `dominio/cores.test.ts`, `dados/cores-estoque.test.ts` (migração v1→v2, salvar, backup antigo e novo) + e2e passos 17 e 18 |
+| P01 | Pedido | Cada protocolo tem uma cor (paleta de 8 em `dominio/cores.ts`, todas com contraste ≥ 4,5:1 nos fundos do app e longe das cores de status). A cor aparece na borda esquerda do cartão (Protocolos, Hoje, Estoque, Histórico, detalhe) e numa bolinha ao lado do nome; o nome sempre aparece (a cor nunca é a única pista). Atribuição automática estável (primeira cor livre; com todas em uso, a menos usada). Troca na revisão do cadastro e no Editar (bolinhas de 44 px, a escolhida com ✓). Banco v2 dá cores diferentes aos protocolos que já existiam, na ordem de criação. Backup leva a cor; backup antigo (sem cor) ou com cor desconhecida importa e recebe cores automáticas distintas | `dominio/cores.test.ts`, `dados/cores-estoque.test.ts` (migração v1→v2, salvar, backup antigo e novo) + e2e passos 17 e 18 |
 | P02 | Pedido | Todo frasco informado vai para o Estoque: o interruptor "Guardar este frasco no Estoque" saiu. Com os mg (e a água, se reconstituído) na calculadora do passo 2, o frasco é criado e ligado à linha do protocolo; só com os mg entra lacrado. Linha que já tem frasco usável ligado (editar) não duplica. Números inválidos na calculadora bloqueiam com mensagem (antes o frasco podia ficar de fora calado). Sem dados do frasco: aviso na revisão, selo "Sem frasco no estoque" (ícone + texto) no cartão, no detalhe e na Hoje, e o atalho "Adicione o frasco para acompanhar o estoque" abre o Novo frasco já ligado àquela linha. Cartão do protocolo mostra "Frasco: N doses restantes" (e "mais N frascos"); Estoque mostra "≈ N doses restantes" e o protocolo ligado. Protocolos antigos sem frasco: nada é inventado, só selo e atalho | `dominio/estoque.test.ts`, `dados/cores-estoque.test.ts`, `telas/rascunho.test.ts` + e2e passos 6, 15, 16, 17 |
 | A35 | Média | Salvar protocolo com frasco da calculadora gravava o frasco e depois o protocolo, em duas gravações: se a segunda falhasse, sobrava um frasco solto no Estoque; o erro era genérico | Uma transação só (`salvarProtocolo(p, itens, frascosNovos)`); erro com `mensagemDeErro` | `dados/cores-estoque.test.ts` |
 | A36 | Baixa | Ao registrar dose, o frasco pré-escolhido podia ser um vencido mesmo havendo outro bom; com vários frascos não havia regra clara | `escolherFrasco`: o ligado à linha (ou o último usado) se tem saldo e não venceu; senão o mais antigo não vencido (aberto antes do lacrado); vencido só se não houver outro (aí aparece o aviso de vencido) | `dominio/estoque.test.ts` |
@@ -194,3 +194,28 @@ Conferido no build servido como no Pages (390×844 e 360×640): Hoje com o lembr
 - 4 avisos de segurança "low" no `npm audit` (pacote `deepmerge`, usado só na ferramenta que gera o service worker; não vai para o app e não há correção publicada).
 - Testado em Chrome de computador simulando celular; não testado em iPhone/Android reais nem a instalação real (o botão "Instalar" depende do navegador).
 - O teste de ponta a ponta (`npm run e2e`) precisa do Google Chrome instalado e não roda no GitHub Actions; lá rodam `npm test` e o build.
+
+## Rodada de 21/11/2026: paleta D "Preto real" e texto maior
+
+Só visual; nenhum comportamento mudou. Cores centralizadas em `src/index.css` (`@theme`) e `src/dominio/cores.ts`; o gráfico de peso usa as classes dos tokens (antes tinha hex soltos). Nenhum turquesa nem hex da paleta antiga sobrou em `src/`, `index.html`, `vite.config.ts` (manifest, 404) e ícones. Texto pequeno trocado por uma escala (`text-xs` 13 caixa alta, `text-mini` 14, `text-sm` 15, `text-base` 16, `text-lg` 17, `text-xl` 21, `text-2xl` 26, `text-titulo` 36).
+
+| Par (texto / fundo) | Contraste |
+|---|---|
+| Texto `#F2F2F2` / fundo `#000000` · cartão `#121212` · cartão 2 `#1C1C1C` | 18,8 · 16,7 · 15,2 |
+| Secundário `#A6A6A6` / fundo · cartão · cartão 2 · selecionado `#242424` | 8,6 · 7,7 · 7,0 · 6,4 |
+| Texto médio `#CCCCCC` / cartão | 11,7 |
+| Acento `#FFFFFF` / cartão · selecionado | 18,7 · 15,5 |
+| Texto `#0B0B0B` / acento `#FFFFFF` | 19,7 |
+| Secundário sobre o acento `#3D3D3D` / `#FFFFFF` | 10,9 |
+| Tomada `#5FD98E` / cartão · fundo de tomada `#0D2016` | 10,5 · 9,6 |
+| Aviso `#FFC46B` / cartão · fundo de aviso `#2A1F0C` | 11,9 · 10,3 |
+| Texto de aviso `#FFD99A` / fundo de aviso | 12,0 |
+| Perdida `#FF8A80` / cartão · cartão 2 | 8,2 · 7,5 |
+| Texto `#0B0B0B` / botão perigo `#FF8A80` · check `#5FD98E` | 8,6 · 11,1 |
+| Texto de exemplo (placeholder) `#8C8C8C` / campo `#000000` · cartão | 6,2 · 5,6 |
+| Cores dos protocolos / fundo · cartão · cartão 2 | mínimo 9,4 · 8,3 · 7,5 (rosa) |
+| Borda de campo `#6E6E6E` / fundo · cartão (não é texto; mínimo 3:1) | 4,1 · 3,7 |
+
+Conferido no build servido como no Pages (390×844 e 360×640): primeiro acesso (boas-vindas, aviso, instalar, lembrar), Hoje, Protocolos, detalhe, folha de dose, Estoque, Peso, Backup e Ajustes. Em todas: sem rolagem lateral, sem alvo < 44 px, nenhum texto com contraste < 4,5:1 (medido em cada texto visível contra o fundo real), nenhum texto abaixo de 14 px fora dos rótulos em caixa alta (13 px), sem texto em inglês, console limpo. Testes: `cores.test.ts` agora mede as cores dos protocolos contra `#000000`, `#121212` e `#1C1C1C`; o e2e confere a violeta nova e o fundo `#1C1C1C` do aviso.
+
+Ícones do PWA: a mesma gota, recolorida para branco sobre preto nos mesmos arquivos e tamanhos (`pwa-192`, `pwa-512`, `pwa-maskable-512`, `apple-touch-icon`, `favicon.svg`). Quem já instalou pode continuar vendo o ícone antigo até o sistema atualizar o atalho (depende do celular).

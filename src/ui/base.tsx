@@ -49,8 +49,8 @@ export function Cabecalho({
         </button>
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        {sub && <span className="text-[13px] font-semibold text-fraco">{sub}</span>}
-        <h1 className={`${grande ? 'text-[32px] leading-tight' : 'text-2xl'} font-extrabold tracking-tight break-words`}>{titulo}</h1>
+        {sub && <span className="text-sm font-semibold text-fraco">{sub}</span>}
+        <h1 className={`${grande ? 'text-titulo leading-tight' : 'text-2xl'} font-extrabold tracking-tight break-words`}>{titulo}</h1>
       </div>
       {direita}
     </div>
@@ -58,7 +58,7 @@ export function Cabecalho({
 }
 
 export function Passo({ n, total = 4 }: { n: number; total?: number }) {
-  return <span className="text-[13px] font-bold tracking-wide text-acento uppercase">Passo {n} de {total}</span>
+  return <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo {n} de {total}</span>
 }
 
 /**
@@ -149,8 +149,8 @@ export function Sheet({ titulo, sub, aoFechar, children }: { titulo: ReactNode; 
         <span aria-hidden="true" className="h-[5px] w-10 self-center rounded-full bg-borda" />
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <h2 id={id} className="text-[22px] font-extrabold">{titulo}</h2>
-            {sub && <span className="text-[15px] font-semibold text-fraco">{sub}</span>}
+            <h2 id={id} className="text-2xl font-extrabold">{titulo}</h2>
+            {sub && <span className="text-sm font-semibold text-fraco">{sub}</span>}
           </div>
           {aoFechar && (
             <button type="button" onClick={aoFechar} aria-label="Fechar" className="icone-btn -mr-2.5">
@@ -175,7 +175,7 @@ export function Dialogo({ titulo, aoFechar, children, icone }: { titulo: ReactNo
     <Camada aoFechar={aoFechar} alinhar="centro">
       <div ref={ref} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby={id} className="dialogo-anima flex max-h-[90dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto rounded-2xl border border-linha bg-sup px-6 pt-7 pb-6 outline-none">
         {icone}
-        <h2 id={id} className="text-[22px] font-extrabold">{titulo}</h2>
+        <h2 id={id} className="text-2xl font-extrabold">{titulo}</h2>
         {children}
       </div>
     </Camada>
@@ -186,8 +186,8 @@ export function Vazio({ titulo, texto, children, icone }: { titulo: string; text
   return (
     <div className="flex flex-col items-center gap-4 px-2 py-10 text-center">
       {icone && <span className="flex h-16 w-16 items-center justify-center rounded-full bg-selecionado text-acento">{icone}</span>}
-      <h2 className="text-[22px] font-extrabold">{titulo}</h2>
-      <p className="m-0 text-[15px] leading-relaxed text-suave">{texto}</p>
+      <h2 className="text-2xl font-extrabold">{titulo}</h2>
+      <p className="m-0 text-base leading-relaxed text-suave">{texto}</p>
       {children}
     </div>
   )
@@ -198,7 +198,7 @@ export function NaoAchou({ titulo, texto = 'Ele pode ter sido apagado.', para = 
   return (
     <Tela className="min-h-dvh">
       <Cabecalho titulo={titulo} voltar />
-      <p className="m-0 text-[15px] leading-relaxed text-suave">{texto}</p>
+      <p className="m-0 text-base leading-relaxed text-suave">{texto}</p>
       <Link to={para} className="btn-primario">{rotulo}</Link>
     </Tela>
   )
@@ -224,7 +224,7 @@ export function Carregando({ linhas = 3 }: { linhas?: number }) {
     return (
       <div role="alert" className="flex min-h-[40dvh] flex-col items-center justify-center gap-3 px-2 text-center">
         <b className="text-lg">Está demorando mais que o normal</b>
-        <p className="m-0 text-[15px] text-suave">Seus dados continuam salvos neste aparelho.</p>
+        <p className="m-0 text-sm text-suave">Seus dados continuam salvos neste aparelho.</p>
         <button type="button" className="btn-primario" onClick={() => window.location.reload()}>Recarregar</button>
         <a href="#/hoje" className="btn-texto">Ir para Hoje</a>
       </div>
@@ -312,7 +312,7 @@ export function Secao({ titulo, children, direita }: { titulo: string; children:
   return (
     <section className="flex flex-col gap-2.5">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-[17px] font-bold">{titulo}</h2>
+        <h2 className="text-xl font-bold">{titulo}</h2>
         {direita}
       </div>
       {children}

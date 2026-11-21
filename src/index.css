@@ -1,27 +1,50 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/dm-sans/wght.css';
 
-/* Paleta escura do app. Flat: sem sombra nem gradiente. */
+/* Paleta "Preto real" (opção D): fundo preto puro, cinzas neutros, acento BRANCO.
+   Flat: sem sombra nem gradiente. Todo hex do app mora aqui (e em src/dominio/cores.ts, cores dos protocolos).
+   Com acento branco, a hierarquia vem do preenchimento: botão principal branco sólido com texto preto,
+   secundário com borda cinza, aba/opção escolhida com fundo #242424. */
 @theme {
-  --color-fundo: #050a0e;
-  --color-sup: #0a1219;
-  --color-sup2: #0f1c28;
-  --color-acento: #00e5c3;
-  --color-sobre-acento: #04110e;
-  --color-acento-escuro: #0b3b35;
-  --color-selecionado: #0d2b2e;
-  --color-texto: #e2eaf0;
-  --color-fraco: #a9bfcb;
-  --color-suave: #c7d6de;
-  --color-linha: #17323b;
-  --color-borda: #5a7a8a;
+  --color-fundo: #000000;
+  --color-sup: #121212; /* cartão */
+  --color-sup2: #1c1c1c; /* cartão dentro de cartão, aviso (toast) */
+  --color-acento: #ffffff;
+  --color-sobre-acento: #0b0b0b; /* texto sobre o acento (e sobre cores claras) */
+  --color-acento-escuro: #3d3d3d; /* texto secundário sobre o acento */
+  --color-selecionado: #242424;
+  --color-texto: #f2f2f2;
+  --color-fraco: #a6a6a6; /* secundário */
+  --color-suave: #cccccc; /* texto médio */
+  --color-linha: #2c2c2c;
+  --color-borda: #6e6e6e; /* borda de campo e de botão secundário */
   --color-aviso: #ffc46b;
-  --color-aviso-fundo: #2b2312;
-  --color-aviso-texto: #ffd58f;
-  --color-erro: #ff9f80;
-  --color-ok: #7be39b;
-  --color-ok-fundo: #0f2a1d;
-  --color-veu: #020508;
+  --color-aviso-fundo: #2a1f0c;
+  --color-aviso-texto: #ffd99a;
+  --color-erro: #ff8a80;
+  --color-ok: #5fd98e;
+  --color-ok-fundo: #0d2016;
+  --color-veu: #000000;
+  --color-dica: #8c8c8c; /* texto de exemplo dentro do campo (placeholder) */
+
+  /* Escala de texto (px): 13 só em rótulo curto em caixa alta; secundário 14-15; corpo 16-17. */
+  --text-xs: 13px;
+  --text-xs--line-height: 1.3;
+  --text-mini: 14px;
+  --text-mini--line-height: 1.35;
+  --text-sm: 15px;
+  --text-sm--line-height: 1.4;
+  --text-base: 16px;
+  --text-base--line-height: 1.45;
+  --text-lg: 17px;
+  --text-lg--line-height: 1.4;
+  --text-xl: 21px;
+  --text-xl--line-height: 1.25;
+  --text-2xl: 26px;
+  --text-2xl--line-height: 1.2;
+  --text-titulo: 36px;
+  --text-titulo--line-height: 1.15;
+
   --font-titulo: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'DM Sans Variable', 'DM Sans', sans-serif;
   --font-corpo: 'DM Sans Variable', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
@@ -59,12 +82,20 @@
     accent-color: var(--color-acento);
   }
   ::placeholder {
-    color: #7d9aa8;
+    color: var(--color-dica);
     opacity: 1;
   }
   :focus-visible {
     outline: 2px solid var(--color-acento);
     outline-offset: 2px;
+  }
+  /* dentro de um bloco branco (cartão "Próxima dose"), o anel branco sumiria: fica preto */
+  .sobre-acento :focus-visible {
+    outline-color: var(--color-sobre-acento);
+  }
+  ::selection {
+    background: var(--color-acento);
+    color: var(--color-sobre-acento);
   }
   button:disabled {
     cursor: not-allowed;
@@ -72,7 +103,7 @@
 }
 
 @utility btn {
-  @apply flex h-[52px] w-full items-center justify-center gap-2 rounded-[10px] px-4 text-base font-bold;
+  @apply flex h-[54px] w-full items-center justify-center gap-2 rounded-xl px-4 text-lg font-bold;
 }
 
 @utility btn-primario {
@@ -80,7 +111,7 @@
 }
 
 @utility btn-secundario {
-  @apply btn border border-borda bg-sup text-acento;
+  @apply btn border border-borda bg-sup text-texto;
 }
 
 @utility btn-neutro {
@@ -92,34 +123,34 @@
 }
 
 @utility btn-texto {
-  @apply flex min-h-11 items-center justify-center px-2 text-[15px] font-bold text-acento disabled:opacity-60;
+  @apply flex min-h-11 items-center justify-center px-2 text-base font-bold text-acento disabled:opacity-60;
 }
 
 @utility link {
-  @apply flex min-h-11 items-center text-sm font-bold text-acento;
+  @apply flex min-h-11 items-center text-base font-bold text-acento underline-offset-4 hover:underline;
 }
 
 @utility card {
-  @apply rounded-xl border border-linha bg-sup;
+  @apply rounded-[14px] border border-linha bg-sup;
 }
 
 @utility campo {
-  @apply h-12 w-full rounded-xl border border-borda bg-sup px-3 text-base font-bold text-texto;
+  @apply h-[52px] w-full rounded-xl border border-borda bg-fundo px-3.5 text-lg font-bold text-texto;
 }
 
 @utility rotulo {
-  @apply flex flex-col gap-1.5 text-[13px] font-bold text-fraco;
+  @apply flex flex-col gap-1.5 text-sm font-bold text-suave;
 }
 
 @utility chip {
-  @apply flex h-11 min-w-11 items-center justify-center rounded-full border border-borda bg-sup px-3.5 text-sm font-semibold text-texto;
+  @apply flex h-11 min-w-11 items-center justify-center rounded-full border border-borda bg-sup px-4 text-base font-semibold text-texto;
   &[aria-pressed='true'] {
     @apply border-2 border-acento bg-selecionado font-extrabold text-acento;
   }
 }
 
 @utility selo {
-  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold;
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-mini font-bold;
 }
 
 @utility icone-btn {

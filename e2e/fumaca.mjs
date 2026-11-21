@@ -346,7 +346,7 @@ await passo('cores distintas entre os protocolos e F5 mantém cores e frascos', 
     const ct = await cor(tesa.id)
     const cr = await cor(reta.id)
     if (ct === cr) throw new Error(`mesma cor nos dois protocolos: ${ct}`)
-    igual(cr, 'rgb(179, 148, 255)', 'violeta na borda da Retatrutida')
+    igual(cr, 'rgb(217, 156, 255)', 'violeta na borda da Retatrutida')
     const todas = await cartoes.evaluateAll((els) => els.map((el) => getComputedStyle(el).borderLeftColor))
     igual(new Set(todas).size, todas.length, 'cada protocolo ativo com uma cor')
     await page.locator(`a.card[href$="/protocolos/${tesa.id}"]`).getByText('Frasco: 4 doses restantes').waitFor()
@@ -381,7 +381,7 @@ await passo('registrar dose: celebração aparece e termina, aviso escuro com te
   igual(await aviso.getAttribute('data-festa'), 'true', 'aviso com celebração')
   await aviso.locator('[data-celebracao] .onda').first().waitFor({ state: 'attached' })
   await page.locator('main .anima-nova').first().waitFor() // linha nova em "Últimos registros"
-  igual(await aviso.evaluate((el) => getComputedStyle(el).backgroundColor), 'rgb(15, 28, 40)', 'aviso no tema escuro (não branco)')
+  igual(await aviso.evaluate((el) => getComputedStyle(el).backgroundColor), 'rgb(28, 28, 28)', 'aviso no tema escuro (não branco)')
   igual(await aviso.locator('.tempo-anima').evaluate((el) => getComputedStyle(el).animationDuration), '6s', 'barrinha de tempo de 6 s')
   const c = await contraste('[role=status] >> text=Desfazer')
   if (c < 4.5) throw new Error(`contraste do Desfazer ${c.toFixed(2)}:1`)

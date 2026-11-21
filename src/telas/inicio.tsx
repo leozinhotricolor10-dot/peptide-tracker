@@ -22,7 +22,7 @@ export function BoasVindas() {
         </span>
         <div className="flex flex-col gap-3">
           <h1 className="text-[34px] leading-tight font-extrabold tracking-tight">Seu diário de protocolos</h1>
-          <p className="m-0 text-[17px] leading-relaxed text-suave">
+          <p className="m-0 text-lg leading-relaxed text-suave">
             Registre o que você aplica, quando aplica e quanto resta no frasco. Tudo fica só neste aparelho.
           </p>
         </div>
@@ -79,7 +79,7 @@ export function Aviso() {
       </div>
       <div className="mt-auto flex flex-col gap-2">
         <button type="button" className="btn-primario" disabled={!maior || !entendi} onClick={aceitar}>Aceitar e continuar</button>
-        {(!maior || !entendi) && <span className="text-center text-[13px] text-fraco">Marque as duas opções</span>}
+        {(!maior || !entendi) && <span className="text-center text-sm text-fraco">Marque as duas opções</span>}
         <Link to="/saida" replace className="btn-texto text-suave">Não aceito</Link>
         <div className="flex justify-center gap-4 text-sm">
           <Link to="/termos" className="link">Termos de uso</Link>
@@ -114,7 +114,7 @@ export function Instalar() {
   return (
     <Tela className="min-h-dvh">
       {!primeiro && <button type="button" onClick={() => voltarOu('/hoje')} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>}
-      {primeiro && <span className="text-[13px] font-bold tracking-wide text-acento uppercase">Passo 2 de 3</span>}
+      {primeiro && <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo 2 de 3</span>}
       <div className="flex flex-col gap-2">
         <h1 className="text-[28px] leading-tight font-extrabold">Coloque o app na tela inicial</h1>
         <p className="m-0 text-base leading-relaxed text-suave">Assim ele abre como um app, funciona sem internet e seus dados ficam mais protegidos.</p>
@@ -132,8 +132,8 @@ export function Instalar() {
           </div>
           {aba === 'ios' ? (
             <div className="card flex flex-col gap-4 p-4">
-              <p className="m-0 text-[15px] text-suave">A Apple não permite instalar com um botão. São 3 toques, só desta vez.</p>
-              <ol className="m-0 flex list-none flex-col gap-3 p-0 text-[15px] font-semibold">
+              <p className="m-0 text-sm text-suave">A Apple não permite instalar com um botão. São 3 toques, só desta vez.</p>
+              <ol className="m-0 flex list-none flex-col gap-3 p-0 text-sm font-semibold">
                 <li className="flex gap-3"><b className="text-acento">1</b><span>No Safari, toque em Compartilhar <IcoCompartilhar tam={18} className="inline align-[-3px]" /> (quadrado com seta)</span></li>
                 <li className="flex gap-3"><b className="text-acento">2</b><span>Escolha “Adicionar à Tela de Início”</span></li>
                 <li className="flex gap-3"><b className="text-acento">3</b><span>Abra o app pelo novo ícone</span></li>
@@ -143,7 +143,7 @@ export function Instalar() {
           ) : (
             <div className="card flex flex-col gap-3 p-4">
               <b className="text-base">Um toque e pronto</b>
-              <p className="m-0 text-[15px] text-suave">Toque em “Instalar aplicativo”. O próprio aparelho pede a confirmação e coloca o ícone na tela inicial.</p>
+              <p className="m-0 text-sm text-suave">Toque em “Instalar aplicativo”. O próprio aparelho pede a confirmação e coloca o ícone na tela inicial.</p>
               <p className="m-0 text-sm text-fraco">Se o botão não funcionar, abra o menu do navegador (3 pontos) e escolha “Instalar app” ou “Adicionar à tela inicial”.</p>
             </div>
           )}
@@ -179,7 +179,7 @@ export function PrePermissao({ aoFechar, aoTerminar }: { aoFechar: () => void; a
         <span className="text-xs font-bold tracking-wide text-fraco uppercase">Exemplo do que aparece</span>
         <span className="flex items-center gap-2 text-base font-bold"><IcoSino tam={18} className="text-acento" /> {TEXTO_AVISO}</span>
       </div>
-      <ul className="m-0 flex flex-col gap-2 pl-5 text-[15px] leading-relaxed text-suave">
+      <ul className="m-0 flex flex-col gap-2 pl-5 text-sm leading-relaxed text-suave">
         <li>O aviso nunca mostra o nome da substância nem a dose.</li>
         <li>Sem servidor e sem conta: o próprio aparelho cria o aviso.</li>
         <li><b className="text-aviso-texto">Limite:</b> o aviso chega com o app aberto ou aberto há pouco. Com o app fechado, use também a agenda do celular.</li>
@@ -214,7 +214,7 @@ export function AvisosBloqueados({ aoFechar }: { aoFechar: () => void }) {
   const sup = suporteAviso()
   return (
     <Dialogo titulo={sup === 'ios-sem-instalar' ? 'No iPhone, instale o app primeiro' : 'Os avisos do aparelho estão desligados'} aoFechar={aoFechar} icone={<IcoAlerta className="text-aviso" tam={28} />}>
-      <p className="m-0 text-[15px] leading-relaxed text-suave">
+      <p className="m-0 text-base leading-relaxed text-suave">
         {sup === 'ios-sem-instalar'
           ? 'No iPhone, o Safari só mostra avisos de apps adicionados à Tela de Início.'
           : sup === 'sem-suporte'
@@ -250,7 +250,7 @@ export function ComoLembrar() {
 
   return (
     <Tela className="min-h-dvh">
-      <span className="text-[13px] font-bold tracking-wide text-acento uppercase">Passo 3 de 3</span>
+      <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo 3 de 3</span>
       <div className="flex flex-col gap-2">
         <h1 className="text-[28px] leading-tight font-extrabold">Como quer ser lembrado?</h1>
         <p className="m-0 text-base text-suave">Dá para mudar depois em Configurações.</p>

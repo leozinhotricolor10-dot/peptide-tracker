@@ -161,11 +161,11 @@ function Aviso({ t, saindo, fechar, mostrar }: { t: Atual; saindo: boolean; fech
     >
       {icone}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-1.5">
-        <b className="text-[15px] text-texto">{t.titulo}</b>
-        {t.texto && <span className="text-[13px] break-words text-fraco">{t.texto}</span>}
+        <b className="text-sm text-texto">{t.titulo}</b>
+        {t.texto && <span className="text-sm break-words text-fraco">{t.texto}</span>}
       </span>
       {t.desfazer && (
-        <button type="button" className="h-11 shrink-0 rounded-xl bg-selecionado px-4 text-[15px] font-extrabold text-acento" onClick={() => void desfazer()}>
+        <button type="button" className="h-11 shrink-0 rounded-xl bg-selecionado px-4 text-sm font-extrabold text-acento" onClick={() => void desfazer()}>
           Desfazer
         </button>
       )}

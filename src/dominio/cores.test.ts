@@ -30,14 +30,14 @@ describe('paleta das cores de protocolo', () => {
 
   it('todas legíveis no fundo e nos cartões (contraste >= 4,5:1)', () => {
     for (const c of CORES_PROTOCOLO) {
-      expect(contraste(c.hex, '#050a0e'), c.nome).toBeGreaterThanOrEqual(4.5)
-      expect(contraste(c.hex, '#0a1219'), c.nome).toBeGreaterThanOrEqual(4.5)
-      expect(contraste(c.hex, '#0f1c28'), c.nome).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(c.hex, '#000000'), c.nome).toBeGreaterThanOrEqual(4.5) // fundo
+      expect(contraste(c.hex, '#121212'), c.nome).toBeGreaterThanOrEqual(4.5) // cartão
+      expect(contraste(c.hex, '#1c1c1c'), c.nome).toBeGreaterThanOrEqual(4.5) // cartão 2
     }
   })
 
-  it('não imitam o turquesa de destaque nem o verde/vermelho/âmbar de status', () => {
-    const status = ['#00e5c3', '#7be39b', '#ff9f80', '#ffc46b'].map(matiz)
+  it('não imitam o verde/vermelho/âmbar de status (o destaque é branco, sem matiz)', () => {
+    const status = ['#5fd98e', '#ff8a80', '#ffc46b'].map(matiz)
     for (const c of CORES_PROTOCOLO) {
       const h = matiz(c.hex)
       if (h < 0) continue

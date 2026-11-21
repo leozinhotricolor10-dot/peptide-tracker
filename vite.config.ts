@@ -18,7 +18,7 @@ const base = `/${pasta.replace(/^\/+|\/+$/g, '')}/`.replace(/^\/\/$/, '/')
 function pagina404(): Plugin {
   const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Peptide Tracker</title><style>html,body{background:#050A0E;color:#E2EAF0;font-family:system-ui,sans-serif;margin:0}</style>
+<title>Peptide Tracker</title><style>html,body{background:#000000;color:#F2F2F2;font-family:system-ui,sans-serif;margin:0}</style>
 <script>
 (function () {
   var base = ${JSON.stringify(base)};
@@ -29,7 +29,7 @@ function pagina404(): Plugin {
   }
 })();
 </script></head>
-<body><p style="padding:24px">Página não encontrada. <a style="color:#00E5C3" href="${base}">Abrir o app</a></p></body></html>
+<body><p style="padding:24px">Página não encontrada. <a style="color:#FFFFFF" href="${base}">Abrir o app</a></p></body></html>
 `
   return {
     name: 'pagina-404',
@@ -80,8 +80,8 @@ export default defineConfig({
         scope: base,
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#050A0E',
-        theme_color: '#050A0E',
+        background_color: '#000000',
+        theme_color: '#000000',
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },

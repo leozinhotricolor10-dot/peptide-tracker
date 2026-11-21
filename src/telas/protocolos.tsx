@@ -38,15 +38,15 @@ export function Protocolos() {
   const hoje = hojeStr()
   const cabecalho = (
     <div className="flex items-center justify-between">
-      <h1 className="text-[32px] leading-tight font-extrabold tracking-tight">Protocolos</h1>
-      <Link to="/novo" className="flex h-11 items-center gap-1.5 rounded-[10px] bg-acento px-4 text-[15px] font-bold text-sobre-acento"><IcoMais tam={20} /> Novo</Link>
+      <h1 className="text-titulo leading-tight font-extrabold tracking-tight">Protocolos</h1>
+      <Link to="/novo" className="flex h-11 items-center gap-1.5 rounded-[10px] bg-acento px-4 text-sm font-bold text-sobre-acento"><IcoMais tam={20} /> Novo</Link>
     </div>
   )
   if (!base) return <Tela>{cabecalho}<Carregando /></Tela>
   if (!base.protocolos.length) {
     return (
       <Tela>
-        <h1 className="text-[32px] font-extrabold">Protocolos</h1>
+        <h1 className="text-titulo font-extrabold">Protocolos</h1>
         <Vazio icone={<IcoProtocolos tam={30} />} titulo="Nenhum protocolo ainda" texto="Um protocolo aqui é o registro do que você já decidiu usar: substância, dose, horários e por quanto tempo.">
           <Link to="/novo" className="btn-primario">Criar protocolo</Link>
         </Vazio>
@@ -70,7 +70,7 @@ export function Protocolos() {
         ))}
       </div>
       <div key={aba} className="flex flex-col gap-5">
-      {lista.length === 0 && <p className="anima-entrada m-0 card p-4 text-[15px] text-suave">Nenhum protocolo {aba === 'ativo' ? 'ativo' : aba === 'pausado' ? 'pausado' : 'concluído'}.</p>}
+      {lista.length === 0 && <p className="anima-entrada m-0 card p-4 text-sm text-suave">Nenhum protocolo {aba === 'ativo' ? 'ativo' : aba === 'pausado' ? 'pausado' : 'concluído'}.</p>}
       {lista.map((p, k) => {
         const itens = linhasDe(base, p)
         const pr = progresso(p, hoje)
@@ -83,7 +83,7 @@ export function Protocolos() {
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <span className="flex items-center gap-2 text-[19px] font-extrabold tracking-tight break-words"><PontoCor protocolo={p} />{nomeProtocolo(p, base.itens, base.subs)}</span>
-                <span className="text-[13px] text-fraco">{pr.texto} · iniciado em {dataDiaMes(p.inicio)}</span>
+                <span className="text-sm text-fraco">{pr.texto} · iniciado em {dataDiaMes(p.inicio)}</span>
               </div>
               <SeloEstado estado={estadoEfetivo(p, hoje)} />
             </div>
@@ -94,7 +94,7 @@ export function Protocolos() {
             )}
             <div className="flex flex-col gap-1.5 border-t border-sup2 pt-3">
               {itens.map((i) => (
-                <span key={i.id} className="flex flex-wrap justify-between gap-x-3 text-[15px]">
+                <span key={i.id} className="flex flex-wrap justify-between gap-x-3 text-sm">
                   <b className="break-words">{nomeSubstancia(i.substanciaId, base.subs)}</b>
                   <span className="text-suave">{textoDoItem(base, i.id)} · {frequenciaCurta(i.frequencia, i.horarios)}</span>
                 </span>
@@ -107,9 +107,9 @@ export function Protocolos() {
                 ))}
               </div>
             )}
-            {estadoEfetivo(p, hoje) === 'pausado' && <span className="text-[13px] font-semibold text-aviso">{p.pausadoAte ? `Pausado até ${dataCurta(p.pausadoAte)}` : 'Pausado sem data de volta'}</span>}
+            {estadoEfetivo(p, hoje) === 'pausado' && <span className="text-sm font-semibold text-aviso">{p.pausadoAte ? `Pausado até ${dataCurta(p.pausadoAte)}` : 'Pausado sem data de volta'}</span>}
             {pr.pausaDeCiclo && estadoEfetivo(p, hoje) === 'ativo' && (
-              <span className="rounded-lg bg-sup2 px-3 py-2 text-[13px] font-semibold text-suave">Pausa de ciclo · próximo ciclo começa em {pr.diasAteVoltar} dia{pr.diasAteVoltar === 1 ? '' : 's'}</span>
+              <span className="rounded-lg bg-sup2 px-3 py-2 text-sm font-semibold text-suave">Pausa de ciclo · próximo ciclo começa em {pr.diasAteVoltar} dia{pr.diasAteVoltar === 1 ? '' : 's'}</span>
             )}
           </Link>
         )
@@ -125,14 +125,14 @@ export function SeloEstoque({ e, nome }: { e: EstoqueDoItem; nome?: string }) {
   const doses = Math.round(useNumeroAnimado(e.doses ?? 0))
   if (!e.frasco) {
     return (
-      <span className="flex items-center gap-1.5 self-start rounded-full bg-aviso-fundo px-2.5 py-1 text-[13px] font-bold text-aviso-texto">
+      <span className="flex items-center gap-1.5 self-start rounded-full bg-aviso-fundo px-2.5 py-1 text-sm font-bold text-aviso-texto">
         <IcoAlerta tam={14} /> Sem frasco no estoque{nome ? ` · ${nome}` : ''}
       </span>
     )
   }
   const pouco = e.vencido || (e.doses !== null && e.doses <= 2)
   return (
-    <span className={`flex items-center gap-1.5 text-[13px] font-semibold ${pouco ? 'text-aviso-texto' : 'text-suave'}`}>
+    <span className={`flex items-center gap-1.5 text-sm font-semibold ${pouco ? 'text-aviso-texto' : 'text-suave'}`}>
       {pouco ? <IcoAlerta tam={14} className="shrink-0 text-aviso" /> : <IcoEstoque tam={14} className="shrink-0 text-acento" />}
       {nome ? `${nome} · ` : ''}{resumoEstoque(e, e.doses === null ? null : doses)}
     </span>
@@ -226,7 +226,7 @@ export function DetalheProtocolo() {
       </div>
       {blends.length > 0 && (
         <div className="flex flex-col gap-1">
-          <p className="m-0 text-[13px] leading-relaxed text-fraco">A dose é registrada para o blend inteiro, pelo nome que você deu. O app não divide por componente.</p>
+          <p className="m-0 text-sm leading-relaxed text-fraco">A dose é registrada para o blend inteiro, pelo nome que você deu. O app não divide por componente.</p>
           {blends.map((b) => {
             const frasco = base.frascos.find((f) => f.substanciaId === b.substanciaId && f.status !== 'descartado' && f.status !== 'acabou')
             return (
@@ -240,19 +240,19 @@ export function DetalheProtocolo() {
       )}
 
       <div className="card flex items-center justify-between px-4 py-3">
-        <span className="text-[15px] font-bold">{pr.texto}</span>
+        <span className="text-sm font-bold">{pr.texto}</span>
         <span className="text-sm text-fraco">{p.ciclo ? `Ciclo ${p.ciclo.diasOn} sim / ${p.ciclo.diasOff} não${pr.pausaDeCiclo ? ' · em pausa' : ''}` : 'Sem ciclo'}</span>
       </div>
 
       {estado !== 'encerrado' && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-[17px] font-bold">Próximas doses</h2>
+          <h2 className="text-xl font-bold">Próximas doses</h2>
           {proximas.length === 0 && <p className="m-0 text-sm text-fraco">{estado === 'pausado' ? 'Nenhuma enquanto estiver pausado.' : 'Nenhuma dose prevista.'}</p>}
           {proximas.map((s) => (
-            <div key={s.chave + s.itemId} className="flex min-h-11 items-center justify-between gap-3 border-b border-sup2 py-1.5 text-[15px]">
+            <div key={s.chave + s.itemId} className="flex min-h-11 items-center justify-between gap-3 border-b border-sup2 py-1.5 text-sm">
               <span className="flex min-w-0 flex-col">
                 <span>{diaRelativo(s.dia, hoje)} · <b>{nomeSubstancia(s.substanciaId, base.subs)}</b></span>
-                <span className="text-[13px] text-suave">{textoDoItem(base, s.itemId)}</span>
+                <span className="text-sm text-suave">{textoDoItem(base, s.itemId)}</span>
               </span>
               <span className="shrink-0 font-bold">{s.horario}</span>
             </div>
@@ -262,7 +262,7 @@ export function DetalheProtocolo() {
 
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-bold">Últimos registros</h2>
+          <h2 className="text-xl font-bold">Últimos registros</h2>
           <Link className="link" to={`/historico?p=${p.id}`}>Ver histórico</Link>
         </div>
         {registros.length === 0 && <p className="m-0 text-sm text-fraco">Nenhum registro ainda.</p>}
@@ -314,7 +314,7 @@ export function DetalheProtocolo() {
       {acao === 'pausar' && <Pausar protocolo={p} nome={nome} fechar={() => setAcao(null)} />}
       {acao === 'encerrar' && (
         <Dialogo titulo={`Encerrar ${nome}?`} aoFechar={() => setAcao(null)}>
-          <ul className="m-0 flex flex-col gap-2 pl-5 text-[15px] leading-relaxed text-suave">
+          <ul className="m-0 flex flex-col gap-2 pl-5 text-sm leading-relaxed text-suave">
             <li>Os lembretes deste protocolo param.</li>
             <li>O histórico continua salvo em Concluídos.</li>
             <li>Dá para duplicar depois para um novo ciclo.</li>
@@ -336,7 +336,7 @@ export function DetalheProtocolo() {
       )}
       {acao === 'apagar' && (
         <Dialogo titulo={`Apagar ${nome}?`} aoFechar={() => setAcao(null)}>
-          <p className="m-0 text-[15px] leading-relaxed text-suave">
+          <p className="m-0 text-base leading-relaxed text-suave">
             Apaga o protocolo e {registros.length === 1 ? '1 registro de dose' : `${registros.length} registros de dose`} dele, sem volta. Frascos e substâncias continuam no app.
           </p>
           {registros.length > 0 && <p className="m-0 text-sm text-fraco">Para guardar o histórico, prefira “Encerrar protocolo”.</p>}
@@ -366,15 +366,15 @@ function Pausar({ protocolo, nome, fechar }: { protocolo: Protocolo; nome: strin
   const [erro, setErro] = useState('')
   return (
     <Dialogo titulo={`Pausar ${nome}?`} aoFechar={fechar}>
-      <p className="m-0 text-[15px] text-suave">Os lembretes param durante a pausa. O histórico fica como está.</p>
+      <p className="m-0 text-sm text-suave">Os lembretes param durante a pausa. O histórico fica como está.</p>
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
         <legend className="mb-2 text-sm font-bold text-fraco">Voltar quando?</legend>
-        <label className="card flex min-h-[52px] items-center gap-3 px-4 text-[15px] font-semibold">
+        <label className="card flex min-h-[52px] items-center gap-3 px-4 text-sm font-semibold">
           <input type="radio" name="pausa" className="h-5 w-5" checked={comData} onChange={() => setComData(true)} />
           Em uma data
           {comData && <input type="date" aria-label="Data de volta" className="campo ml-auto h-11 w-auto px-2 text-sm" value={ate} min={somaDias(hojeStr(), 1)} onChange={(e) => { setAte(e.target.value); setErro('') }} />}
         </label>
-        <label className="card flex min-h-[52px] items-center gap-3 px-4 text-[15px] font-semibold">
+        <label className="card flex min-h-[52px] items-center gap-3 px-4 text-sm font-semibold">
           <input type="radio" name="pausa" className="h-5 w-5" checked={!comData} onChange={() => setComData(false)} />
           Sem data, eu retomo
         </label>
@@ -459,11 +459,11 @@ export function Historico() {
           <button type="button" className="icone-btn" aria-label="Mês anterior" onClick={() => mudarMes(-1)}><IcoVoltar tam={20} /></button>
           <div className="flex flex-col items-center">
             <b className="text-base capitalize">{nomeMes(m - 1)} {ano}</b>
-            <span className="text-[13px] text-fraco">{feitas} de {previstas} doses até agora</span>
+            <span className="text-sm text-fraco">{feitas} de {previstas} doses até agora</span>
           </div>
           <button type="button" className="icone-btn" aria-label="Próximo mês" disabled={mes >= hoje.slice(0, 7)} onClick={() => mudarMes(1)}><IcoSeta tam={20} /></button>
         </div>
-        <div aria-hidden="true" className="grid grid-cols-7 text-center text-xs font-bold text-fraco">
+        <div aria-hidden="true" className="grid grid-cols-7 text-center text-mini font-bold text-fraco">
           {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => <span key={i}>{d}</span>)}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -472,25 +472,25 @@ export function Historico() {
             <span
               key={d.dia}
               aria-label={`${d.n} de ${nomeMes(m - 1)}${rotuloSt[d.st] ? ': ' + rotuloSt[d.st] : ''}`}
-              className={`flex h-[38px] items-center justify-center rounded-full text-[13px] font-bold ${
-                d.st === 'todas' ? 'bg-ok text-sobre-acento' : d.st === 'parte' ? 'border-2 border-ok text-ok' : d.st === 'nenhuma' ? 'border border-dashed border-borda text-suave' : 'text-[#7d9aa8]'
+              className={`flex h-[38px] items-center justify-center rounded-full text-sm font-bold ${
+                d.st === 'todas' ? 'bg-ok text-sobre-acento' : d.st === 'parte' ? 'border-2 border-ok text-ok' : d.st === 'nenhuma' ? 'border border-dashed border-borda text-suave' : 'text-fraco'
               } ${d.dia === hoje ? 'underline underline-offset-4' : ''}`}
             >
               {d.n}
             </span>
           ))}
         </div>
-        <div className="flex flex-wrap gap-3.5 text-xs font-semibold text-suave">
+        <div className="flex flex-wrap gap-3.5 text-mini font-semibold text-suave">
           <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-full bg-ok" />Todas tomadas</span>
           <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-full border-2 border-ok" />Parte</span>
           <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-full border border-dashed border-borda" />Nenhuma</span>
         </div>
       </section>
 
-      {doMes.length === 0 && <p className="m-0 card p-4 text-[15px] text-suave">Nenhum registro em {nomeMes(m - 1)}.</p>}
+      {doMes.length === 0 && <p className="m-0 card p-4 text-sm text-suave">Nenhum registro em {nomeMes(m - 1)}.</p>}
       {[...grupos.entries()].map(([dia, lista], gi) => (
         <div key={dia} className="anima-entrada flex flex-col gap-2 [contain-intrinsic-size:auto_160px] [content-visibility:auto]" style={{ '--i': gi } as CSSProperties}>
-          <span className="text-[13px] font-bold text-fraco">{dataMedia(dia)}{dia === hoje ? ' · hoje' : ''}</span>
+          <span className="text-sm font-bold text-fraco">{dataMedia(dia)}{dia === hoje ? ' · hoje' : ''}</span>
           <GrupoDia lista={lista} base={base} filtro={filtro} abrir={(id) => abrir({ tipo: 'opcoes', aplicacaoId: id })} />
         </div>
       ))}
@@ -513,7 +513,7 @@ function UltimosRegistros({ registros, base, hoje, abrir }: { registros: Aplicac
 function LinhaRegistro({ a, saindo, texto, abrir }: { a: Aplicacao; saindo: boolean; texto: string; abrir: () => void }) {
   const recente = useRecente(a.id)
   return (
-    <button type="button" onClick={abrir} disabled={saindo} className={`flex min-h-11 items-center justify-between gap-2 rounded-lg border-b border-sup2 text-left text-[15px] ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : ''}`}>
+    <button type="button" onClick={abrir} disabled={saindo} className={`flex min-h-11 items-center justify-between gap-2 rounded-lg border-b border-sup2 text-left text-sm ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : ''}`}>
       <span>{texto}</span>
       <span className="text-sm"><StatusTomada status={a.status} /></span>
     </button>
@@ -541,10 +541,10 @@ function LinhaHistorico({ a, saindo, base, filtro, abrir }: { a: Aplicacao; sain
   return (
     <div className={`flex items-center gap-3 border-t border-l-[5px] border-t-sup2 py-2.5 pr-1.5 pl-3 first:border-t-0 ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : ''}`} style={bordaCor(pr)}>
       <span className="flex flex-1 flex-col gap-0.5">
-        <span className="text-[15px]">
+        <span className="text-sm">
           <StatusTomada status={a.status} /> <span className="font-bold">· {horaDe(d)}{a.status === 'feita' ? ` · ${textoDoRegistro(base, a)}` : ''}</span>
         </span>
-        <span className="text-[13px] text-fraco">{pr && !filtro ? `${nomeProtocolo(pr, base.itens, base.subs)} · ` : ''}{nomeSubstancia(a.substanciaId, base.subs)}{extra ? ` · ${extra}` : ''}</span>
+        <span className="text-sm text-fraco">{pr && !filtro ? `${nomeProtocolo(pr, base.itens, base.subs)} · ` : ''}{nomeSubstancia(a.substanciaId, base.subs)}{extra ? ` · ${extra}` : ''}</span>
       </span>
       <button type="button" disabled={saindo} aria-label={`Opções do registro das ${horaDe(d)}`} className="icone-btn text-fraco" onClick={abrir}><IcoPontos /></button>
     </div>

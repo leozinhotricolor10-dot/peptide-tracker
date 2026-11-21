@@ -61,7 +61,7 @@ function Faixas() {
       {sw.disponivel && !depois && (
         <div role="status" className="fixed inset-x-0 bottom-[96px] z-40 flex justify-center px-4">
           <div className="flex w-full max-w-[448px] items-center gap-2 rounded-xl border border-linha bg-sup p-2 pl-4">
-            <span className="flex flex-1 flex-col"><b className="text-[15px]">Nova versão disponível</b><span className="text-[13px] text-fraco">Seus dados não mudam.</span></span>
+            <span className="flex flex-1 flex-col"><b className="text-sm">Nova versão disponível</b><span className="text-sm text-fraco">Seus dados não mudam.</span></span>
             <button type="button" className="btn-texto text-suave" onClick={() => setDepois(true)}>Depois</button>
             <button type="button" className="h-11 rounded-[10px] bg-acento px-4 font-bold text-sobre-acento" onClick={sw.atualizar}>Atualizar</button>
           </div>
@@ -82,8 +82,8 @@ function EspacoCheio() {
   if (!aberto) return null
   return (
     <Dialogo titulo="Não deu para salvar" aoFechar={() => setAberto(false)} icone={<IcoAlerta className="text-aviso" tam={28} />}>
-      <p className="m-0 text-[15px] text-suave">O espaço do app neste aparelho acabou. Nada do que já estava salvo foi perdido.</p>
-      <p className="m-0 text-[15px] text-suave">As fotos são o que mais ocupa. Faça um backup e depois apague fotos antigas, ou libere espaço no aparelho.</p>
+      <p className="m-0 text-sm text-suave">O espaço do app neste aparelho acabou. Nada do que já estava salvo foi perdido.</p>
+      <p className="m-0 text-sm text-suave">As fotos são o que mais ocupa. Faça um backup e depois apague fotos antigas, ou libere espaço no aparelho.</p>
       <button type="button" className="btn-primario" onClick={() => { setAberto(false); nav('/ajustes/backup') }}>Fazer backup</button>
       <button type="button" className="btn-secundario" onClick={() => { setAberto(false); nav('/peso/fotos') }}>Ver fotos</button>
     </Dialogo>
@@ -120,15 +120,15 @@ function Abas() {
         {/* fundo da aba escolhida: um só, desliza de uma aba para a outra (só transform) */}
         <span
           aria-hidden="true"
-          className="aba-indicador absolute top-2 left-3 h-[52px] rounded-[10px] bg-selecionado"
+          className="aba-indicador absolute top-2 left-3 h-[56px] rounded-xl bg-selecionado"
           style={{ width: 'calc((100% - 1.5rem - 0.75rem) / 4)', transform: `translateX(calc(${ativa} * (100% + 0.25rem)))` }}
         />
         {itens.map(({ to, t, I }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => `relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-[10px] ${isActive ? 'text-acento' : 'text-fraco'}`}>
+          <NavLink key={to} to={to} className={({ isActive }) => `relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-xl ${isActive ? 'text-acento' : 'text-fraco'}`}>
             {({ isActive }) => (
               <>
                 <I tam={24} />
-                <span className={`text-[11px] ${isActive ? 'font-bold' : 'font-semibold'}`}>{t}</span>
+                <span className={`text-mini ${isActive ? 'font-bold' : 'font-semibold'}`}>{t}</span>
               </>
             )}
           </NavLink>
@@ -187,7 +187,7 @@ export function ErroGeral(): ReactNode {
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col justify-center gap-4 px-5 text-center">
       <h1 className="text-2xl font-extrabold">Algo deu errado</h1>
-      <p className="m-0 text-[15px] leading-relaxed text-suave">
+      <p className="m-0 text-sm leading-relaxed text-suave">
         {banco
           ? 'O navegador não deixou o app abrir o armazenamento deste aparelho. Isso acontece em janela anônima ou com dados do site bloqueados. Abra numa janela normal.'
           : 'Seus dados continuam salvos neste aparelho. Recarregue o app para continuar.'}

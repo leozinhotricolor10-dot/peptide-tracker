@@ -58,7 +58,7 @@ function Etapa({ n, titulo, children, rodape, aoVoltar, fecharEmVezDeVoltar }: {
         <button type="button" className="icone-btn -ml-2.5" aria-label={fecharEmVezDeVoltar ? 'Cancelar' : 'Voltar'} onClick={aoVoltar ?? (() => voltarOu('/hoje'))}>
           {fecharEmVezDeVoltar ? <IcoFechar /> : <IcoVoltar />}
         </button>
-        {n && <span className="text-[13px] font-bold tracking-wide text-acento uppercase">Passo {n} de 4</span>}
+        {n && <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo {n} de 4</span>}
       </div>
       {n && <Barra n={n} />}
       <h1 className="text-[28px] leading-tight font-extrabold tracking-tight">{titulo}</h1>
@@ -205,10 +205,10 @@ export function PassoSubstancia() {
       {q && resultados.length === 0 ? (
         <div className="flex flex-col gap-3 py-2">
           <b className="text-lg">Nada encontrado para “{q}”</b>
-          <p className="m-0 text-[15px] text-suave">Sem problema: crie com esse nome. Ela fica salva só para você e aparece nas próximas buscas.</p>
+          <p className="m-0 text-sm text-suave">Sem problema: crie com esse nome. Ela fica salva só para você e aparece nas próximas buscas.</p>
           <button type="button" className="btn-primario" onClick={() => ir(`/novo/criar?nome=${encodeURIComponent(q)}`)}>Criar “{q}”</button>
           <button type="button" className="btn-secundario" onClick={() => ir(`/novo/blend?nome=${encodeURIComponent(q)}&usar=1`)}>É um blend: criar com componentes</button>
-          <p className="m-0 text-[13px] text-fraco">Dica: confira a grafia, com ou sem hífen.</p>
+          <p className="m-0 text-sm text-fraco">Dica: confira a grafia, com ou sem hífen.</p>
         </div>
       ) : (
         <div role="listbox" aria-label="Substâncias" className="card flex flex-col overflow-hidden">
@@ -235,26 +235,26 @@ export function PassoSubstancia() {
             )
           })}
           {q && !existeNomeExato(q, base.substancias) && (
-            <button type="button" onClick={() => ir(`/novo/criar?nome=${encodeURIComponent(q)}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-[15px] font-bold text-acento">
+            <button type="button" onClick={() => ir(`/novo/criar?nome=${encodeURIComponent(q)}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
               <IcoMais tam={20} /> Não achei: criar “{q}”
             </button>
           )}
           {!q && (
-            <button type="button" onClick={() => ir('/novo/criar')} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-[15px] font-bold text-acento">
+            <button type="button" onClick={() => ir('/novo/criar')} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
               <IcoMais tam={20} /> Criar substância do zero
             </button>
           )}
-          <button type="button" onClick={() => ir(`/novo/blend?usar=1${q ? `&nome=${encodeURIComponent(q)}` : ''}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-[15px] font-bold text-acento">
+          <button type="button" onClick={() => ir(`/novo/blend?usar=1${q ? `&nome=${encodeURIComponent(q)}` : ''}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
             <IcoMais tam={20} /> Criar blend (vários em um frasco)
           </button>
         </div>
       )}
-      <p className="m-0 text-[13px] leading-relaxed text-fraco">
+      <p className="m-0 text-sm leading-relaxed text-fraco">
         Sugestões, só nomes (sem doses nem composição). Não é limite: digite qualquer composto ou blend, mesmo que não esteja aqui. {!q && `Mostrando ${AMOSTRA_IDS.length} da lista; busque para ver mais.`}
       </p>
       {sair && (
         <Dialogo titulo="Sair sem salvar?" aoFechar={() => setSair(false)}>
-          <p className="m-0 text-[15px] text-suave">O que você digitou neste protocolo será descartado.</p>
+          <p className="m-0 text-sm text-suave">O que você digitou neste protocolo será descartado.</p>
           <button type="button" className="btn-primario" onClick={() => setSair(false)}>Continuar editando</button>
           <button type="button" className="btn-neutro text-erro" onClick={() => { setSair(false); sairDoAssistente(r, LISTA_PROTOCOLOS) }}>Descartar</button>
         </Dialogo>
@@ -335,7 +335,7 @@ export function CriarSubstancia() {
             {([['simples', 'Simples', '1 substância'], ['blend', 'Blend', 'vários no mesmo frasco']] as const).map(([v, t, d]) => (
               <button key={v} type="button" aria-pressed={tipo === v} onClick={() => setTipo(v)} className={`flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-xl border ${tipo === v ? 'border-2 border-acento bg-selecionado text-acento' : 'border-borda bg-sup'}`}>
                 <b className="text-base">{t}</b>
-                <span className="text-xs text-fraco">{d}</span>
+                <span className="text-mini text-fraco">{d}</span>
               </button>
             ))}
           </div>
@@ -422,13 +422,13 @@ export function EditorBlend() {
         <input className="campo" value={nome} onChange={(e) => { setNome(e.target.value); setErro('') }} placeholder="Ex.: Blend pele 70 mg" />
       </label>
       {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
-      <p className="m-0 text-[13px] leading-relaxed text-fraco">Este nome aparece em todas as telas e vira o nome do protocolo se você não der outro. Componentes são opcionais: só aparecem aqui e na reconstituição.</p>
+      <p className="m-0 text-sm leading-relaxed text-fraco">Este nome aparece em todas as telas e vira o nome do protocolo se você não der outro. Componentes são opcionais: só aparecem aqui e na reconstituição.</p>
       <section className="flex flex-col gap-2.5">
-        <h2 className="text-[17px] font-bold">Componentes no mesmo frasco</h2>
+        <h2 className="text-xl font-bold">Componentes no mesmo frasco</h2>
         {comps.map((c, i) => (
           <div key={c.k} className="card flex flex-col gap-2 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-bold text-fraco">Componente {i + 1}</span>
+              <span className="text-sm font-bold text-fraco">Componente {i + 1}</span>
               <button type="button" className="icone-btn -mr-2" aria-label={`Remover componente ${i + 1}`} onClick={() => setComps(comps.filter((x) => x.k !== c.k))}><IcoX tam={18} /></button>
             </div>
             <input className="campo" aria-label={`Nome do componente ${i + 1}`} placeholder="Nome" value={c.nome} onChange={(e) => setComps(comps.map((x) => (x.k === c.k ? { ...x, nome: e.target.value } : x)))} />
@@ -444,7 +444,7 @@ export function EditorBlend() {
         <button type="button" className="btn-secundario" onClick={() => setComps([...comps, { k: crypto.randomUUID(), nome: '', qtd: '', unidade: 'mg' }])}>
           <IcoMais tam={20} /> Adicionar componente
         </button>
-        {componentes.length === 1 && <p className="m-0 text-[13px] text-aviso">Blend costuma ter 2 ou mais componentes. Se for só 1, crie como substância simples.</p>}
+        {componentes.length === 1 && <p className="m-0 text-sm text-aviso">Blend costuma ter 2 ou mais componentes. Se for só 1, crie como substância simples.</p>}
         {soma !== null && <p className="m-0 text-sm font-semibold text-suave">Soma informada: {fmtNum(soma)} mg por frasco</p>}
       </section>
       <Nota>Quantidades são opcionais e vêm do rótulo. O app não calcula dose de cada componente.</Nota>
@@ -552,7 +552,7 @@ export function PassoFrequencia() {
       {it.freqTipo === 'semana' && (
         <div role="group" aria-label="Dias da semana" className="grid grid-cols-7 gap-1">
           {SEMANA_CURTA.map((d, k) => (
-            <button key={d} type="button" aria-pressed={it.dias.includes(k)} className="chip px-0 text-[13px]" onClick={() => rascunho.mudarItem((i) => ({ dias: i.dias.includes(k) ? i.dias.filter((x) => x !== k) : [...i.dias, k] }))}>
+            <button key={d} type="button" aria-pressed={it.dias.includes(k)} className="chip px-0 text-sm" onClick={() => rascunho.mudarItem((i) => ({ dias: i.dias.includes(k) ? i.dias.filter((x) => x !== k) : [...i.dias, k] }))}>
               {d}
             </button>
           ))}
@@ -572,7 +572,7 @@ export function PassoFrequencia() {
           <input type="time" aria-label="Horário" className="campo" value={hora} onChange={(e) => setHora(e.target.value)} />
           <button type="button" className="btn-secundario w-auto shrink-0" onClick={add}><IcoMais tam={18} /> Adicionar</button>
         </div>
-        {it.horarios.length > 0 && <span className="text-[13px] text-fraco">Toque num horário para remover.</span>}
+        {it.horarios.length > 0 && <span className="text-sm text-fraco">Toque num horário para remover.</span>}
       </section>
       {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
     </Etapa>
@@ -667,7 +667,7 @@ export function PassoRevisao() {
       <label className="rotulo text-sm text-texto">
         <span>Nome do protocolo <span className="font-medium text-fraco">(opcional)</span></span>
         <input className="campo font-medium" maxLength={MAX_NOME_PROTOCOLO} placeholder="Ex.: meu protocolo da pele" value={r.nome} onChange={(e) => rascunho.mudar(() => ({ nome: e.target.value }))} />
-        <span className="text-[13px] leading-snug font-medium text-fraco">
+        <span className="text-sm leading-snug font-medium text-fraco">
           Se deixar vazio, usamos o nome do composto (aqui, {nomePadrao}). Até {MAX_NOME_PROTOCOLO} caracteres; nomes repetidos são aceitos e diferenciados pela data de início.
         </span>
       </label>
@@ -694,8 +694,8 @@ export function PassoRevisao() {
       <div className="card flex flex-col gap-3 px-4 py-3">
         <label className="flex min-h-11 items-center justify-between gap-3">
           <span className="flex flex-col gap-0.5">
-            <b className="text-[15px]">Ciclo com pausa</b>
-            <span className="text-[13px] text-fraco">Ex.: X dias sim, Y dias não. Opcional.</span>
+            <b className="text-sm">Ciclo com pausa</b>
+            <span className="text-sm text-fraco">Ex.: X dias sim, Y dias não. Opcional.</span>
           </span>
           <input type="checkbox" role="switch" className="h-6 w-6" checked={r.ciclo} onChange={(e) => rascunho.mudar(() => ({ ciclo: e.target.checked }))} />
         </label>
@@ -710,7 +710,7 @@ export function PassoRevisao() {
       </div>
 
       <section aria-label="Resumo" className="flex flex-col gap-2.5">
-        <span className="text-[13px] font-bold tracking-wide text-fraco uppercase">Confira antes de salvar</span>
+        <span className="text-xs font-bold tracking-wide text-fraco uppercase">Confira antes de salvar</span>
         {r.itens.map((i, k) => {
           const frascos = i.substanciaId ? frascosNaOrdem(i.substanciaId, base.frascos, base.aplicacoes, hojeStr()) : []
           const novoFrasco = frascoNovoDe(i, r.inicio)
@@ -720,7 +720,7 @@ export function PassoRevisao() {
           return (
             <div key={i.id} className="card flex flex-col gap-1.5 p-4">
               <b className="text-lg break-words">{subNome(i) || 'Sem substância'} · {doseDaLinha}</b>
-              <span className="text-[15px] leading-normal text-suave">
+              <span className="text-sm leading-normal text-suave">
                 {descreverFrequencia(frequenciaDe(i), i.horarios).replace(/^./, (c) => c.toUpperCase())}
                 {r.inicio && `, de ${dataCurta(r.inicio)}${fim ? ` a ${dataCurta(fim)}` : ' sem data de fim'}`}
                 {r.duracaoTipo !== 'sem-fim' && ` (${r.duracaoValor} ${r.duracaoTipo})`}
@@ -760,7 +760,7 @@ export function PassoRevisao() {
       </section>
       <button
         type="button"
-        className="link gap-2 text-[15px]"
+        className="link gap-2 text-sm"
         onClick={() => {
           rascunho.mudar((x) => ({ itens: [...x.itens, itemVazio()], atual: x.itens.length }))
           nav('/novo/substancia', { replace: true })
@@ -770,7 +770,7 @@ export function PassoRevisao() {
       </button>
       {confirmar && (
         <Dialogo titulo="Salvar a alteração?" aoFechar={() => setConfirmar(false)}>
-          <p className="m-0 text-[15px] text-suave">Vale a partir de hoje. As doses já registradas continuam com o valor da época.</p>
+          <p className="m-0 text-sm text-suave">Vale a partir de hoje. As doses já registradas continuam com o valor da época.</p>
           <div className="flex flex-col gap-1.5 rounded-xl bg-sup2 p-3 text-sm">
             <span><b className="text-fraco">Antes:</b> {r.antes}</span>
             <span><b className="text-acento">Depois:</b> {depois}</span>
@@ -809,7 +809,7 @@ export function SeletorCor({ valor, aoMudar }: { valor: string; aoMudar: (cor: s
           )
         })}
       </div>
-      <span className="text-[13px] font-medium text-fraco">Só para reconhecer o cartão de relance. O nome continua aparecendo.</span>
+      <span className="text-sm font-medium text-fraco">Só para reconhecer o cartão de relance. O nome continua aparecendo.</span>
     </div>
   )
 }
