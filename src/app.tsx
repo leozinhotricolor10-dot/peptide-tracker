@@ -7,6 +7,7 @@ import { Carregando, Dialogo } from './ui/base.tsx'
 import { IcoAlerta, IcoEstoque, IcoHoje, IcoNuvemOff, IcoPeso, IcoProtocolos } from './ui/icones.tsx'
 import { ToastProvider, useToast } from './ui/toast.tsx'
 import { DoseUIProvider } from './telas/dose.tsx'
+import { PedidoAvisos } from './telas/inicio.tsx'
 import { EVENTO_HORA_DOSE, iniciarAgendador } from './sistema/avisos.ts'
 import type { Slot } from './dominio/agenda.ts'
 import { nomeSubstancia } from './dominio/nomes.ts'
@@ -164,20 +165,18 @@ export function Raiz() {
         {comAbas && <Abas />}
         <EspacoCheio />
         <AvisoNoApp />
+        {aceite.valor && <PedidoAvisos />}
         <FalhaSilenciosa />
       </DoseUIProvider>
     </ToastProvider>
   )
 }
 
-/** '/' decide para onde ir. */
+/** '/' decide para onde ir: sem aceite, boas-vindas; com aceite (inclusive o da versão anterior), Hoje. */
 export function Inicio() {
   const aceite = useConfig('aceite')
-  const onb = useConfig('onboarding')
-  if (!aceite.carregado || !onb.carregado) return <Carregando />
-  if (!aceite.valor) return <Navigate to="/boas-vindas" replace />
-  if (!onb.valor) return <Navigate to="/instalar?primeiro=1" replace />
-  return <Navigate to="/hoje" replace />
+  if (!aceite.carregado) return <Carregando />
+  return <Navigate to={aceite.valor ? '/hoje' : '/boas-vindas'} replace />
 }
 
 /** Tela de erro (no lugar de uma tela branca) quando algo quebra, ex.: armazenamento do navegador bloqueado. */

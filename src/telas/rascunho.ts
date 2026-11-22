@@ -2,7 +2,8 @@
 import { useSyncExternalStore } from 'react'
 import type { Frasco, Frequencia, ItemProtocolo, Protocolo, UnidadeDose } from '../dominio/tipos.ts'
 import { difDias, hojeStr, somaDias } from '../dominio/datas.ts'
-import { fmtNum, lerNumero } from '../dominio/calculos.ts'
+import { fmtDose, fmtNum, lerNumero } from '../dominio/calculos.ts'
+import { descreverFrequencia } from '../dominio/agenda.ts'
 import { novoId } from '../dados/repo.ts'
 
 export interface ItemRascunho {
@@ -10,6 +11,8 @@ export interface ItemRascunho {
   substanciaId?: string
   doseTxt: string
   doseUnidade?: UnidadeDose
+  /** Unidade posta pelo app (padrão mg ou a já conhecida da substância); vira false quando a pessoa toca numa unidade. */
+  unidadeAuto?: boolean
   freqTipo: 'diaria' | 'cadaN' | 'semana'
   cadaN: string
   dias: number[]
@@ -65,7 +68,8 @@ function gravar(r: Rascunho | null) {
 }
 
 export function itemVazio(): ItemRascunho {
-  return { id: novoId(), doseTxt: '', freqTipo: 'diaria', cadaN: '2', dias: [], horarios: [] }
+  // Unidade já marcada (mg) e um horário (08:00): o caminho padrão não para em "Escolha a unidade".
+  return { id: novoId(), doseTxt: '', doseUnidade: 'mg', unidadeAuto: true, freqTipo: 'diaria', cadaN: '2', dias: [], horarios: ['08:00'] }
 }
 
 export function novoRascunho(): Rascunho {
@@ -74,7 +78,8 @@ export function novoRascunho(): Rascunho {
     protocoloId: novoId(),
     nome: '',
     inicio: hojeStr(),
-    duracaoTipo: 'semanas',
+    // Padrão: começa hoje e sem data de fim (fim, ciclo, nome e cor ficam em "Mais opções").
+    duracaoTipo: 'sem-fim',
     duracaoValor: '8',
     ciclo: false,
     diasOn: '5',
@@ -90,6 +95,7 @@ function paraItemRascunho(i: ItemProtocolo, manterId: boolean): ItemRascunho {
     substanciaId: i.substanciaId,
     doseTxt: fmtNum(i.doseValor).replace(/\./g, ''),
     doseUnidade: i.doseUnidade,
+    unidadeAuto: false,
     freqTipo: i.frequencia.tipo,
     cadaN: i.frequencia.tipo === 'cadaN' ? String(i.frequencia.n) : '2',
     dias: i.frequencia.tipo === 'semana' ? i.frequencia.dias : [],
@@ -217,7 +223,9 @@ export function validarRascunho(r: Rascunho): Validacao {
     const p = r.itens.length > 1 ? `Linha ${k + 1}: ` : ''
     if (!i.substanciaId) erros.push(`${p}escolha a substância.`)
     if (!((lerNumero(i.doseTxt) ?? 0) > 0) || !i.doseUnidade) erros.push(`${p}informe a dose e a unidade.`)
-    if (!i.horarios.length) erros.push(`${p}adicione pelo menos um horário.`)
+    const horas = i.horarios.filter(horaValida)
+    if (!horas.length) erros.push(`${p}adicione pelo menos um horário.`)
+    else if (horas.length < i.horarios.length) erros.push(`${p}preencha ou remova o horário vazio.`)
     if (i.freqTipo === 'semana' && !i.dias.length) erros.push(`${p}escolha os dias da semana.`)
     if (calculoInvalido(i)) erros.push(`${p}confira os números do frasco na calculadora (mg do frasco e mL de água) ou apague-os.`)
   })
@@ -250,9 +258,42 @@ export function montarProtocolo(r: Rascunho): { protocolo: Protocolo; itens: Ite
     doseValor: lerNumero(i.doseTxt) ?? 0,
     doseUnidade: i.doseUnidade ?? 'mg',
     frequencia: frequenciaDe(i),
-    horarios: [...new Set(i.horarios)].sort(),
+    horarios: [...new Set(i.horarios.filter(horaValida))].sort(),
     frascoId: i.frascoId,
     ordem,
   }))
   return { protocolo, itens }
+}
+
+const horaValida = (h: string) => /^\d{2}:\d{2}$/.test(h)
+
+/**
+ * Unidade que já vem marcada ao escolher a substância: a última usada com ela num protocolo; sem
+ * histórico, "unidades" para blend (a conta de blend é só de volume) e "mg" para o resto.
+ * Só escolhe a unidade, nunca o número da dose.
+ */
+export function unidadeInicial(sub: { id: string; tipo: 'simples' | 'blend' }, itens: { substanciaId: string; doseUnidade: UnidadeDose }[]): UnidadeDose {
+  const usadas = itens.filter((i) => i.substanciaId === sub.id)
+  if (usadas.length) return usadas[usadas.length - 1].doseUnidade
+  return sub.tipo === 'blend' ? 'unidades' : 'mg'
+}
+
+/**
+ * Algum campo de "Mais opções" fora do padrão: nome, data de fim, ciclo ou mais de uma substância
+ * (editar abre a seção já aberta). A data de início só conta num cadastro novo: todo protocolo
+ * salvo tem uma, e abrir sempre esconderia o caso simples. A cor não conta (sempre tem uma).
+ */
+export function temOpcoesAvancadas(r: Rascunho): boolean {
+  return !!r.nome.trim() || r.duracaoTipo !== 'sem-fim' || r.ciclo || r.itens.length > 1 || (r.modo === 'novo' && r.inicio !== hojeStr())
+}
+
+/** Texto do botão de salvar: o resumo do que vai ser salvo ("2 mg, 1x por semana, sex às 08:00"). */
+export function resumoDoSalvar(r: Rascunho): string {
+  if (r.itens.length > 1) return `${r.itens.length} substâncias`
+  const i = r.itens[0]
+  const v = lerNumero(i.doseTxt)
+  const dose = v !== null && v > 0 && i.doseUnidade ? fmtDose(v, i.doseUnidade) : ''
+  const f = frequenciaDe(i)
+  const vezes = f.tipo === 'semana' && f.dias.length ? `${f.dias.length * Math.max(1, i.horarios.filter(horaValida).length)}x por semana, ` : ''
+  return [dose, `${vezes}${descreverFrequencia(f, i.horarios.filter(horaValida))}`].filter(Boolean).join(', ')
 }

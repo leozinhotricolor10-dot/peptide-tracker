@@ -8,7 +8,7 @@ import { servir } from '../tools/servir-pages.mjs'
 const { url: BASE, fechar } = await servir(4199)
 const navegador = await chromium.launch({ channel: process.env.E2E_CANAL ?? 'chrome', headless: true })
 const contexto = await navegador.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
-const page = await contexto.newPage()
+let page = await contexto.newPage()
 const problemas = []
 page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && problemas.push(`console ${m.type()}: ${m.text()}`))
 page.on('pageerror', (e) => problemas.push(`erro na página: ${e.message}`))
@@ -35,47 +35,111 @@ const h1 = () => page.locator('h1').first().textContent()
 const igual = (a, b, msg) => {
   if (a !== b) throw new Error(`${msg}: esperado ${JSON.stringify(b)}, veio ${JSON.stringify(a)}`)
 }
+const lerConfig = (chave) => page.evaluate(async (k) => {
+  const r = indexedDB.open('peptide-tracker')
+  const db = await new Promise((ok, falha) => { r.onsuccess = () => ok(r.result); r.onerror = () => falha(r.error) })
+  const v = await new Promise((ok) => { const q = db.transaction('config').objectStore('config').get(k); q.onsuccess = () => ok(q.result?.valor) })
+  db.close()
+  return v
+}, chave)
+const gravarConfig = (chave, valor) => page.evaluate(async ([k, v]) => {
+  const r = indexedDB.open('peptide-tracker')
+  const db = await new Promise((ok, falha) => { r.onsuccess = () => ok(r.result); r.onerror = () => falha(r.error) })
+  await new Promise((ok) => { const t = db.transaction('config', 'readwrite'); t.objectStore('config').put({ chave: k, valor: v }); t.oncomplete = ok })
+  db.close()
+}, [chave, valor])
+/** Tela sem rolagem lateral, sem alvo < 44 px (checkbox e opção contam pela linha inteira) e sem texto em inglês. */
+const conferirTela = async (onde, raiz = '#root') => {
+  const larg = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
+  if (larg[0] > larg[1]) throw new Error(`${onde}: rolagem lateral ${larg.join(' > ')}`)
+  const pequenos = await page.evaluate((r) =>
+    [...document.querySelectorAll(`${r} a, ${r} button, ${r} select, ${r} input`)]
+      .filter((el) => el.offsetParent !== null || el.closest('label')?.offsetParent)
+      .map((el) => (el.matches('input[type=checkbox], input[type=radio]') && el.closest('label')) || el)
+      .map((el) => ({ t: (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 30), r: el.getBoundingClientRect() }))
+      .filter((x) => x.r.height < 43.5 || x.r.width < 43.5)
+      .map((x) => `${x.t} ${Math.round(x.r.width)}x${Math.round(x.r.height)}`), raiz)
+  if (pequenos.length) throw new Error(`${onde}: alvo pequeno ${pequenos.join(', ')}`)
+  const ingles = (await page.locator(raiz).first().innerText()).match(/\b(Share|Cancel|Download|Error|undefined|NaN|null|Storage|Send|Backup saved)\b/g)
+  if (ingles) throw new Error(`${onde}: texto em inglês ${ingles.join(', ')}`)
+}
 
-await passo('abre na subpasta e cai nas boas-vindas', async () => {
+/** Tudo o que o app gravou no aparelho (tabelas do IndexedDB). */
+const tudoNoBanco = (p = page) => p.evaluate(async () => {
+  const r = indexedDB.open('peptide-tracker')
+  const db = await new Promise((ok, falha) => { r.onsuccess = () => ok(r.result); r.onerror = () => falha(r.error) })
+  const out = {}
+  for (const t of db.objectStoreNames) out[t] = await new Promise((ok) => { const q = db.transaction(t).objectStore(t).getAll(); q.onsuccess = () => ok(q.result) })
+  db.close()
+  return out
+})
+const PEDIDO_AVISOS = 'Quer ser avisado na hora da dose?'
+const pedidoAvisos = (p = page) => p.getByRole('alertdialog', { name: PEDIDO_AVISOS })
+const salvarProtocolo = (p = page) => p.locator('[data-salvar]').click()
+
+await passo('abre na subpasta e cai nas boas-vindas (boas-vindas e aviso 18+ na mesma tela)', async () => {
   await page.goto(BASE)
   await page.waitForURL(/#\/boas-vindas$/)
+  igual(await h1(), 'Seu diário de protocolos', 'título')
+  await page.getByText('só um registro pessoal', { exact: true }).waitFor()
+  await L('Privacidade').waitFor()
+  await L('Termos de uso').waitFor()
+  await conferirTela('boas-vindas (390)')
+  await capturar('boas-vindas-390')
 })
-await passo('recusar o aviso 18+ leva à saída sem gravar aceite', async () => {
-  await L('Começar').click()
-  igual(await B('Aceitar e continuar').isDisabled(), true, 'botão de aceitar inativo')
+await passo('recusar o aviso 18+ leva à saída sem gravar nada', async () => {
+  igual(await B('Começar').isDisabled(), true, 'botão Começar inativo sem as duas caixas')
+  igual(await B('Pular, ver o app primeiro').isDisabled(), true, 'Pular inativo sem as duas caixas')
+  await page.getByLabel('Tenho 18 anos ou mais').check() // marcar só uma não grava nada
   await L('Não aceito').click()
   await page.getByRole('heading', { name: 'Tudo bem', level: 1 }).waitFor() // espera a troca de tela (antes lia o título cedo demais)
+  const b = await tudoNoBanco()
+  const gravado = Object.entries(b).filter(([, v]) => v.length).map(([k]) => k)
+  igual(gravado.join(','), '', 'nenhuma tabela com dado depois de recusar')
   await page.goto(BASE + '#/hoje')
   await page.waitForURL(/#\/boas-vindas$/)
+  await page.goto(BASE + '#/aviso') // endereço antigo do aviso
+  await page.waitForURL(/#\/boas-vindas$/)
 })
-await passo('aceitar e passar pelo onboarding', async () => {
-  await L('Começar').click()
+await passo('aceitar e criar o 1º protocolo em 2 passos (dose 1.000 é recusada, 250 mcg aceita); salvo, vai para a Hoje', async () => {
   await page.getByLabel('Tenho 18 anos ou mais').check()
   await page.getByLabel('Entendi que o app é só um registro pessoal').check()
-  await B('Aceitar e continuar').click()
-  await page.waitForURL(/#\/instalar/)
-  await B('Agora não').click()
-  await page.waitForURL(/#\/lembrar/)
-  await B('Fazer isso depois').click()
-  await page.waitForURL(/#\/hoje$/)
-})
-await passo('criar protocolo da lista (dose 1.000 é recusada, 250 mcg aceita)', async () => {
-  await L('Criar protocolo').click()
+  await B('Começar').click()
+  await page.waitForURL(/#\/novo\/substancia$/)
+  await page.getByText('Passo 1 de 2').waitFor()
+  const aceite = (await tudoNoBanco()).config.find((c) => c.chave === 'aceite')?.valor
+  igual(aceite?.versao, '1', 'aceite gravado com a versão do aviso')
+  if (!aceite || Number.isNaN(new Date(aceite.em).getTime())) throw new Error('aceite sem data')
   await page.getByPlaceholder('Buscar ou digitar o nome').fill('bpc')
   await page.getByRole('option', { name: /BPC-157/ }).first().click()
-  await page.getByRole('button', { name: /Continuar com/ }).click()
+  igual(await B('mg').getAttribute('aria-pressed'), 'true', 'unidade mg já marcada')
   await page.getByPlaceholder('Digite o número').fill('1.000')
   await B('mcg').click()
   await B('Continuar').click()
   if (!/vírgula/.test((await page.getByRole('alert').textContent()) ?? '')) throw new Error('faltou o aviso do número ambíguo')
   await page.getByPlaceholder('Digite o número').fill('250')
   await B('Continuar').click()
+  await page.waitForURL(/#\/novo\/frequencia$/)
+  await page.getByText('Passo 2 de 2').waitFor()
+  igual(await page.getByRole('button', { name: /^Mais opções/ }).getAttribute('aria-expanded'), 'false', 'Mais opções fechado no cadastro novo')
   await page.getByLabel('Horário', { exact: true }).fill('00:00')
-  await page.getByRole('button', { name: /Adicionar/ }).click()
-  await B('Continuar').click()
-  await B('Salvar protocolo').click()
-  await page.waitForURL(/#\/protocolos\/[\w-]+$/)
-  igual(await h1(), 'BPC-157', 'nome do protocolo')
+  igual((await page.locator('[data-salvar]').textContent()).trim(), 'Salvar · 250 mcg, todo dia às 00:00', 'resumo no botão')
+  await salvarProtocolo()
+  await page.waitForURL(/#\/hoje$/)
+  igual(await page.getByText('Escolha a unidade.').count(), 0, 'sem erro de unidade')
+})
+await passo('pedido de avisos aparece logo depois do 1º protocolo; "Agora não" grava e não repete (nem após F5)', async () => {
+  await pedidoAvisos().waitFor()
+  await page.waitForTimeout(400) // fim da animação de entrada do diálogo
+  await conferirTela('pedido de avisos', '[role=alertdialog]')
+  await capturar('pedido-avisos-390')
+  await pedidoAvisos().getByRole('button', { name: 'Agora não', exact: true }).click()
+  await pedidoAvisos().waitFor({ state: 'detached' })
+  igual(await lerConfig('pedidoAvisos'), 'respondido', 'resposta gravada')
+  await page.reload()
+  await page.getByRole('heading', { name: 'Hoje', level: 1 }).waitFor()
+  await page.waitForTimeout(500)
+  igual(await pedidoAvisos().count(), 0, 'não repete depois do F5')
 })
 await passo('registrar a dose atrasada, desfazer e registrar de novo', async () => {
   await page.goto(BASE + '#/hoje')
@@ -90,12 +154,11 @@ await passo('registrar a dose atrasada, desfazer e registrar de novo', async () 
   await B('Salvar registro').click()
   await page.locator('main', { hasText: 'Tomada às' }).waitFor()
 })
-await passo('calculadora do passo 2: 5 mg em 2 mL, 250 mcg = 10 unidades, 20 doses; arredondamento à mostra; o frasco vai sozinho para o Estoque', async () => {
+await passo('calculadora do passo 1: 5 mg em 2 mL, 250 mcg = 10 unidades, 20 doses; arredondamento à mostra; o frasco vai sozinho para o Estoque', async () => {
   await page.goto(BASE + '#/protocolos')
   await L('Novo').click()
   await page.getByPlaceholder('Buscar ou digitar o nome').fill('bpc')
   await page.getByRole('option', { name: /BPC-157/ }).first().click()
-  await page.getByRole('button', { name: /Continuar com/ }).click()
   await page.getByPlaceholder('Digite o número').fill('250')
   await B('mcg').click()
   const calc = page.locator('section', { has: page.getByRole('heading', { name: 'Calculadora da seringa' }) })
@@ -119,11 +182,10 @@ await passo('calculadora do passo 2: 5 mg em 2 mL, 250 mcg = 10 unidades, 20 dos
   await calc.getByText('O frasco entra no Estoque para você acompanhar o saldo').waitFor()
   await B('Continuar').click()
   await page.getByLabel('Horário', { exact: true }).fill('09:00')
-  await page.getByRole('button', { name: /Adicionar/ }).click()
-  await B('Continuar').click()
   await page.getByText('Frasco novo: 5 mg + 2 mL').waitFor()
-  await B('Salvar protocolo').click()
+  await salvarProtocolo()
   await page.waitForURL(/#\/protocolos\/[\w-]+$/)
+  igual(await pedidoAvisos().count(), 0, 'pedido de avisos só no 1º protocolo')
 })
 await passo('depois de salvar: voltar, fechar, voltar de novo, avançar e F5 nunca reabrem passos nem travam em Carregando', async () => {
   const conferir = async (onde) => {
@@ -259,7 +321,6 @@ await passo('protocolo com a calculadora: o frasco aparece no Estoque ligado ao 
   await L('Novo').click()
   await page.getByPlaceholder('Buscar ou digitar o nome').fill('tesamo')
   await page.getByRole('option', { name: /Tesamorelina/ }).first().click()
-  await page.getByRole('button', { name: /Continuar com/ }).click()
   await page.getByPlaceholder('Digite o número').fill('2')
   await B('mg').click()
   await page.getByLabel('No frasco (mg)').fill('10')
@@ -267,10 +328,8 @@ await passo('protocolo com a calculadora: o frasco aparece no Estoque ligado ao 
   await page.getByText('O frasco entra no Estoque para você acompanhar o saldo').waitFor()
   await B('Continuar').click()
   await page.getByLabel('Horário', { exact: true }).fill('00:00')
-  await page.getByRole('button', { name: /Adicionar/ }).click()
-  await B('Continuar').click()
   await page.getByText('Frasco novo: 10 mg + 2 mL').waitFor()
-  await B('Salvar protocolo').click()
+  await salvarProtocolo()
   await page.waitForURL(/#\/protocolos\/[\w-]+$/)
   await page.getByRole('status').filter({ hasText: 'frasco no Estoque' }).waitFor()
   const b = await lerBanco()
@@ -307,18 +366,15 @@ await passo('protocolo sem dados do frasco: selo "Sem frasco no estoque", atalho
   await L('Novo').click()
   await page.getByPlaceholder('Buscar ou digitar o nome').fill('retatru')
   await page.getByRole('option', { name: /Retatrutida/ }).first().click()
-  await page.getByRole('button', { name: /Continuar com/ }).click()
   await page.getByPlaceholder('Digite o número').fill('2')
   await B('mg').click()
   await B('Continuar').click()
   await page.getByLabel('Horário', { exact: true }).fill('23:59')
-  await page.getByRole('button', { name: /Adicionar/ }).click()
-  await B('Continuar').click()
-  await page.getByText(/Sem frasco no estoque\. Depois de salvar/).waitFor()
+  await page.getByRole('button', { name: /^Mais opções/ }).click()
   const violeta = page.getByRole('radio', { name: 'Violeta' })
   await violeta.click()
   igual(await violeta.getAttribute('aria-checked'), 'true', 'cor escolhida marcada')
-  await B('Salvar protocolo').click()
+  await salvarProtocolo()
   await page.waitForURL(/#\/protocolos\/[\w-]+$/)
   reta = (await lerBanco()).protocolos.find((p) => page.url().endsWith(p.id))
   igual(reta.cor, 'violeta', 'cor gravada')
@@ -660,12 +716,11 @@ await passo('nenhum alvo de toque menor que 44 px nas telas novas', async () => 
 const DOSE_10 = /2\s*mg · 10\s*un/
 const DOSE_20 = /2\s*mg · 20\s*un/
 let ipa
-await passo('unidades: cadastro com a calculadora (10 mg em 0,5 mL, dose 2 mg) mostra "2 mg · 10 un" na revisão, no detalhe, em Protocolos e em Hoje', async () => {
+await passo('unidades: cadastro com a calculadora (10 mg em 0,5 mL, dose 2 mg) mostra "2 mg · 10 un" no passo 2, no detalhe, em Protocolos e em Hoje', async () => {
   await page.goto(BASE + '#/protocolos')
   await L('Novo').click()
   await page.getByPlaceholder('Buscar ou digitar o nome').fill('ipamo')
   await page.getByRole('option', { name: /Ipamorelina/ }).first().click()
-  await page.getByRole('button', { name: /Continuar com/ }).click()
   await page.getByPlaceholder('Digite o número').fill('2')
   await B('mg').click()
   const calc = page.locator('section', { has: page.getByRole('heading', { name: 'Calculadora da seringa' }) })
@@ -674,10 +729,8 @@ await passo('unidades: cadastro com a calculadora (10 mg em 0,5 mL, dose 2 mg) m
   await calc.getByText('10 unidades', { exact: true }).waitFor() // a calculadora e o resto do app dão o mesmo número
   await B('Continuar').click()
   await page.getByLabel('Horário', { exact: true }).fill('00:01')
-  await page.getByRole('button', { name: /Adicionar/ }).click()
-  await B('Continuar').click()
   await page.getByText(/Ipamorelina · 2\s*mg · 10\s*un/).waitFor()
-  await B('Salvar protocolo').click()
+  await salvarProtocolo()
   await page.waitForURL(/#\/protocolos\/[\w-]+$/)
   ipa = (await lerBanco()).protocolos.find((p) => page.url().endsWith(p.id))
   await page.locator('main').getByText(/2\s*mg · 10\s*un · todo dia/i).waitFor()
@@ -755,14 +808,11 @@ await passo('unidades: frasco lacrado e protocolo sem frasco mostram só mg (com
   await L('Novo').click()
   await page.getByPlaceholder('Buscar ou digitar o nome').fill('semag')
   await page.getByRole('option', { name: /Semaglutida/ }).first().click()
-  await page.getByRole('button', { name: /Continuar com/ }).click()
   await page.getByPlaceholder('Digite o número').fill('0,25')
   await B('mg').click()
   await B('Continuar').click()
   await page.getByLabel('Horário', { exact: true }).fill('23:58')
-  await page.getByRole('button', { name: /Adicionar/ }).click()
-  await B('Continuar').click()
-  await B('Salvar protocolo').click()
+  await salvarProtocolo()
   await page.waitForURL(/#\/protocolos\/[\w-]+$/)
   await page.locator('main').getByText(/^0,25\s*mg · todo dia/i).waitFor()
   igual(await page.locator('main').getByText(/0,25\s*mg · [\d,]+\s*un/).count(), 0, 'sem frasco: sem unidades')
@@ -805,34 +855,6 @@ await passo('unidades em 360 × 640: sem rolagem lateral, sem alvo pequeno, núm
 })
 // ---------- backup assistido ----------
 const lembrete = () => page.locator('[data-lembrete-backup]')
-const lerConfig = (chave) => page.evaluate(async (k) => {
-  const r = indexedDB.open('peptide-tracker')
-  const db = await new Promise((ok, falha) => { r.onsuccess = () => ok(r.result); r.onerror = () => falha(r.error) })
-  const v = await new Promise((ok) => { const q = db.transaction('config').objectStore('config').get(k); q.onsuccess = () => ok(q.result?.valor) })
-  db.close()
-  return v
-}, chave)
-const gravarConfig = (chave, valor) => page.evaluate(async ([k, v]) => {
-  const r = indexedDB.open('peptide-tracker')
-  const db = await new Promise((ok, falha) => { r.onsuccess = () => ok(r.result); r.onerror = () => falha(r.error) })
-  await new Promise((ok) => { const t = db.transaction('config', 'readwrite'); t.objectStore('config').put({ chave: k, valor: v }); t.oncomplete = ok })
-  db.close()
-}, [chave, valor])
-/** Tela sem rolagem lateral, sem alvo < 44 px (checkbox conta pela linha inteira) e sem texto em inglês. */
-const conferirTela = async (onde, raiz = '#root') => {
-  const larg = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth])
-  if (larg[0] > larg[1]) throw new Error(`${onde}: rolagem lateral ${larg.join(' > ')}`)
-  const pequenos = await page.evaluate((r) =>
-    [...document.querySelectorAll(`${r} a, ${r} button, ${r} select, ${r} input`)]
-      .filter((el) => el.offsetParent !== null || el.closest('label')?.offsetParent)
-      .map((el) => (el.matches('input[type=checkbox]') && el.closest('label')) || el)
-      .map((el) => ({ t: (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 30), r: el.getBoundingClientRect() }))
-      .filter((x) => x.r.height < 43.5 || x.r.width < 43.5)
-      .map((x) => `${x.t} ${Math.round(x.r.width)}x${Math.round(x.r.height)}`), raiz)
-  if (pequenos.length) throw new Error(`${onde}: alvo pequeno ${pequenos.join(', ')}`)
-  const ingles = (await page.locator(raiz).first().innerText()).match(/\b(Share|Cancel|Download|Error|undefined|NaN|null|Storage|Send|Backup saved)\b/g)
-  if (ingles) throw new Error(`${onde}: texto em inglês ${ingles.join(', ')}`)
-}
 const RISCO = 'Seus dados ficam só neste aparelho. Se trocar de celular, limpar o navegador ou desinstalar o app, só o backup traz tudo de volta.'
 await passo('backup: depois dos registros de dose, o lembrete aparece em Atenção na Hoje, com o aviso de risco (390 e 360)', async () => {
   igual(await lerConfig('ultimoBackup'), undefined, 'ainda sem backup')
@@ -937,6 +959,213 @@ await passo('backup: tela Backup mostra último backup, armazenamento e tamanho;
   await conferirTela('erro do envio (360)', '[role=alertdialog]')
   await erro.getByRole('button', { name: 'Fechar' }).click()
   await page.setViewportSize({ width: 390, height: 844 })
+})
+// ---------- primeiro acesso curto: convite para instalar, contagem, Pular, editar, usuário antigo ----------
+await passo('editar protocolo sem campos avançados: as mesmas 2 telas, "Mais opções" fechado; com nome/fim: abre sozinho', async () => {
+  await page.goto(BASE + '#/protocolos/' + reta.id + '/editar')
+  await page.waitForURL(/#\/novo\/substancia$/)
+  await page.getByText('Passo 1 de 2').waitFor()
+  igual(await page.getByPlaceholder('Digite o número').inputValue(), '2', 'dose do protocolo')
+  igual(await B('mg').getAttribute('aria-pressed'), 'true', 'unidade gravada')
+  await B('Continuar').click()
+  await page.waitForURL(/#\/novo\/frequencia$/)
+  const mais = page.getByRole('button', { name: /^Mais opções/ })
+  igual(await mais.getAttribute('aria-expanded'), 'false', 'fechado: só a cor (automática ou escolhida) não abre')
+  await mais.click()
+  await page.getByPlaceholder('Ex.: meu protocolo da pele').fill('Ciclo de teste')
+  await page.getByLabel('Unidade da duração').selectOption('semanas')
+  await page.getByLabel('Duração', { exact: true }).fill('6')
+  await salvarProtocolo()
+  await page.getByRole('alertdialog', { name: 'Salvar a alteração?' }).getByRole('button', { name: 'Salvar a partir de hoje' }).click()
+  await page.waitForURL(new RegExp(`#/protocolos/${reta.id}$`))
+  igual(await h1(), 'Ciclo de teste', 'nome novo no detalhe')
+  await page.goto(BASE + '#/protocolos/' + reta.id + '/editar')
+  await page.waitForURL(/#\/novo\/substancia$/)
+  await B('Continuar').click()
+  igual(await page.getByRole('button', { name: /^Mais opções/ }).getAttribute('aria-expanded'), 'true', 'aberto com nome e fim preenchidos')
+  igual(await page.getByPlaceholder('Ex.: meu protocolo da pele').inputValue(), 'Ciclo de teste', 'nome no campo')
+  await conferirTela('editar, passo 2 com Mais opções')
+  await page.getByRole('button', { name: 'Voltar', exact: true }).click()
+  await page.waitForURL(/#\/novo\/substancia$/)
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  await page.waitForURL(new RegExp(`#/protocolos/${reta.id}$`))
+  igual(await pedidoAvisos().count(), 0, 'pedido de avisos não volta em outros protocolos')
+})
+
+/** Abre um aparelho novo (perfil limpo) no tamanho pedido, com a mesma checagem de console. */
+async function aparelhoNovo(largura, altura, extra = {}) {
+  const ctx = await navegador.newContext({ viewport: { width: largura, height: altura }, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo', ...extra })
+  const p = await ctx.newPage()
+  p.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && problemas.push(`console ${m.type()}: ${m.text()}`))
+  p.on('pageerror', (e) => problemas.push(`erro na página: ${e.message}`))
+  return { ctx, p }
+}
+/** Mesma checagem de tela (alvo >= 44 px, sem rolagem lateral, sem inglês) numa página qualquer. */
+async function conferirEm(p, onde, raiz = '#root') {
+  const antes = page
+  page = p
+  try { await conferirTela(onde, raiz) } finally { page = antes }
+}
+
+await passo('primeiro acesso mínimo (360 × 640): Boas-vindas+18+ → O quê e quanto → Quando → Hoje = 3 telas e 6 toques, unidade já marcada', async () => {
+  const { ctx, p } = await aparelhoNovo(360, 640)
+  let toques = 0
+  const toque = async (loc) => { toques++; await loc.click() }
+  const telas = []
+  const tela = async (nome) => {
+    await p.locator('h1').first().waitFor()
+    await p.waitForTimeout(350)
+    telas.push((await p.locator('h1').first().textContent()).trim())
+    await conferirEm(p, nome)
+  }
+  await p.goto(BASE)
+  await p.waitForURL(/#\/boas-vindas$/)
+  await tela('boas-vindas 360')
+  await toque(p.getByLabel('Tenho 18 anos ou mais'))
+  await toque(p.getByLabel('Entendi que o app é só um registro pessoal'))
+  await toque(p.getByRole('button', { name: 'Começar', exact: true }))
+  await p.waitForURL(/#\/novo\/substancia$/)
+  await tela('passo 1 busca 360')
+  await p.getByPlaceholder('Buscar ou digitar o nome').fill('tirze') // digitar (teclado), não conta como toque de botão
+  await toque(p.getByRole('option', { name: /Tirzepatida/ }).first())
+  igual(await p.getByRole('button', { name: 'mg', exact: true }).getAttribute('aria-pressed'), 'true', 'mg já marcado')
+  await p.getByPlaceholder('Digite o número').fill('2,5') // o campo da dose já vem com o cursor
+  await conferirEm(p, 'passo 1 dose 360')
+  await toque(p.getByRole('button', { name: 'Continuar', exact: true }))
+  await p.waitForURL(/#\/novo\/frequencia$/)
+  await tela('passo 2 360')
+  await toque(p.locator('[data-salvar]'))
+  await p.waitForURL(/#\/hoje$/)
+  igual(await p.getByText('Escolha a unidade.').count(), 0, 'sem "Escolha a unidade." no caminho padrão')
+  await p.getByRole('alertdialog', { name: PEDIDO_AVISOS }).waitFor()
+  await p.waitForTimeout(400) // fim da animação de entrada
+  await conferirEm(p, 'pedido de avisos 360', '[role=alertdialog]') // botões não encolhem no diálogo alto
+  igual(telas.length, 3, `telas antes da Hoje (${telas.join(' → ')})`)
+  igual(telas.join(' → '), 'Seu diário de protocolos → O quê e quanto → Quando', 'caminho')
+  if (toques > 6) throw new Error(`${toques} toques`)
+  const b = await tudoNoBanco(p)
+  igual(b.protocolos.length, 1, 'protocolo salvo')
+  igual(b.itens[0].doseUnidade, 'mg', 'unidade salva')
+  igual(b.itens[0].horarios.join(','), '08:00', 'horário padrão')
+  igual(b.protocolos[0].fim, undefined, 'sem data de fim por padrão')
+  console.log(`   ${telas.length} telas, ${toques} toques + a dose digitada`)
+  await ctx.close()
+})
+
+await passo('"Pular, ver o app primeiro" (boas-vindas e passo 1) leva à Hoje vazia; com permissão, "Sim" ativa os avisos', async () => {
+  const { ctx, p } = await aparelhoNovo(390, 844, { permissions: ['notifications'] })
+  await p.goto(BASE)
+  await p.waitForURL(/#\/boas-vindas$/)
+  await p.getByLabel('Tenho 18 anos ou mais').check()
+  await p.getByLabel('Entendi que o app é só um registro pessoal').check()
+  await p.getByRole('button', { name: 'Pular, ver o app primeiro', exact: true }).click()
+  await p.waitForURL(/#\/hoje$/)
+  await p.getByRole('heading', { name: 'Nada para hoje ainda' }).waitFor()
+  igual((await tudoNoBanco(p)).config.find((c) => c.chave === 'aceite')?.valor?.versao, '1', 'Pular também grava o aceite')
+  // Pular no passo 1 do primeiro acesso
+  await p.goto(BASE + '#/novo?saida=/hoje')
+  await p.waitForURL(/#\/novo\/substancia$/)
+  await p.getByRole('button', { name: 'Pular, ver o app primeiro', exact: true }).click()
+  await p.waitForURL(/#\/hoje$/)
+  await p.getByRole('heading', { name: 'Nada para hoje ainda' }).waitFor()
+  // criar pela Hoje vazia: o pedido aparece também aqui (é o 1º protocolo) e "Sim" ativa
+  await p.getByRole('link', { name: 'Criar protocolo', exact: true }).click()
+  await p.getByPlaceholder('Buscar ou digitar o nome').fill('semag')
+  await p.getByRole('option', { name: /Semaglutida/ }).first().click()
+  await p.getByPlaceholder('Digite o número').fill('0,25')
+  await p.getByRole('button', { name: 'Continuar', exact: true }).click()
+  await p.locator('[data-salvar]').click()
+  await p.waitForURL(/#\/hoje$/)
+  const dlg = p.getByRole('alertdialog', { name: PEDIDO_AVISOS })
+  await dlg.getByRole('button', { name: 'Sim', exact: true }).click()
+  await p.getByRole('status').filter({ hasText: 'Avisos ativados' }).waitFor()
+  const cfg = (await tudoNoBanco(p)).config
+  igual(cfg.find((c) => c.chave === 'canais')?.valor?.notificacao, true, 'canal de notificação ligado')
+  igual(cfg.find((c) => c.chave === 'pedidoAvisos')?.valor, 'respondido', 'não repete')
+  await ctx.close()
+})
+
+await passo('convite para instalar: aparece na Hoje depois do 1º registro de dose; "Agora não" some e não volta', async () => {
+  // o aparelho principal respondeu "Agora não"; um aparelho novo mostra o convite depois do 1º registro
+  const { ctx, p } = await aparelhoNovo(390, 844)
+  const convite = p.locator('[data-convite-instalar]')
+  await p.goto(BASE)
+  await p.getByLabel('Tenho 18 anos ou mais').check()
+  await p.getByLabel('Entendi que o app é só um registro pessoal').check()
+  await p.getByRole('button', { name: 'Começar', exact: true }).click()
+  await p.getByPlaceholder('Buscar ou digitar o nome').fill('bpc')
+  await p.getByRole('option', { name: /BPC-157/ }).first().click()
+  await p.getByPlaceholder('Digite o número').fill('250')
+  await p.getByRole('button', { name: 'mcg', exact: true }).click()
+  await p.getByRole('button', { name: 'Continuar', exact: true }).click()
+  await p.getByLabel('Horário', { exact: true }).fill('00:00')
+  await p.locator('[data-salvar]').click()
+  await p.waitForURL(/#\/hoje$/)
+  await p.getByRole('alertdialog', { name: PEDIDO_AVISOS }).getByRole('button', { name: 'Agora não', exact: true }).click()
+  await p.waitForTimeout(400)
+  igual(await convite.count(), 0, 'sem convite antes do 1º registro')
+  await p.locator('main button', { hasText: '00:00' }).click()
+  await p.getByRole('button', { name: 'Fiz agora', exact: true }).click()
+  await p.getByRole('button', { name: 'Salvar registro', exact: true }).click()
+  await convite.waitFor()
+  await convite.getByText('Coloque o app na tela inicial').waitFor()
+  await convite.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+  await conferirEm(p, 'convite para instalar')
+  await convite.getByRole('button', { name: 'Agora não', exact: true }).click()
+  await convite.waitFor({ state: 'detached' })
+  await p.reload()
+  await p.getByRole('heading', { name: 'Sua semana' }).waitFor()
+  await p.waitForTimeout(400)
+  igual(await convite.count(), 0, 'não volta depois do F5')
+  igual((await tudoNoBanco(p)).config.find((c) => c.chave === 'conviteInstalar')?.valor, 'respondido', 'resposta gravada')
+  // continua em Configurações
+  await p.goto(BASE + '#/ajustes')
+  await p.getByRole('link', { name: /Instalar na tela inicial/ }).waitFor()
+  await p.getByRole('link', { name: /Lembretes e agenda/ }).waitFor()
+  await ctx.close()
+})
+
+await passo('usuário antigo (aceite e primeiro acesso da versão anterior): não revê o primeiro acesso, nem o pedido de avisos, nem o convite', async () => {
+  const { ctx, p } = await aparelhoNovo(390, 844)
+  await p.goto(BASE)
+  await p.waitForURL(/#\/boas-vindas$/)
+  // grava como a versão anterior gravava: aceite v1 + onboarding concluído (instalar e lembretes)
+  await p.evaluate(async () => {
+    const r = indexedDB.open('peptide-tracker')
+    const db = await new Promise((ok, falha) => { r.onsuccess = () => ok(r.result); r.onerror = () => falha(r.error) })
+    await new Promise((ok) => {
+      const t = db.transaction('config', 'readwrite')
+      t.objectStore('config').put({ chave: 'aceite', valor: { versao: '1', em: '2026-11-01T12:00:00.000Z' } })
+      t.objectStore('config').put({ chave: 'onboarding', valor: true })
+      t.objectStore('config').put({ chave: 'canais', valor: { agenda: true, notificacao: false } })
+      t.oncomplete = ok
+    })
+    db.close()
+  })
+  for (const rota of ['', '#/', '#/instalar?primeiro=1', '#/lembrar']) {
+    await p.goto(BASE + rota)
+    await p.waitForTimeout(300)
+    if (/boas-vindas|lembrar/.test(p.url())) throw new Error(`usuário antigo viu o primeiro acesso em ${rota || 'raiz'}: ${p.url()}`)
+  }
+  await p.goto(BASE)
+  await p.waitForURL(/#\/hoje$/)
+  await p.getByRole('link', { name: 'Criar protocolo', exact: true }).click()
+  await p.getByPlaceholder('Buscar ou digitar o nome').fill('bpc')
+  await p.getByRole('option', { name: /BPC-157/ }).first().click()
+  await p.getByPlaceholder('Digite o número').fill('250')
+  await p.getByRole('button', { name: 'Continuar', exact: true }).click()
+  await p.getByLabel('Horário', { exact: true }).fill('00:00')
+  await p.locator('[data-salvar]').click()
+  await p.waitForURL(/#\/hoje$/)
+  await p.locator('main button', { hasText: '00:00' }).click()
+  await p.getByRole('button', { name: 'Fiz agora', exact: true }).click()
+  await p.getByRole('button', { name: 'Salvar registro', exact: true }).click()
+  await p.locator('main', { hasText: 'Tomada às' }).waitFor()
+  await p.waitForTimeout(500)
+  igual(await p.getByRole('alertdialog', { name: PEDIDO_AVISOS }).count(), 0, 'sem pedido de avisos')
+  igual(await p.locator('[data-convite-instalar]').count(), 0, 'sem convite para instalar')
+  igual((await tudoNoBanco(p)).config.find((c) => c.chave === 'aceite')?.valor?.em, '2026-11-01T12:00:00.000Z', 'aceite anterior mantido')
+  await ctx.close()
 })
 await passo('nenhum erro ou aviso no console e nenhum HTTP com erro', async () => {
   if (problemas.length) throw new Error(problemas.join(' | '))

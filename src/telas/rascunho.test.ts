@@ -1,7 +1,7 @@
 // Navegação do assistente de protocolo: o que um passo faz com o rascunho que existe,
 // fechar o cadastro sem apagar no meio da troca de tela, e o frasco salvo pela calculadora.
 import { beforeEach, describe, expect, it } from 'vitest'
-import { frascoDoCalculo, itemVazio, LISTA_PROTOCOLOS, montarProtocolo, novoRascunho, rascunho, situacaoPasso, validarRascunho, type Rascunho } from './rascunho.ts'
+import { frascoDoCalculo, itemVazio, LISTA_PROTOCOLOS, montarProtocolo, novoRascunho, rascunho, rascunhoDe, resumoDoSalvar, situacaoPasso, temOpcoesAvancadas, unidadeInicial, validarRascunho, type Rascunho } from './rascunho.ts'
 import { temTelaAnterior } from '../ui/navegar.ts'
 
 const pronto = (mudar: Partial<Rascunho['itens'][0]> = {}): Rascunho => {
@@ -101,5 +101,68 @@ describe('frasco da calculadora: sempre vai para o Estoque', () => {
   it('a cor escolhida vai para o protocolo; editar mantém a cor', () => {
     expect(montarProtocolo({ ...pronto(), cor: 'violeta' }).protocolo.cor).toBe('violeta')
     expect(montarProtocolo(pronto()).protocolo.cor).toBeUndefined()
+  })
+})
+
+describe('primeiro acesso curto: padrões do cadastro', () => {
+  it('unidade já marcada: mg por padrão, nunca vazia no caminho padrão (sem "Escolha a unidade.")', () => {
+    const i = itemVazio()
+    expect(i.doseUnidade).toBe('mg')
+    expect(i.unidadeAuto).toBe(true)
+    expect(i.horarios).toEqual(['08:00'])
+    const r = novoRascunho()
+    r.itens = [{ ...r.itens[0], substanciaId: 's1', doseTxt: '2' }]
+    // só substância e dose: já salva (unidade, horário, início hoje e sem fim vêm prontos)
+    expect(validarRascunho(r)).toEqual({ ok: true, erros: [] })
+    const { protocolo, itens } = montarProtocolo(r)
+    expect(itens[0].doseUnidade).toBe('mg')
+    expect(itens[0].horarios).toEqual(['08:00'])
+    expect(protocolo.fim).toBeUndefined()
+    expect(protocolo.ciclo).toBeUndefined()
+    expect(protocolo.nome).toBeUndefined()
+  })
+
+  it('unidade conhecida da substância: a última usada com ela; blend sem histórico em unidades', () => {
+    const itens = [
+      { substanciaId: 'a', doseUnidade: 'mcg' as const },
+      { substanciaId: 'b', doseUnidade: 'mL' as const },
+      { substanciaId: 'a', doseUnidade: 'UI' as const },
+    ]
+    expect(unidadeInicial({ id: 'a', tipo: 'simples' }, itens)).toBe('UI')
+    expect(unidadeInicial({ id: 'c', tipo: 'simples' }, itens)).toBe('mg')
+    expect(unidadeInicial({ id: 'd', tipo: 'blend' }, itens)).toBe('unidades')
+    expect(unidadeInicial({ id: 'b', tipo: 'blend' }, itens)).toBe('mL')
+  })
+
+  it('horário vazio é avisado; horários repetidos viram um só', () => {
+    expect(validarRascunho(pronto({ horarios: ['08:00', ''] })).erros.join(' ')).toMatch(/horário vazio/)
+    expect(validarRascunho(pronto({ horarios: [''] })).erros.join(' ')).toMatch(/pelo menos um horário/)
+    expect(montarProtocolo(pronto({ horarios: ['20:00', '08:00', '20:00'] })).itens[0].horarios).toEqual(['08:00', '20:00'])
+  })
+
+  it('resumo no botão Salvar', () => {
+    expect(resumoDoSalvar(pronto({ doseTxt: '2', doseUnidade: 'mg', freqTipo: 'semana', dias: [5], horarios: ['08:00'] }))).toBe('2 mg, 1x por semana, sex às 08:00')
+    expect(resumoDoSalvar(pronto({ doseTxt: '250', doseUnidade: 'mcg', horarios: ['08:00', '20:00'] }))).toBe('250 mcg, todo dia às 08:00 e 20:00')
+    expect(resumoDoSalvar(pronto({ freqTipo: 'cadaN', cadaN: '3', horarios: ['07:30'] }))).toBe('250 mcg, a cada 3 dias às 07:30')
+    const dois = pronto()
+    dois.itens = [...dois.itens, { ...dois.itens[0], id: 'x' }]
+    expect(resumoDoSalvar(dois)).toBe('2 substâncias')
+  })
+
+  it('"Mais opções" abre sozinho só com campo avançado preenchido', () => {
+    expect(temOpcoesAvancadas(pronto())).toBe(false)
+    expect(temOpcoesAvancadas({ ...pronto(), nome: 'Pele' })).toBe(true)
+    expect(temOpcoesAvancadas({ ...pronto(), duracaoTipo: 'semanas' })).toBe(true)
+    expect(temOpcoesAvancadas({ ...pronto(), ciclo: true })).toBe(true)
+    expect(temOpcoesAvancadas({ ...pronto(), inicio: '2020-01-01' })).toBe(true)
+    // editar: a data de início (que todo protocolo tem) não abre sozinha; a cor também não
+    const p = { id: 'p', inicio: '2026-01-01', estado: 'ativo' as const, lembretes: true, criadoEm: '2026-01-01T00:00:00Z', cor: 'violeta' }
+    const item = { id: 'i', protocoloId: 'p', substanciaId: 's1', doseValor: 2, doseUnidade: 'mg' as const, frequencia: { tipo: 'diaria' as const }, horarios: ['08:00'], ordem: 0 }
+    expect(temOpcoesAvancadas(rascunhoDe(p, [item], 'editar', ''))).toBe(false)
+    expect(temOpcoesAvancadas(rascunhoDe({ ...p, fim: '2026-02-25' }, [item], 'editar', ''))).toBe(true)
+    expect(temOpcoesAvancadas(rascunhoDe({ ...p, nome: 'Meu' }, [item], 'editar', ''))).toBe(true)
+    expect(temOpcoesAvancadas(rascunhoDe({ ...p, ciclo: { diasOn: 5, diasOff: 2 } }, [item], 'editar', ''))).toBe(true)
+    // editar mantém a unidade gravada (não troca pela automática)
+    expect(rascunhoDe(p, [item], 'editar', '').itens[0].unidadeAuto).toBe(false)
   })
 })

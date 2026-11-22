@@ -219,3 +219,24 @@ Só visual; nenhum comportamento mudou. Cores centralizadas em `src/index.css` (
 Conferido no build servido como no Pages (390×844 e 360×640): primeiro acesso (boas-vindas, aviso, instalar, lembrar), Hoje, Protocolos, detalhe, folha de dose, Estoque, Peso, Backup e Ajustes. Em todas: sem rolagem lateral, sem alvo < 44 px, nenhum texto com contraste < 4,5:1 (medido em cada texto visível contra o fundo real), nenhum texto abaixo de 14 px fora dos rótulos em caixa alta (13 px), sem texto em inglês, console limpo. Testes: `cores.test.ts` agora mede as cores dos protocolos contra `#000000`, `#121212` e `#1C1C1C`; o e2e confere a violeta nova e o fundo `#1C1C1C` do aviso.
 
 Ícones do PWA: a mesma gota, recolorida para branco sobre preto nos mesmos arquivos e tamanhos (`pwa-192`, `pwa-512`, `pwa-maskable-512`, `apple-touch-icon`, `favicon.svg`). Quem já instalou pode continuar vendo o ícone antigo até o sistema atualizar o atalho (depende do celular).
+
+## Rodada de 21/11/2026: primeiro acesso curto
+
+Item 6 do plano de ação da avaliação (docs/AVALIACAO-SHARK-TANK.md), no desenho aprovado pelo dono. Caminho novo: Boas-vindas + aviso 18+ → "O quê e quanto" → "Quando" → Hoje = **3 telas e 6 toques** (2 caixas, Começar, escolher a substância, Continuar, Salvar; mais a dose digitada). Antes: 8 telas e 13 toques.
+
+| # | Tipo | O que mudou | Coberto por |
+|---|---|---|---|
+| P01 | Pedido | Boas-vindas e aviso 18+ numa tela só (`BoasVindas`): mesmo texto jurídico, mesmas 2 caixas, aceite gravado com data e versão (continua "1": quem aceitou antes continua aceito). "Não aceito" vai para a saída sem gravar nada. `/aviso` antigo leva para a mesma tela | e2e 1–3 (recusa confere o IndexedDB inteiro vazio) |
+| P02 | Pedido | Protocolo em 2 passos: `PassoOQue` (substância + dose + calculadora; Trocar volta à busca) e `PassoQuando` (frequência + horário; "Mais opções" com início, fim, ciclo, nome, cor e outras substâncias). Sem revisão: o botão diz "Salvar · 250 mcg, todo dia às 00:00". `/novo/dose` e `/novo/revisao` antigos levam ao passo novo | `rascunho.test.ts` + e2e 3, 6, 15, 17, 34, 37, 43 |
+| P03 | Achado da avaliação | Unidade sem padrão gerava "Escolha a unidade.": agora vem marcada (a última usada com a substância; senão mg; blend sem histórico em unidades) e muda só se a pessoa tocar noutra. O número da dose continua vazio | `rascunho.test.ts` (`unidadeInicial`, rascunho só com substância e dose já salva) + e2e 44 |
+| P04 | Pedido | Padrões do cadastro: horário 08:00, começa hoje, **sem fim** (antes 8 semanas escondidas), sem ciclo, nome e cor automáticos. Horário vazio é avisado; horários repetidos viram um | `rascunho.test.ts` |
+| P05 | Pedido | Editar/duplicar usam as mesmas 2 telas; "Mais opções" abre sozinho quando há nome, fim, ciclo ou mais de uma substância (data de início e cor não contam: todo protocolo salvo tem) | `rascunho.test.ts` (`temOpcoesAvancadas`) + e2e 43 |
+| P06 | Pedido | Pedido de avisos (`PedidoAvisos`, M04) logo depois de salvar o 1º protocolo; "Sim" pede a permissão no mesmo toque (negado ou sem suporte: agenda .ics), "Agora não" grava e não repete. Instalar e lembretes saíram do começo (`/lembrar` antigo vai para a Hoje) | `primeiro-acesso.test.ts` + e2e 4, 45 |
+| P07 | Pedido | Convite para instalar (`ConviteInstalar`, N04): cartão na Hoje depois do 1º registro de dose; Android/PC com o botão do navegador (ou "Ver como"), iPhone com os 3 passos do Safari; "Agora não" não repete. Instalar e Lembretes continuam em Configurações | `primeiro-acesso.test.ts` + e2e 46 |
+| P08 | Pedido | "Pular, ver o app primeiro" nas boas-vindas (aceitando) e no 1º passo: Hoje vazia com Criar protocolo | e2e 45 |
+| P09 | Migração | Quem passou pelo primeiro acesso antigo tem `onboarding: true` gravado (o restaurar backup também grava): não vê o primeiro acesso, o pedido de avisos nem o convite. Sem migração a rodar: o sinal já existe no aparelho. `pedidoAvisos` e `conviteInstalar` não vão no backup | `primeiro-acesso.test.ts` + e2e 47 |
+| P10 | Baixa | Diálogo mais alto que a tela (360×640) encolhia os botões (o "Sim" ficava com 24 px): os itens do diálogo não encolhem mais, o diálogo rola. Vale para todos os diálogos | e2e 44 (diálogo medido em 360×640) |
+
+Conferido no build servido por `npm run pages` (Chrome automático, 390×844 e 360×640, com toque): boas-vindas, passo 1 (busca e dose com a calculadora), passo 2, pedido de avisos, Hoje com o protocolo, Hoje com o convite, editar (passo 1, passo 2 fechado, salvar com nome, reabrir com "Mais opções" aberto). Em todas: sem rolagem lateral, sem alvo < 44 px (caixas e opções medidas pela linha inteira), sem texto em inglês, console limpo.
+
+Fora desta rodada: o seletor de horário é o do navegador (no iPhone é a roda do sistema); o convite para instalar no Android depende de o navegador oferecer a instalação (sem isso mostra "Ver como"); não testado em aparelho real.

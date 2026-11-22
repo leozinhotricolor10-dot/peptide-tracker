@@ -8,7 +8,7 @@ export const APP_BACKUP = 'peptide-tracker'
 export const FORMATO_BACKUP = 1
 
 /** Config que é do aparelho e não viaja no arquivo. */
-const CONFIG_LOCAL = new Set(['aceite', 'notificados', 'reativarAvisos', 'backupAdiadoAte', 'backupImpressao'])
+const CONFIG_LOCAL = new Set(['aceite', 'notificados', 'reativarAvisos', 'backupAdiadoAte', 'backupImpressao', 'pedidoAvisos', 'conviteInstalar'])
 
 interface FotoArquivo extends Omit<Foto, 'blob'> {
   dados: string

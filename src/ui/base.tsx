@@ -173,7 +173,7 @@ export function Dialogo({ titulo, aoFechar, children, icone }: { titulo: ReactNo
   }, [])
   return (
     <Camada aoFechar={aoFechar} alinhar="centro">
-      <div ref={ref} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby={id} className="dialogo-anima flex max-h-[90dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto rounded-2xl border border-linha bg-sup px-6 pt-7 pb-6 outline-none">
+      <div ref={ref} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby={id} className="dialogo-anima flex max-h-[90dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto *:shrink-0 rounded-2xl border border-linha bg-sup px-6 pt-7 pb-6 outline-none">
         {icone}
         <h2 id={id} className="text-2xl font-extrabold">{titulo}</h2>
         {children}

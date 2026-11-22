@@ -1,10 +1,11 @@
-// T01 Boas-vindas, T02 Aviso 18+, E02 Saída, T03 Instalar, T04 Como lembrar, M05 pré-permissão, E01 bloqueado.
+// T01 Boas-vindas com o aviso 18+, E02 Saída, T03 Instalar, M04 pedido de avisos (depois do 1º protocolo),
+// N04 convite para instalar (depois do 1º registro), M05 pré-permissão, E01 bloqueado.
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { repo, useConfig } from '../dados/index.ts'
 import { Dialogo, Nota, Tela } from '../ui/base.tsx'
 import { useVoltar } from '../ui/navegar.ts'
-import { IcoAlerta, IcoCalendario, IcoCelular, IcoCheck, IcoCompartilhar, IcoEscudo, IcoSino, IcoVoltar } from '../ui/icones.tsx'
+import { IcoAlerta, IcoCalendario, IcoCelular, IcoCompartilhar, IcoEscudo, IcoSino, IcoVoltar } from '../ui/icones.tsx'
 import { useInstalacao } from '../sistema/instalar.ts'
 import { TEXTO_AVISO, pedirPermissao, suporteAviso } from '../sistema/avisos.ts'
 import { useToast } from '../ui/toast.tsx'
@@ -13,59 +14,44 @@ import { hojeStr } from '../dominio/datas.ts'
 
 export const VERSAO_AVISO = '1'
 
+/**
+ * T01 Boas-vindas + aviso 18+ numa tela só: o que o app é, o aceite (2 caixas; grava data e versão)
+ * e "Começar" (vai direto ao 1º passo do protocolo). "Pular, ver o app primeiro" aceita e vai para a
+ * Hoje vazia. "Não aceito" vai para a saída sem gravar nada.
+ */
 export function BoasVindas() {
-  return (
-    <Tela className="min-h-dvh justify-between">
-      <div className="flex flex-col gap-6 pt-10">
-        <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-selecionado text-acento">
-          <IcoEscudo tam={34} />
-        </span>
-        <div className="flex flex-col gap-3">
-          <h1 className="text-[34px] leading-tight font-extrabold tracking-tight">Seu diário de protocolos</h1>
-          <p className="m-0 text-lg leading-relaxed text-suave">
-            Registre o que você aplica, quando aplica e quanto resta no frasco. Tudo fica só neste aparelho.
-          </p>
-        </div>
-        <ul className="m-0 flex list-none flex-col gap-3 p-0 text-base font-semibold">
-          {['Lembrete das suas doses', 'Peso, medidas e fotos', 'Estoque e validade dos frascos'].map((t) => (
-            <li key={t} className="flex items-center gap-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ok-fundo text-ok"><IcoCheck tam={16} /></span>
-              {t}
-            </li>
-          ))}
-        </ul>
-        <p className="m-0 text-sm font-semibold text-fraco">O app não recomenda substâncias nem doses.</p>
-      </div>
-      <div className="flex flex-col gap-2.5">
-        <Link to="/aviso" className="btn-primario">Começar</Link>
-        <Link to="/restaurar" className="btn-secundario">Já uso: restaurar backup</Link>
-      </div>
-    </Tela>
-  )
-}
-
-export function Aviso() {
   const nav = useNavigate()
   const [params] = useSearchParams()
   const [maior, setMaior] = useState(false)
   const [entendi, setEntendi] = useState(false)
-  const onboarding = useConfig('onboarding')
-  const aceitar = async () => {
+  const [gravando, setGravando] = useState(false)
+  const pode = maior && entendi && !gravando
+  const aceitar = async (paraHoje: boolean) => {
+    setGravando(true)
     await repo.setConfig('aceite', { versao: VERSAO_AVISO, em: new Date().toISOString() })
     if (!(await repo.getConfig('primeiroUso'))) await repo.setConfig('primeiroUso', hojeStr())
-    nav(params.get('depois') === 'hoje' || onboarding.valor ? '/hoje' : '/instalar?primeiro=1', { replace: true })
+    // depois de restaurar um backup (depois=hoje) os protocolos já existem: vai direto para a Hoje
+    nav(paraHoje || params.get('depois') === 'hoje' ? '/hoje' : '/novo?saida=/hoje', { replace: true })
   }
   return (
     <Tela className="min-h-dvh">
-      <Link to="/boas-vindas" aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></Link>
-      <h1 className="text-[30px] leading-tight font-extrabold">Antes de começar</h1>
-      <div className="flex flex-col gap-3 text-base leading-relaxed text-suave">
+      <div className="flex flex-col gap-4 pt-4">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-selecionado text-acento">
+          <IcoEscudo tam={30} />
+        </span>
+        <h1 className="text-[32px] leading-tight font-extrabold tracking-tight">Seu diário de protocolos</h1>
+        <p className="m-0 text-lg leading-relaxed text-suave">
+          Registre doses, horários e frascos. Tudo fica só neste aparelho, sem conta e sem login.
+        </p>
+      </div>
+      <section aria-labelledby="t-aviso" className="flex flex-col gap-2 text-base leading-relaxed text-suave">
+        <h2 id="t-aviso" className="text-lg font-bold text-texto">Antes de começar</h2>
         <p className="m-0">
           Este app é <b className="text-texto">só um registro pessoal</b>. Ele não faz diagnóstico, não prescreve e não substitui a orientação de um profissional de saúde.
         </p>
         <p className="m-0">Substâncias, doses e datas são informadas por você. As decisões são suas.</p>
-        <p className="m-0">Seus registros ficam só neste aparelho. Nada é enviado para servidor: não há conta nem login.</p>
-      </div>
+        <p className="m-0">Nada é enviado para servidor.</p>
+      </section>
       <div className="flex flex-col gap-2">
         {[
           { v: maior, s: setMaior, t: 'Tenho 18 anos ou mais' },
@@ -78,16 +64,24 @@ export function Aviso() {
         ))}
       </div>
       <div className="mt-auto flex flex-col gap-2">
-        <button type="button" className="btn-primario" disabled={!maior || !entendi} onClick={aceitar}>Aceitar e continuar</button>
-        {(!maior || !entendi) && <span className="text-center text-sm text-fraco">Marque as duas opções</span>}
-        <Link to="/saida" replace className="btn-texto text-suave">Não aceito</Link>
-        <div className="flex justify-center gap-4 text-sm">
-          <Link to="/termos" className="link">Termos de uso</Link>
-          <Link to="/privacidade" className="link">Privacidade</Link>
+        <button type="button" className="btn-primario" disabled={!pode} onClick={() => void aceitar(false)}>Começar</button>
+        {!(maior && entendi) && <span className="text-center text-sm text-fraco">Marque as duas opções</span>}
+        <button type="button" className="btn-texto" disabled={!pode} onClick={() => void aceitar(true)}>Pular, ver o app primeiro</button>
+        <div className="flex flex-wrap justify-center gap-x-5">
+          <Link to="/privacidade" className="link text-sm">Privacidade</Link>
+          <Link to="/termos" className="link text-sm">Termos de uso</Link>
+          <Link to="/saida" replace className="link text-sm text-suave">Não aceito</Link>
         </div>
+        <Link to="/restaurar" className="btn-texto text-sm text-suave">Já uso: restaurar backup</Link>
       </div>
     </Tela>
   )
+}
+
+/** Endereço antigo do aviso (/aviso, /aviso?depois=hoje): agora é a mesma tela das boas-vindas. */
+export function AvisoAntigo() {
+  const { search } = useLocation()
+  return <Navigate to={`/boas-vindas${search}`} replace />
 }
 
 export function Saida() {
@@ -102,19 +96,18 @@ export function Saida() {
 }
 
 export function Instalar() {
-  const nav = useNavigate()
   const voltarOu = useVoltar()
-  const [params] = useSearchParams()
-  const primeiro = params.get('primeiro') === '1'
   const inst = useInstalacao()
   const [aba, setAba] = useState<'ios' | 'android'>(inst.ios ? 'ios' : 'android')
   const toast = useToast()
-  const seguir = () => (primeiro ? nav('/lembrar', { replace: true }) : voltarOu('/hoje'))
+  const seguir = () => {
+    void repo.setConfig('conviteInstalar', 'respondido')
+    voltarOu('/hoje')
+  }
 
   return (
     <Tela className="min-h-dvh">
-      {!primeiro && <button type="button" onClick={() => voltarOu('/hoje')} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>}
-      {primeiro && <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo 2 de 3</span>}
+      <button type="button" onClick={() => voltarOu('/hoje')} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>
       <div className="flex flex-col gap-2">
         <h1 className="text-[28px] leading-tight font-extrabold">Coloque o app na tela inicial</h1>
         <p className="m-0 text-base leading-relaxed text-suave">Assim ele abre como um app, funciona sem internet e seus dados ficam mais protegidos.</p>
@@ -229,80 +222,102 @@ export function AvisosBloqueados({ aoFechar }: { aoFechar: () => void }) {
   )
 }
 
-export function ComoLembrar() {
-  const nav = useNavigate()
-  const sup = suporteAviso()
-  const notifPode = sup === 'ok' && temAcesso('notificacao')
-  const [agenda, setAgenda] = useState(true)
-  const [notif, setNotif] = useState(notifPode)
-  const [dialogo, setDialogo] = useState<'pre' | 'bloq' | null>(null)
+/**
+ * M04: logo depois de salvar o primeiro protocolo, uma vez só. "Sim" pede a permissão do aparelho
+ * (no mesmo toque, como o sistema exige); sem permissão ou sem suporte, leva à agenda do celular (.ics).
+ * As duas respostas gravam "respondido": não repete. Continua em Configurações > Lembretes.
+ */
+export function PedidoAvisos() {
+  const pedido = useConfig('pedidoAvisos')
+  const { pathname } = useLocation()
   const toast = useToast()
-
-  const terminar = async () => {
-    await repo.setConfig('onboarding', true)
-    nav('/novo?saida=/hoje', { replace: true })
+  const [etapa, setEtapa] = useState<'pergunta' | 'bloq' | null>('pergunta')
+  const [pedindo, setPedindo] = useState(false)
+  // não aparece no meio do cadastro nem nas telas sem aceite
+  if (pedido.valor !== 'pendente' || pathname.startsWith('/novo') || etapa === null) return null
+  const responder = () => repo.setConfig('pedidoAvisos', 'respondido')
+  if (etapa === 'bloq') return <AvisosBloqueados aoFechar={() => { setEtapa(null); void responder() }} />
+  const sim = async () => {
+    setPedindo(true)
+    const pode = suporteAviso() === 'ok' && temAcesso('notificacao')
+    const r = pode ? await pedirPermissao() : 'indisponivel'
+    if (r === 'granted') {
+      const canais = (await repo.getConfig('canais')) ?? { agenda: false, notificacao: false }
+      await repo.setConfig('canais', { ...canais, notificacao: true })
+      await responder()
+      toast({ titulo: 'Avisos ativados', texto: 'Neste aparelho' })
+      setEtapa(null)
+    } else {
+      // negado ou indisponível: explica e oferece a agenda do celular (grava "respondido" ao fechar)
+      setEtapa('bloq')
+    }
   }
-  const continuar = async () => {
-    await repo.setConfig('canais', { agenda, notificacao: false })
-    if (notif) setDialogo('pre')
-    else await terminar()
-  }
-
   return (
-    <Tela className="min-h-dvh">
-      <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo 3 de 3</span>
-      <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] leading-tight font-extrabold">Como quer ser lembrado?</h1>
-        <p className="m-0 text-base text-suave">Dá para mudar depois em Configurações.</p>
+    <Dialogo titulo="Quer ser avisado na hora da dose?" aoFechar={() => { setEtapa(null); void responder() }} icone={<IcoSino tam={28} className="text-acento" />}>
+      <div className="flex flex-col gap-1.5 rounded-xl bg-sup2 p-4">
+        <span className="text-xs font-bold tracking-wide text-fraco uppercase">Exemplo do que aparece</span>
+        <span className="text-base font-bold">{TEXTO_AVISO}</span>
       </div>
-      <div className="flex flex-col gap-2.5">
-        <label className="card flex items-start gap-3 p-4 opacity-100">
-          <input type="checkbox" checked disabled className="mt-0.5 h-6 w-6 shrink-0" />
-          <span className="flex flex-col gap-1"><b className="text-base">Dentro do app</b><span className="text-sm text-fraco">Sempre ligado. A tela Hoje mostra o que falta.</span></span>
-        </label>
-        <label className="card flex items-start gap-3 p-4">
-          <input type="checkbox" checked={agenda} onChange={(e) => setAgenda(e.target.checked)} className="mt-0.5 h-6 w-6 shrink-0" />
-          <span className="flex flex-col gap-1"><b className="text-base">Na agenda do celular</b><span className="text-sm text-fraco">Avisa mesmo com o app fechado e sem internet. O evento aparece só como “Lembrete”. Você gera o arquivo depois de criar o protocolo.</span></span>
-        </label>
-        <label className="card flex items-start gap-3 p-4">
-          <input type="checkbox" checked={notif} disabled={!notifPode} onChange={(e) => setNotif(e.target.checked)} className="mt-0.5 h-6 w-6 shrink-0" />
-          <span className="flex flex-col gap-1">
-            <b className="text-base">Notificação no aparelho</b>
-            <span className="text-sm text-fraco">
-              {sup === 'ios-sem-instalar'
-                ? 'Indisponível: no iPhone, instale o app na Tela de Início primeiro.'
-                : sup === 'sem-suporte'
-                  ? 'Indisponível neste navegador.'
-                  : `O texto é só “${TEXTO_AVISO}”. Chega com o app aberto ou aberto há pouco (sem servidor).`}
-            </span>
-          </span>
-        </label>
-      </div>
-      <div className="mt-auto flex flex-col gap-2">
-        <button type="button" className="btn-primario" onClick={continuar}>Continuar</button>
-        <button
-          type="button"
-          className="btn-texto"
-          onClick={async () => {
-            await repo.setConfig('onboarding', true)
-            nav('/hoje', { replace: true })
-          }}
-        >
-          Fazer isso depois
-        </button>
-      </div>
-      {dialogo === 'pre' && (
-        <PrePermissao
-          aoFechar={() => void terminar()}
-          aoTerminar={(r) => {
-            if (r === 'ativado') {
-              toast({ titulo: 'Avisos ativados', texto: 'Neste aparelho' })
-              void terminar()
-            } else setDialogo('bloq')
-          }}
-        />
+      <ul className="m-0 flex flex-col gap-2 pl-5 text-sm leading-relaxed text-suave">
+        <li>O aviso nunca mostra o nome da substância nem a dose.</li>
+        <li>Chega com o app aberto ou aberto há pouco. Com o app fechado, quem avisa é a agenda do celular.</li>
+        <li>Em seguida o aparelho pede a permissão.</li>
+      </ul>
+      <button type="button" className="btn-primario" disabled={pedindo} onClick={() => void sim()}>Sim</button>
+      <button type="button" className="btn-texto" disabled={pedindo} onClick={() => { setEtapa(null); void responder() }}>Agora não</button>
+      <span className="text-center text-sm text-fraco">Dá para mudar depois em Configurações.</span>
+    </Dialogo>
+  )
+}
+
+/**
+ * N04: convite para instalar, depois do primeiro registro de dose. Cartão na Hoje, não bloqueia.
+ * Android/PC: botão do próprio navegador. iPhone: os 3 passos do Safari. "Agora não" não repete
+ * (continua em Configurações > Instalar na tela inicial).
+ */
+export function ConviteInstalar() {
+  const inst = useInstalacao()
+  const responder = () => repo.setConfig('conviteInstalar', 'respondido')
+  return (
+    <section aria-labelledby="t-instalar" data-convite-instalar="" className="card anima-entrada flex flex-col gap-3 p-4">
+      <span className="flex items-start gap-2.5">
+        <IcoCelular tam={22} className="mt-0.5 shrink-0 text-acento" />
+        <span className="flex flex-col gap-0.5">
+          <b id="t-instalar" className="text-base">Coloque o app na tela inicial</b>
+          <span className="text-sm leading-relaxed text-suave">Abre como um app, funciona sem internet e seus dados ficam mais protegidos.</span>
+        </span>
+      </span>
+      {inst.ios ? (
+        <>
+          <ol className="m-0 flex list-none flex-col gap-2 p-0 text-sm font-semibold">
+            <li className="flex gap-3"><b className="text-acento">1</b><span>No Safari, toque em Compartilhar <IcoCompartilhar tam={18} className="inline align-[-3px]" /></span></li>
+            <li className="flex gap-3"><b className="text-acento">2</b><span>Escolha “Adicionar à Tela de Início”</span></li>
+            <li className="flex gap-3"><b className="text-acento">3</b><span>Abra o app pelo novo ícone</span></li>
+          </ol>
+          <div className="flex gap-2">
+            <button type="button" className="btn-texto flex-1" onClick={() => void responder()}>Agora não</button>
+            <button type="button" className="btn-primario h-11 flex-1" onClick={() => void responder()}>Já instalei</button>
+          </div>
+        </>
+      ) : (
+        <div className="flex gap-2">
+          <button type="button" className="btn-texto flex-1" onClick={() => void responder()}>Agora não</button>
+          {inst.podeInstalar ? (
+            <button
+              type="button"
+              className="btn-primario h-11 flex-1"
+              onClick={async () => {
+                const r = await inst.instalar()
+                if (r === 'aceito') void responder()
+              }}
+            >
+              Instalar
+            </button>
+          ) : (
+            <Link to="/instalar" className="btn-primario h-11 flex-1">Ver como</Link>
+          )}
+        </div>
       )}
-      {dialogo === 'bloq' && <AvisosBloqueados aoFechar={() => void terminar()} />}
-    </Tela>
+    </section>
   )
 }

@@ -402,7 +402,7 @@ export function RestaurarInicio() {
       <Cabecalho titulo="Restaurar backup" voltar />
       <p className="m-0 text-base leading-relaxed text-suave">Escolha o arquivo de backup do app (termina em .json, ou .txt quando foi enviado pelo celular). Você vê o conteúdo antes de confirmar.</p>
       <Nota>Nada sai do aparelho: o arquivo é lido aqui mesmo.</Nota>
-      <Restaurador aoRestaurar={() => nav(aceite.valor ? '/hoje' : '/aviso?depois=hoje', { replace: true })}>
+      <Restaurador aoRestaurar={() => nav(aceite.valor ? '/hoje' : '/boas-vindas?depois=hoje', { replace: true })}>
         {(abrir) => <button type="button" className="btn-primario mt-auto" onClick={abrir}><IcoUpload tam={20} /> Escolher arquivo</button>}
       </Restaurador>
     </Tela>

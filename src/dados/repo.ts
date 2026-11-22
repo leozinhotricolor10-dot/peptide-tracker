@@ -78,7 +78,12 @@ export interface FrascoApagado {
 
 export interface ConfigMapa {
   aceite: { versao: string; em: string }
+  /** Gravado pelo primeiro acesso antigo (instalar + lembretes) e ao restaurar backup: marca usuário antigo. */
   onboarding: boolean
+  /** Pedido de avisos depois do primeiro protocolo (primeiro acesso curto). */
+  pedidoAvisos: 'pendente' | 'respondido'
+  /** Convite para instalar depois do primeiro registro de dose. */
+  conviteInstalar: 'respondido'
   canais: { agenda: boolean; notificacao: boolean }
   ultimoBackup: string
   backupAdiadoAte: string

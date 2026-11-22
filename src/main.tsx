@@ -1,11 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createHashRouter, RouterProvider } from 'react-router'
+import { createHashRouter, Navigate, RouterProvider } from 'react-router'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import './sistema/instalar.ts' // captura beforeinstallprompt o quanto antes
 import { ErroGeral, Inicio, NaoEncontrada, Raiz, avisarNovaVersao } from './app.tsx'
-import { Aviso, BoasVindas, ComoLembrar, Instalar, Saida } from './telas/inicio.tsx'
+import { AvisoAntigo, BoasVindas, Instalar, Saida } from './telas/inicio.tsx'
 import { Hoje } from './telas/hoje.tsx'
 import { DetalheProtocolo, Historico, Protocolos } from './telas/protocolos.tsx'
 import {
@@ -13,10 +13,8 @@ import {
   CriarSubstancia,
   EditorBlend,
   NovoProtocolo,
-  PassoDose,
-  PassoFrequencia,
-  PassoRevisao,
-  PassoSubstancia,
+  PassoOQue,
+  PassoQuando,
 } from './telas/protocolo-novo.tsx'
 import { CompararFotos, DetalheMedida, Fotos, NovaFoto, NovaMedicao, Peso } from './telas/corpo.tsx'
 import { Estoque, FormFrasco, Reconstituicao } from './telas/estoque.tsx'
@@ -39,10 +37,10 @@ const router = createHashRouter([
     children: [
       { index: true, element: <Inicio /> },
       { path: 'boas-vindas', element: <BoasVindas /> },
-      { path: 'aviso', element: <Aviso /> },
+      { path: 'aviso', element: <AvisoAntigo /> },
       { path: 'saida', element: <Saida /> },
       { path: 'instalar', element: <Instalar /> },
-      { path: 'lembrar', element: <ComoLembrar /> },
+      { path: 'lembrar', element: <Navigate to="/hoje" replace /> }, // passo antigo do primeiro acesso
       { path: 'restaurar', element: <RestaurarInicio /> },
       { path: 'privacidade', element: <Privacidade /> },
       { path: 'termos', element: <Termos /> },
@@ -56,12 +54,13 @@ const router = createHashRouter([
       { path: 'historico', element: <Historico /> },
 
       { path: 'novo', element: <NovoProtocolo /> },
-      { path: 'novo/substancia', element: <PassoSubstancia /> },
+      { path: 'novo/substancia', element: <PassoOQue /> },
       { path: 'novo/criar', element: <CriarSubstancia /> },
       { path: 'novo/blend', element: <EditorBlend /> },
-      { path: 'novo/dose', element: <PassoDose /> },
-      { path: 'novo/frequencia', element: <PassoFrequencia /> },
-      { path: 'novo/revisao', element: <PassoRevisao /> },
+      { path: 'novo/frequencia', element: <PassoQuando /> },
+      // endereços dos passos antigos (dose, revisão): mesmo cadastro, nas 2 telas novas
+      { path: 'novo/dose', element: <Navigate to="/novo/substancia" replace /> },
+      { path: 'novo/revisao', element: <Navigate to="/novo/frequencia" replace /> },
 
       { path: 'peso', element: <Peso /> },
       { path: 'peso/medicao/nova', element: <NovaMedicao /> },

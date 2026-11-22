@@ -1,4 +1,5 @@
-// T10 Hoje (painel), E10 Hoje vazio, M10 doses de um dia, N73 lembrete de backup (primeiro e a cada 7 dias), N06 reativar avisos.
+// T10 Hoje (painel), E10 Hoje vazio, M10 doses de um dia, N73 lembrete de backup (primeiro e a cada 7 dias), N06 reativar avisos,
+// N04 convite para instalar (depois do primeiro registro de dose).
 // De cima para baixo: doses de hoje (ação principal), a semana, avisos, próximas doses e atalhos de peso e estoque.
 // As contas ficam em dominio/painel.ts (puras e testadas); aqui só se mostra.
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
@@ -33,7 +34,9 @@ import type { Aplicacao, Frasco, Protocolo } from '../dominio/tipos.ts'
 import { Carregando, Sheet, Tela, Vazio } from '../ui/base.tsx'
 import { IcoAlerta, IcoCalendario, IcoCheck, IcoEngrenagem, IcoEstoque, IcoMais, IcoPeso, IcoProtocolos, IcoSeta, IcoSino, IcoX } from '../ui/icones.tsx'
 import { FrascoVencido, useDoseUI } from './dose.tsx'
-import { PrePermissao, AvisosBloqueados } from './inicio.tsx'
+import { PrePermissao, AvisosBloqueados, ConviteInstalar } from './inicio.tsx'
+import { mostrarConviteInstalar } from '../dominio/primeiro-acesso.ts'
+import { useInstalacao } from '../sistema/instalar.ts'
 import { useToast } from '../ui/toast.tsx'
 import { CheckAnimado, NumeroAnimado, TudoFeito } from '../ui/celebracao.tsx'
 import { useListaComSaida } from '../ui/base.tsx'
@@ -81,6 +84,9 @@ export function Hoje() {
   // fica no Hoje (não no cartão): o cartão some quando o backup dá certo, as mensagens não
   const envio = useEnviarBackup()
   const reativar = useConfig('reativarAvisos')
+  const convite = useConfig('conviteInstalar')
+  const fluxoAntigo = useConfig('onboarding')
+  const inst = useInstalacao()
   const [dialogo, setDialogo] = useState<null | 'pre' | 'bloq' | { frasco: Frasco }>(null)
   const [diaAberto, setDiaAberto] = useState<string | null>(null)
 
@@ -211,6 +217,8 @@ export function Hoje() {
           <LinhaAvulsa key={a.id} a={a} saindo={saindo} dose={textoDoRegistro(base, a)} nome={nomeSubstancia(a.substanciaId, base.subs)} prot={base.protocolos.find((p) => p.id === a.protocoloId)} abrir={() => abrir({ tipo: 'opcoes', aplicacaoId: a.id })} />
         ))}
       </section>
+
+      {convite.carregado && fluxoAntigo.carregado && mostrarConviteInstalar({ registros: base.aplicacoes.filter((a) => a.status === 'feita').length, instalado: inst.instalado, convite: convite.valor, fluxoAntigo: !!fluxoAntigo.valor }) && <ConviteInstalar />}
 
       <SuaSemana semana={painel.semana} hoje={hoje} base={base} abrirDia={setDiaAberto} />
 

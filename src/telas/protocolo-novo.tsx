@@ -1,18 +1,21 @@
-// Novo/editar protocolo: T21 substância (+E21), M25 criar substância, T26 editor de blend,
-// T22 dose, T23 frequência, T24 duração e revisão, M24 salvar alteração, M26 sair sem salvar.
+// Novo/editar protocolo em 2 passos: T21 "O quê e quanto" (substância + dose com unidade já marcada
+// + calculadora), T23 "Quando" (frequência e horário; início, fim, ciclo, nome, cor e outras
+// substâncias em "Mais opções"). Sem tela de revisão: o botão Salvar mostra o resumo.
+// Também: E21 busca vazia, M25 criar substância, T26 editor de blend, M24 salvar alteração, M26 sair sem salvar.
 import { pedirArmazenamentoPersistente } from '../sistema/armazenamento.ts'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { repo, useBase } from '../dados/index.ts'
 import { mensagemDeErro } from '../dados/repo.ts'
 import { AMOSTRA_IDS, buscar, existeNomeExato, type ResultadoBusca } from '../dominio/sugestoes.ts'
 import { descreverFrequencia } from '../dominio/agenda.ts'
 import { dataCurta, hojeStr, SEMANA_CURTA } from '../dominio/datas.ts'
 import { erroNumero, fmtDose, lerNumero, somaComponentesMg, fmtNum } from '../dominio/calculos.ts'
-import type { Componente, UnidadeDose } from '../dominio/tipos.ts'
+import type { Componente, ItemProtocolo, Substancia, UnidadeDose } from '../dominio/tipos.ts'
 import { MAX_NOME_PROTOCOLO, nomeProtocolo } from '../dominio/nomes.ts'
+import { pedidoAvisosAoSalvar } from '../dominio/primeiro-acesso.ts'
 import { Carregando, Chips, Dialogo, NaoAchou, Nota, Tela } from '../ui/base.tsx'
-import { IcoAlerta, IcoBusca, IcoCheck, IcoEstoque, IcoFechar, IcoMais, IcoVoltar, IcoX } from '../ui/icones.tsx'
+import { IcoBusca, IcoCheck, IcoEstoque, IcoFechar, IcoMais, IcoSeta, IcoVoltar, IcoX } from '../ui/icones.tsx'
 import { CORES_PROTOCOLO, proximaCor } from '../dominio/cores.ts'
 import { escolherFrasco, frascosNaOrdem, frascoUsavel } from '../dominio/estoque.ts'
 import { textoDoseUn, unidadesDaDose } from '../dominio/unidades.ts'
@@ -21,7 +24,7 @@ import { useVoltar } from '../ui/navegar.ts'
 import { UNIDADES } from './dose.tsx'
 import { CalculadoraSeringa } from './calculadora-seringa.tsx'
 import {
-  fimDe,
+  calculoInvalido,
   frascoDoCalculo,
   frequenciaDe,
   itemVazio,
@@ -30,7 +33,10 @@ import {
   novoRascunho,
   rascunho,
   rascunhoDe,
+  resumoDoSalvar,
   situacaoPasso,
+  temOpcoesAvancadas,
+  unidadeInicial,
   useRascunho,
   validarRascunho,
   type ItemRascunho,
@@ -38,10 +44,12 @@ import {
   type SituacaoPasso,
 } from './rascunho.ts'
 
+const PASSOS = 2
+
 function Barra({ n }: { n: number }) {
   return (
     <div aria-hidden="true" className="flex gap-1.5">
-      {[1, 2, 3, 4].map((k) => <span key={k} className={`h-1.5 flex-1 rounded-full ${k <= n ? 'bg-acento' : 'bg-sup2'}`} />)}
+      {Array.from({ length: PASSOS }, (_, k) => k + 1).map((k) => <span key={k} className={`h-1.5 flex-1 rounded-full ${k <= n ? 'bg-acento' : 'bg-sup2'}`} />)}
     </div>
   )
 }
@@ -58,7 +66,7 @@ function Etapa({ n, titulo, children, rodape, aoVoltar, fecharEmVezDeVoltar }: {
         <button type="button" className="icone-btn -ml-2.5" aria-label={fecharEmVezDeVoltar ? 'Cancelar' : 'Voltar'} onClick={aoVoltar ?? (() => voltarOu('/hoje'))}>
           {fecharEmVezDeVoltar ? <IcoFechar /> : <IcoVoltar />}
         </button>
-        {n && <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo {n} de 4</span>}
+        {n && <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo {n} de {PASSOS}</span>}
       </div>
       {n && <Barra n={n} />}
       <h1 className="text-[28px] leading-tight font-extrabold tracking-tight">{titulo}</h1>
@@ -68,7 +76,7 @@ function Etapa({ n, titulo, children, rodape, aoVoltar, fecharEmVezDeVoltar }: {
   )
 }
 
-/** /novo (ou /novo?saida=/hoje no fim do primeiro acesso): começa um rascunho limpo. */
+/** /novo (ou /novo?saida=/hoje no primeiro acesso): começa um rascunho limpo. */
 export function NovoProtocolo() {
   const [params] = useSearchParams()
   const saida = params.get('saida') === '/hoje' ? '/hoje' : undefined
@@ -95,13 +103,6 @@ function SaidaDoPasso({ s }: { s: Exclude<SituacaoPasso, { tipo: 'ok' }> }) {
   return <Carregando />
 }
 
-/** Para onde a seta "voltar" de um passo leva quando a pessoa veio da revisão ("Corrigir…"). */
-function useVoltaDoPasso(padrao: string): string {
-  const loc = useLocation()
-  const volta = (loc.state as { volta?: unknown } | null)?.volta
-  return typeof volta === 'string' && volta.startsWith('/novo/') ? volta : padrao
-}
-
 /** Sai do assistente sem salvar: volta para onde estava antes de começar. */
 function useSairDoAssistente() {
   const voltarOu = useVoltar()
@@ -113,7 +114,10 @@ function useSairDoAssistente() {
   }
 }
 
-/** /protocolos/:id/editar e /duplicar */
+/** Onde fica o protocolo antes desta edição (para sair sem salvar). */
+const origemDe = (r: Rascunho) => (r.base ? `/protocolos/${r.base.id}` : LISTA_PROTOCOLOS)
+
+/** /protocolos/:id/editar e /duplicar: as mesmas 2 telas, começando pelo passo 1. */
 export function CarregarRascunho({ modo }: { modo: 'editar' | 'duplicar' }) {
   const { id } = useParams()
   const nav = useNavigate()
@@ -125,7 +129,7 @@ export function CarregarRascunho({ modo }: { modo: 'editar' | 'duplicar' }) {
     const itens = base.itens.filter((i) => i.protocoloId === id)
     const antes = itens.map((i) => `${base.subs.get(i.substanciaId)?.nome ?? ''} ${fmtDose(i.doseValor, i.doseUnidade)}, ${descreverFrequencia(i.frequencia, i.horarios)}`).join('; ')
     rascunho.iniciar(rascunhoDe(p, itens, modo, antes))
-    nav('/novo/revisao', { replace: true })
+    nav('/novo/substancia', { replace: true })
   }, [base, id, modo, nav])
   return <Carregando />
 }
@@ -134,8 +138,16 @@ function itemAtual(r: Rascunho): ItemRascunho {
   return r.itens[r.atual] ?? r.itens[0]
 }
 
-// ---------------- T21 ----------------
-export function PassoSubstancia() {
+/**
+ * Põe a substância na linha atual e, se a pessoa ainda não tocou numa unidade, já marca a unidade
+ * conhecida (a última usada com ela; senão mg, ou unidades em blend). Nunca preenche a dose.
+ */
+function usarSubstancia(sub: Pick<Substancia, 'id' | 'tipo'>, itens: ItemProtocolo[]) {
+  rascunho.mudarItem((i) => ({ substanciaId: sub.id, ...(i.unidadeAuto !== false ? { doseUnidade: unidadeInicial(sub, itens), unidadeAuto: true } : {}) }))
+}
+
+// ---------------- T21: passo 1, o quê e quanto ----------------
+export function PassoOQue() {
   const s = situacaoPasso(useRascunho())
   const base = useBase()
   const nav = useNavigate()
@@ -143,123 +155,212 @@ export function PassoSubstancia() {
   const toast = useToast()
   const [texto, setTexto] = useState('')
   const [sair, setSair] = useState(false)
+  const [trocando, setTrocando] = useState(false)
+  const [erro, setErro] = useState('')
   const resultados = useMemo(() => (base ? buscar(texto, base.substancias, undefined, 30) : []), [base, texto])
   if (s.tipo !== 'ok') return <SaidaDoPasso s={s} />
   const r = s.r
   if (!base) return <Carregando />
   const atual = itemAtual(r)
   const escolhida = atual.substanciaId ? base.subs.get(atual.substanciaId) : undefined
+  const buscando = !escolhida || trocando
   const q = texto.trim()
   const ir = (rota: string) => nav(rota, { replace: true })
 
   const escolher = async (res: ResultadoBusca) => {
-    if (res.origem === 'minha') {
-      rascunho.mudarItem(() => ({ substanciaId: res.substancia.id }))
-      return
+    let sub: Substancia
+    if (res.origem === 'minha') sub = res.substancia
+    else {
+      try {
+        sub = await repo.usarSugestao(res.sugestao)
+      } catch (e) {
+        return toast({ tipo: 'info', titulo: 'Não deu para escolher', texto: mensagemDeErro(e) })
+      }
+      if (sub.tipo === 'blend') return ir(`/novo/blend?id=${sub.id}&usar=1`)
     }
-    let sub
-    try {
-      sub = await repo.usarSugestao(res.sugestao)
-    } catch (e) {
-      return toast({ tipo: 'info', titulo: 'Não deu para escolher', texto: mensagemDeErro(e) })
-    }
-    if (sub.tipo === 'blend') ir(`/novo/blend?id=${sub.id}&usar=1`)
-    else rascunho.mudarItem(() => ({ substanciaId: sub.id }))
+    usarSubstancia(sub, base.itens)
+    setTrocando(false)
+    setTexto('')
+    setErro('')
   }
 
   const cancelar = () => {
-    const tem = r.itens.some((i) => i.substanciaId || i.doseTxt || i.horarios.length) || r.nome
-    if (r.atual > 0 || r.modo !== 'novo') {
-      // adicionando outra linha: volta para a revisão sem a linha vazia
+    if (r.atual > 0) {
+      // outra linha do mesmo protocolo: volta ao passo 2 (sem a linha, se ficou vazia)
       if (!atual.substanciaId) rascunho.mudar((x) => ({ itens: x.itens.filter((_, k) => k !== x.atual), atual: 0 }))
-      ir('/novo/revisao')
-    } else if (tem) setSair(true)
+      return ir('/novo/frequencia')
+    }
+    if (r.modo !== 'novo') return sairDoAssistente(r, origemDe(r))
+    const tem = r.itens.some((i) => i.substanciaId || i.doseTxt.trim()) || r.nome.trim()
+    if (tem) setSair(true)
     else sairDoAssistente(r, LISTA_PROTOCOLOS)
   }
 
+  const continuar = () => {
+    const v = lerNumero(atual.doseTxt)
+    if (v === null || v <= 0) return setErro(erroNumero(atual.doseTxt, 'Digite um número maior que zero.'))
+    if (!atual.doseUnidade) return setErro('Escolha a unidade.')
+    if (calculoInvalido(atual)) return setErro('Confira os números do frasco na calculadora (mg do frasco e mL de água) ou apague-os.')
+    ir('/novo/frequencia')
+  }
+
+  const pular = r.saida && r.modo === 'novo' && r.atual === 0 && (
+    <button type="button" className="btn-texto" onClick={() => sairDoAssistente(r, r.saida!)}>Pular, ver o app primeiro</button>
+  )
+  const dialogoSair = sair && <DialogoSair aoFicar={() => setSair(false)} aoDescartar={() => { setSair(false); sairDoAssistente(r, LISTA_PROTOCOLOS) }} />
+
+  if (buscando) {
+    return (
+      <Etapa
+        n={1}
+        titulo="O quê e quanto"
+        aoVoltar={trocando ? () => setTrocando(false) : cancelar}
+        fecharEmVezDeVoltar={!trocando}
+        rodape={
+          <>
+            <button type="button" className="btn-primario" disabled>Escolha ou crie uma substância</button>
+            {pular}
+          </>
+        }
+      >
+        <h2 className="text-lg font-bold">O que você vai usar?</h2>
+        <label className="relative flex items-center">
+          <span className="sr-only">Buscar ou digitar o nome</span>
+          <IcoBusca tam={20} className="pointer-events-none absolute left-3.5 text-fraco" />
+          <input
+            type="search"
+            autoComplete="off"
+            placeholder="Buscar ou digitar o nome"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            className="campo h-[52px] pl-11 font-semibold"
+          />
+        </label>
+
+        {q && resultados.length === 0 ? (
+          <div className="flex flex-col gap-3 py-2">
+            <b className="text-lg">Nada encontrado para “{q}”</b>
+            <p className="m-0 text-sm text-suave">Sem problema: crie com esse nome. Ela fica salva só para você e aparece nas próximas buscas.</p>
+            <button type="button" className="btn-primario" onClick={() => ir(`/novo/criar?nome=${encodeURIComponent(q)}`)}>Criar “{q}”</button>
+            <button type="button" className="btn-secundario" onClick={() => ir(`/novo/blend?nome=${encodeURIComponent(q)}&usar=1`)}>É um blend: criar com componentes</button>
+            <p className="m-0 text-sm text-fraco">Dica: confira a grafia, com ou sem hífen.</p>
+          </div>
+        ) : (
+          <div role="listbox" aria-label="Substâncias" className="card flex flex-col overflow-hidden">
+            {resultados.map((res) => {
+              const id = res.origem === 'minha' ? res.substancia.id : res.sugestao.id
+              const nome = res.origem === 'minha' ? res.substancia.nome : res.sugestao.nome
+              const tipo = res.origem === 'minha' ? res.substancia.tipo : res.sugestao.tipo
+              const sel = res.origem === 'minha' && res.substancia.id === atual.substanciaId
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="option"
+                  aria-selected={sel}
+                  onClick={() => void escolher(res)}
+                  className={`flex min-h-[52px] items-center justify-between gap-2.5 border-t border-sup2 px-4 text-left first:border-t-0 ${sel ? 'bg-selecionado text-acento' : ''}`}
+                >
+                  <span className="text-base font-bold break-words">{nome}</span>
+                  <span className="flex shrink-0 gap-1.5">
+                    {tipo === 'blend' && <span className="selo border border-borda text-suave">Blend</span>}
+                    <span className={`selo ${res.origem === 'minha' ? 'bg-selecionado text-acento' : 'bg-sup2 text-fraco'}`}>{res.origem === 'minha' ? 'Sua' : 'Lista'}</span>
+                  </span>
+                </button>
+              )
+            })}
+            {q && !existeNomeExato(q, base.substancias) && (
+              <button type="button" onClick={() => ir(`/novo/criar?nome=${encodeURIComponent(q)}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
+                <IcoMais tam={20} /> Não achei: criar “{q}”
+              </button>
+            )}
+            {!q && (
+              <button type="button" onClick={() => ir('/novo/criar')} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
+                <IcoMais tam={20} /> Criar substância do zero
+              </button>
+            )}
+            <button type="button" onClick={() => ir(`/novo/blend?usar=1${q ? `&nome=${encodeURIComponent(q)}` : ''}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
+              <IcoMais tam={20} /> Criar blend (vários em um frasco)
+            </button>
+          </div>
+        )}
+        <p className="m-0 text-sm leading-relaxed text-fraco">
+          Sugestões, só nomes (sem doses nem composição). Não é limite: digite qualquer composto ou blend, mesmo que não esteja aqui. {!q && `Mostrando ${AMOSTRA_IDS.length} da lista; busque para ver mais.`}
+        </p>
+        {dialogoSair}
+      </Etapa>
+    )
+  }
+
+  const sub = escolhida!
+  const blend = sub.tipo === 'blend'
+  const hoje = hojeStr()
+  const frascoLigado = atual.frascoId ? base.frascos.find((f) => f.id === atual.frascoId) : undefined
+  const ligadoUsavel = !!frascoLigado && frascoUsavel(frascoLigado, base.aplicacoes)
+  const novoFrasco = frascoDoCalculo(atual, hoje, ligadoUsavel)
+  const frascos = frascosNaOrdem(sub.id, base.frascos, base.aplicacoes, hoje)
   return (
     <Etapa
       n={1}
-      titulo="O que você vai usar?"
+      titulo="O quê e quanto"
       aoVoltar={cancelar}
       fecharEmVezDeVoltar
       rodape={
-        <button type="button" className="btn-primario" disabled={!escolhida} onClick={() => ir('/novo/dose')}>
-          {escolhida ? `Continuar com ${escolhida.nome}` : 'Escolha ou crie uma substância'}
-        </button>
+        <>
+          <button type="button" className="btn-primario" onClick={continuar}>Continuar</button>
+          {pular}
+        </>
       }
     >
-      <label className="relative flex items-center">
-        <span className="sr-only">Buscar ou digitar o nome</span>
-        <IcoBusca tam={20} className="pointer-events-none absolute left-3.5 text-fraco" />
+      <div className="card flex items-center justify-between gap-3 py-1 pr-1 pl-4">
+        <span className="flex min-w-0 flex-col">
+          <span className="text-sm font-bold text-fraco">Substância</span>
+          <b className="text-lg break-words text-acento">{sub.nome}</b>
+        </span>
+        <button type="button" className="btn-texto shrink-0" onClick={() => { setTrocando(true); setErro('') }}>Trocar</button>
+      </div>
+      <label className="rotulo text-sm">
+        Dose que você definiu
         <input
-          type="search"
-          autoComplete="off"
-          placeholder="Buscar ou digitar o nome"
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          className="campo h-[52px] pl-11 font-semibold"
+          className="campo h-14 text-xl"
+          inputMode="decimal"
+          autoFocus
+          placeholder="Digite o número"
+          value={atual.doseTxt}
+          aria-invalid={!!erro}
+          onChange={(e) => { rascunho.mudarItem(() => ({ doseTxt: e.target.value })); setErro('') }}
         />
       </label>
-
-      {q && resultados.length === 0 ? (
-        <div className="flex flex-col gap-3 py-2">
-          <b className="text-lg">Nada encontrado para “{q}”</b>
-          <p className="m-0 text-sm text-suave">Sem problema: crie com esse nome. Ela fica salva só para você e aparece nas próximas buscas.</p>
-          <button type="button" className="btn-primario" onClick={() => ir(`/novo/criar?nome=${encodeURIComponent(q)}`)}>Criar “{q}”</button>
-          <button type="button" className="btn-secundario" onClick={() => ir(`/novo/blend?nome=${encodeURIComponent(q)}&usar=1`)}>É um blend: criar com componentes</button>
-          <p className="m-0 text-sm text-fraco">Dica: confira a grafia, com ou sem hífen.</p>
-        </div>
-      ) : (
-        <div role="listbox" aria-label="Substâncias" className="card flex flex-col overflow-hidden">
-          {resultados.map((res) => {
-            const id = res.origem === 'minha' ? res.substancia.id : res.sugestao.id
-            const nome = res.origem === 'minha' ? res.substancia.nome : res.sugestao.nome
-            const tipo = res.origem === 'minha' ? res.substancia.tipo : res.sugestao.tipo
-            const sel = res.origem === 'minha' && res.substancia.id === atual.substanciaId
-            return (
-              <button
-                key={id}
-                type="button"
-                role="option"
-                aria-selected={sel}
-                onClick={() => escolher(res)}
-                className={`flex min-h-[52px] items-center justify-between gap-2.5 border-t border-sup2 px-4 text-left first:border-t-0 ${sel ? 'bg-selecionado text-acento' : ''}`}
-              >
-                <span className="text-base font-bold break-words">{nome}</span>
-                <span className="flex shrink-0 gap-1.5">
-                  {tipo === 'blend' && <span className="selo border border-borda text-suave">Blend</span>}
-                  <span className={`selo ${res.origem === 'minha' ? 'bg-selecionado text-acento' : 'bg-sup2 text-fraco'}`}>{res.origem === 'minha' ? 'Sua' : 'Lista'}</span>
-                </span>
-              </button>
-            )
-          })}
-          {q && !existeNomeExato(q, base.substancias) && (
-            <button type="button" onClick={() => ir(`/novo/criar?nome=${encodeURIComponent(q)}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
-              <IcoMais tam={20} /> Não achei: criar “{q}”
-            </button>
-          )}
-          {!q && (
-            <button type="button" onClick={() => ir('/novo/criar')} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
-              <IcoMais tam={20} /> Criar substância do zero
-            </button>
-          )}
-          <button type="button" onClick={() => ir(`/novo/blend?usar=1${q ? `&nome=${encodeURIComponent(q)}` : ''}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
-            <IcoMais tam={20} /> Criar blend (vários em um frasco)
-          </button>
-        </div>
+      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend className="mb-2 text-sm font-bold text-fraco">Unidade</legend>
+        <Chips rotulo="Unidade" opcoes={UNIDADES.map((u) => ({ v: u, t: u }))} valor={atual.doseUnidade} aoMudar={(v: UnidadeDose) => { rascunho.mudarItem(() => ({ doseUnidade: v, unidadeAuto: false })); setErro('') }} />
+      </fieldset>
+      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      <Nota tipo="aviso">Confira a unidade: 1 mg = 1.000 mcg. A dose é a que você definiu.</Nota>
+      {blend && <Nota>Em blend, a dose é do frasco todo, em mL ou unidades.</Nota>}
+      <CalculadoraSeringa it={atual} blend={blend} frascoLigado={frascoLigado} ligadoUsavel={ligadoUsavel} somaBlendMg={blend ? somaComponentesMg(sub.componentes) : null} />
+      {!novoFrasco && frascos.length > 0 && (
+        <label className="rotulo text-sm">
+          Frasco do Estoque
+          <select className="campo text-sm font-semibold" value={atual.frascoId ?? ''} onChange={(e) => rascunho.mudarItem(() => ({ frascoId: e.target.value || undefined }))}>
+            <option value="">Automático (o mais antigo com saldo)</option>
+            {frascos.map((f) => <option key={f.id} value={f.id}>{fmtNum(f.mgTotal)} mg · {f.status === 'reconstituido' ? 'reconstituído' : 'fechado'}{f.validade ? ` · val. ${dataCurta(f.validade)}` : ''}</option>)}
+          </select>
+        </label>
       )}
-      <p className="m-0 text-sm leading-relaxed text-fraco">
-        Sugestões, só nomes (sem doses nem composição). Não é limite: digite qualquer composto ou blend, mesmo que não esteja aqui. {!q && `Mostrando ${AMOSTRA_IDS.length} da lista; busque para ver mais.`}
-      </p>
-      {sair && (
-        <Dialogo titulo="Sair sem salvar?" aoFechar={() => setSair(false)}>
-          <p className="m-0 text-sm text-suave">O que você digitou neste protocolo será descartado.</p>
-          <button type="button" className="btn-primario" onClick={() => setSair(false)}>Continuar editando</button>
-          <button type="button" className="btn-neutro text-erro" onClick={() => { setSair(false); sairDoAssistente(r, LISTA_PROTOCOLOS) }}>Descartar</button>
-        </Dialogo>
-      )}
+      {dialogoSair}
     </Etapa>
+  )
+}
+
+/** M26: sair do cadastro com algo digitado. */
+function DialogoSair({ aoFicar, aoDescartar }: { aoFicar: () => void; aoDescartar: () => void }) {
+  return (
+    <Dialogo titulo="Sair sem salvar?" aoFechar={aoFicar}>
+      <p className="m-0 text-sm text-suave">O que você digitou neste protocolo será descartado.</p>
+      <button type="button" className="btn-primario" onClick={aoFicar}>Continuar editando</button>
+      <button type="button" className="btn-neutro text-erro" onClick={aoDescartar}>Descartar</button>
+    </Dialogo>
   )
 }
 
@@ -308,8 +409,8 @@ export function CriarSubstancia() {
       toast({ titulo: 'Substância criada', texto: n })
       return voltarOu('/ajustes/substancias')
     }
-    rascunho.mudarItem(() => ({ substanciaId: s.id }))
-    nav('/novo/dose', { replace: true })
+    usarSubstancia(s, base?.itens ?? [])
+    nav('/novo/substancia', { replace: true })
   }
 
   return (
@@ -389,22 +490,21 @@ export function EditorBlend() {
     if (!n) return setErro('Dê um nome ao blend.')
     if (ocupado.current) return
     ocupado.current = true
-    let subId: string
+    let sub: Substancia
     try {
       if (existente) {
-        await repo.atualizarSubstancia({ ...existente, nome: n, componentes })
-        subId = existente.id
+        sub = { ...existente, nome: n, componentes }
+        await repo.atualizarSubstancia(sub)
       } else {
-        const s = await repo.criarSubstancia({ nome: n, tipo: 'blend', origem: 'usuario', componentes })
-        subId = s.id
+        sub = await repo.criarSubstancia({ nome: n, tipo: 'blend', origem: 'usuario', componentes })
       }
     } catch (e) {
       ocupado.current = false
       return setErro(mensagemDeErro(e))
     }
     if (usar) {
-      rascunho.mudarItem(() => ({ substanciaId: subId }))
-      nav('/novo/dose', { replace: true })
+      usarSubstancia(sub, base.itens)
+      nav('/novo/substancia', { replace: true })
     } else {
       toast({ titulo: 'Blend salvo', texto: n })
       voltarOu('/estoque')
@@ -452,92 +552,134 @@ export function EditorBlend() {
   )
 }
 
-// ---------------- T22 ----------------
-export function PassoDose() {
+// ---------------- T23: passo 2, quando (+ Mais opções e salvar) ----------------
+export function PassoQuando() {
   const s = situacaoPasso(useRascunho())
   const base = useBase()
   const nav = useNavigate()
-  const volta = useVoltaDoPasso('/novo/substancia')
-  const [erro, setErro] = useState('')
+  const voltarOu = useVoltar()
+  const toast = useToast()
+  const [erros, setErros] = useState<string[]>([])
+  const [confirmar, setConfirmar] = useState(false)
+  /** null = ainda não mexeu: abre sozinho quando algum campo de "Mais opções" tem valor. */
+  const [mais, setMais] = useState<boolean | null>(null)
+  const salvando = useRef(false)
   if (s.tipo !== 'ok') return <SaidaDoPasso s={s} />
   const r = s.r
   if (!base) return <Carregando />
   const it = itemAtual(r)
-  const sub = it.substanciaId ? base.subs.get(it.substanciaId) : undefined
-  if (!sub) return <Navigate to="/novo/substancia" replace />
-  const blend = sub.tipo === 'blend'
-  const continuar = () => {
-    const v = lerNumero(it.doseTxt)
-    if (v === null || v <= 0) return setErro(erroNumero(it.doseTxt, 'Digite um número maior que zero.'))
-    if (!it.doseUnidade) return setErro('Escolha a unidade.')
-    nav(it.horarios.length ? '/novo/revisao' : '/novo/frequencia', { replace: true })
-  }
-  const frascoLigado = it.frascoId ? base.frascos.find((f) => f.id === it.frascoId) : undefined
-  const ligadoUsavel = !!frascoLigado && frascoUsavel(frascoLigado, base.aplicacoes)
-  return (
-    <Etapa
-      n={2}
-      titulo="Quanto você aplica por vez?"
-      aoVoltar={() => nav(volta, { replace: true })}
-      rodape={<button type="button" className="btn-primario" onClick={continuar}>Continuar</button>}
-    >
-      <span className="text-lg font-bold text-acento break-words">{sub.nome}</span>
-      <label className="rotulo text-sm">
-        Dose que você definiu
-        <input
-          className="campo h-14 text-xl"
-          inputMode="decimal"
-          autoFocus
-          placeholder="Digite o número"
-          value={it.doseTxt}
-          aria-invalid={!!erro}
-          onChange={(e) => { rascunho.mudarItem(() => ({ doseTxt: e.target.value })); setErro('') }}
-        />
-      </label>
-      <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-sm font-bold text-fraco">Unidade</legend>
-        <Chips rotulo="Unidade" opcoes={UNIDADES.map((u) => ({ v: u, t: u }))} valor={it.doseUnidade} aoMudar={(v: UnidadeDose) => { rascunho.mudarItem(() => ({ doseUnidade: v })); setErro('') }} />
-      </fieldset>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
-      {blend && <Nota>Em blend, a dose é do frasco todo, em mL ou unidades.</Nota>}
-      <CalculadoraSeringa it={it} blend={blend} frascoLigado={frascoLigado} ligadoUsavel={ligadoUsavel} somaBlendMg={blend ? somaComponentesMg(sub.componentes) : null} />
-      <Nota tipo="aviso">Confira a unidade: 1 mg = 1.000 mcg. A dose é a que você definiu.</Nota>
-    </Etapa>
-  )
-}
+  if (!it.substanciaId) return <Navigate to="/novo/substancia" replace />
+  const aberto = mais ?? temOpcoesAvancadas(r)
+  const hoje = hojeStr()
+  const subNome = (i: ItemRascunho) => (i.substanciaId ? base.subs.get(i.substanciaId)?.nome ?? '' : '')
+  const nomePadrao = subNome(r.itens[0]) || 'o composto'
 
-// ---------------- T23 ----------------
-export function PassoFrequencia() {
-  const s = situacaoPasso(useRascunho())
-  const nav = useNavigate()
-  const volta = useVoltaDoPasso('/novo/dose')
-  const [hora, setHora] = useState('08:00')
-  const [erro, setErro] = useState('')
-  if (s.tipo !== 'ok') return <SaidaDoPasso s={s} />
-  const it = itemAtual(s.r)
-  const add = () => {
-    if (!/^\d{2}:\d{2}$/.test(hora)) return
-    if (!it.horarios.includes(hora)) rascunho.mudarItem((i) => ({ horarios: [...i.horarios, hora].sort() }))
-    setErro('')
+  /** Frasco que cada linha leva para o Estoque ao salvar (regra: todo frasco informado vai para o Estoque). */
+  const frascoNovoDe = (i: ItemRascunho, dia: string) => {
+    const ligado = i.frascoId ? base.frascos.find((f) => f.id === i.frascoId) : undefined
+    return frascoDoCalculo(i, dia, !!ligado && frascoUsavel(ligado, base.aplicacoes))
   }
-  const continuar = () => {
-    if (it.freqTipo === 'semana' && !it.dias.length) return setErro('Escolha pelo menos um dia da semana.')
-    if (it.freqTipo === 'cadaN' && !((lerNumero(it.cadaN) ?? 0) >= 1)) return setErro('Informe de quantos em quantos dias.')
-    if (!it.horarios.length) return setErro('Adicione pelo menos um horário.')
-    nav('/novo/revisao', { replace: true })
+  /** "2 mg · 10 un": a dose e, com o frasco que ela vai usar, as unidades na seringa. */
+  const doseDaLinha = (i: ItemRascunho) => {
+    if (!i.doseUnidade) return 'sem dose'
+    const frasco = frascoNovoDe(i, r.inicio) ?? (i.substanciaId ? escolherFrasco({ substanciaId: i.substanciaId, preferidos: [i.frascoId], frascos: base.frascos, aplicacoes: base.aplicacoes, hoje }) : undefined)
+    return textoDoseUn(unidadesDaDose(lerNumero(i.doseTxt) ?? 0, i.doseUnidade, frasco, !!i.substanciaId && base.subs.get(i.substanciaId)?.tipo === 'blend'))
+  }
+  const depois = r.itens.map((i) => `${subNome(i)} ${i.doseUnidade ? fmtDose(lerNumero(i.doseTxt) ?? 0, i.doseUnidade) : ''}, ${descreverFrequencia(frequenciaDe(i), i.horarios)}`).join('; ')
+  const corEscolhida = r.cor ?? proximaCor(base.protocolos.filter((p) => p.id !== r.protocoloId).map((p) => p.cor))
+
+  const gravar = async () => {
+    if (salvando.current) return
+    salvando.current = true
+    const { protocolo, itens } = montarProtocolo(r)
+    const novos: Record<string, NonNullable<ReturnType<typeof frascoDoCalculo>>> = {}
+    for (const i of r.itens) {
+      const f = frascoNovoDe(i, hojeStr())
+      if (f) novos[i.id] = f
+    }
+    const primeiro = r.modo !== 'editar' && base.protocolos.length === 0
+    let criados = 0
+    try {
+      criados = (await repo.salvarProtocolo({ ...protocolo, cor: corEscolhida }, itens, novos)).frascos.length
+      if (r.modo !== 'editar') {
+        // primeiro protocolo: o pedido de avisos aparece em seguida (uma vez só)
+        const pedido = pedidoAvisosAoSalvar(await repo.getConfig('pedidoAvisos'), !!(await repo.getConfig('onboarding')))
+        if (pedido) await repo.setConfig('pedidoAvisos', pedido)
+      }
+    } catch (e) {
+      salvando.current = false
+      setConfirmar(false)
+      setErros([mensagemDeErro(e)])
+      return
+    }
+    // pede ao navegador para não apagar os dados (sem janela no Chrome/Safari)
+    if (r.modo !== 'editar') void pedirArmazenamentoPersistente()
+    // Primeiro protocolo: a Hoje, já com a dose. Os outros: o detalhe do protocolo.
+    const destino = primeiro ? '/hoje' : `/protocolos/${protocolo.id}`
+    // Fecha o cadastro: nenhum passo reabre depois disto (voltar, F5, link antigo).
+    rascunho.fechar(destino)
+    toast({ titulo: r.modo === 'editar' ? 'Alteração salva' : 'Protocolo salvo', texto: `${nomeProtocolo(protocolo, itens, base.subs)}${criados ? ` · ${criados === 1 ? 'frasco' : `${criados} frascos`} no Estoque` : ''}` })
+    // Editar: a tela anterior é o próprio protocolo. Novo/duplicar: o destino toma o lugar do assistente.
+    if (r.modo === 'editar') voltarOu(destino)
+    else nav(destino, { replace: true })
+  }
+  const salvar = () => {
+    const v = validarRascunho(r)
+    setErros(v.erros)
+    if (!v.ok) {
+      // erro num campo de "Mais opções": abre a seção para a pessoa ver
+      if (v.erros.some((e) => /começa|duração|ciclo|nome|linha/i.test(e))) setMais(true)
+      return
+    }
+    if (r.modo === 'editar') setConfirmar(true)
+    else void gravar()
+  }
+  const editarLinha = (k: number) => {
+    rascunho.mudar(() => ({ atual: k }))
+    nav('/novo/substancia', { replace: true })
+  }
+  const novoHorario = () => {
+    const livre = ['08:00', '20:00', '12:00', '16:00'].find((h) => !it.horarios.includes(h)) ?? '08:00'
+    rascunho.mudarItem((i) => ({ horarios: [...i.horarios, livre] }))
+    setErros([])
   }
   const opc = [
     { v: 'diaria', t: 'Todos os dias' },
     { v: 'cadaN', t: 'A cada N dias' },
     { v: 'semana', t: 'Dias da semana' },
   ] as const
+
   return (
-    <Etapa n={3} titulo="Quando você aplica?" aoVoltar={() => nav(volta, { replace: true })} rodape={<button type="button" className="btn-primario" onClick={continuar}>Continuar</button>}>
+    <Etapa
+      n={2}
+      titulo="Quando"
+      aoVoltar={() => nav('/novo/substancia', { replace: true })}
+      rodape={
+        <>
+          {erros.length > 0 && (
+            <div role="alert" className="flex flex-col gap-1 rounded-xl bg-sup2 p-3 text-sm font-bold text-erro">
+              {erros.map((e) => <span key={e}>{e}</span>)}
+            </div>
+          )}
+          <button type="button" data-salvar="" className="btn-primario h-auto min-h-[54px] py-2.5 text-center leading-snug" onClick={salvar}>
+            {r.modo === 'editar' ? 'Salvar alteração' : 'Salvar'} · {resumoDoSalvar(r)}
+          </button>
+        </>
+      }
+    >
+      <button type="button" className="card tocavel flex min-h-[52px] items-center gap-3 px-4 py-2 text-left" onClick={() => editarLinha(r.atual)}>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <b className="text-base break-words">{subNome(it)} · {doseDaLinha(it)}</b>
+          <span className="text-sm text-fraco">Substância e dose</span>
+        </span>
+        <span className="flex shrink-0 items-center text-sm font-bold text-acento">Corrigir<IcoSeta tam={16} /></span>
+      </button>
+
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
         <legend className="mb-2 text-sm font-bold text-fraco">Frequência</legend>
         {opc.map((o) => (
           <label key={o.v} className={`card flex min-h-[52px] items-center gap-3 px-4 text-base font-semibold ${it.freqTipo === o.v ? 'border-acento' : ''}`}>
-            <input type="radio" name="freq" className="h-5 w-5" checked={it.freqTipo === o.v} onChange={() => { rascunho.mudarItem(() => ({ freqTipo: o.v })); setErro('') }} />
+            <input type="radio" name="freq" className="h-5 w-5" checked={it.freqTipo === o.v} onChange={() => { rascunho.mudarItem(() => ({ freqTipo: o.v })); setErros([]) }} />
             {o.t}
             {o.v === 'cadaN' && it.freqTipo === 'cadaN' && (
               <span className="ml-auto flex items-center gap-2 text-sm text-fraco">
@@ -552,222 +694,132 @@ export function PassoFrequencia() {
       {it.freqTipo === 'semana' && (
         <div role="group" aria-label="Dias da semana" className="grid grid-cols-7 gap-1">
           {SEMANA_CURTA.map((d, k) => (
-            <button key={d} type="button" aria-pressed={it.dias.includes(k)} className="chip px-0 text-sm" onClick={() => rascunho.mudarItem((i) => ({ dias: i.dias.includes(k) ? i.dias.filter((x) => x !== k) : [...i.dias, k] }))}>
+            <button key={d} type="button" aria-pressed={it.dias.includes(k)} className="chip px-0 text-sm" onClick={() => { rascunho.mudarItem((i) => ({ dias: i.dias.includes(k) ? i.dias.filter((x) => x !== k) : [...i.dias, k] })); setErros([]) }}>
               {d}
             </button>
           ))}
         </div>
       )}
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-bold text-fraco">Horários</h2>
-        <div className="flex flex-wrap gap-2">
-          {it.horarios.map((h) => (
-            <button key={h} type="button" className="chip gap-1.5" aria-pressed="true" aria-label={`Remover ${h}`} onClick={() => rascunho.mudarItem((i) => ({ horarios: i.horarios.filter((x) => x !== h) }))}>
-              {h} <IcoX tam={14} />
-            </button>
-          ))}
-          {!it.horarios.length && <span className="text-sm text-fraco">Nenhum horário ainda.</span>}
-        </div>
-        <div className="flex gap-2">
-          <input type="time" aria-label="Horário" className="campo" value={hora} onChange={(e) => setHora(e.target.value)} />
-          <button type="button" className="btn-secundario w-auto shrink-0" onClick={add}><IcoMais tam={18} /> Adicionar</button>
-        </div>
-        {it.horarios.length > 0 && <span className="text-sm text-fraco">Toque num horário para remover.</span>}
-      </section>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
-    </Etapa>
-  )
-}
-
-// ---------------- T24 ----------------
-export function PassoRevisao() {
-  const s = situacaoPasso(useRascunho())
-  const base = useBase()
-  const nav = useNavigate()
-  const voltarOu = useVoltar()
-  const sairDoAssistente = useSairDoAssistente()
-  const toast = useToast()
-  const [erros, setErros] = useState<string[]>([])
-  const [confirmar, setConfirmar] = useState(false)
-  const salvando = useRef(false)
-  if (s.tipo !== 'ok') return <SaidaDoPasso s={s} />
-  const r = s.r
-  if (!base) return <Carregando />
-  const subNome = (i: ItemRascunho) => (i.substanciaId ? base.subs.get(i.substanciaId)?.nome ?? '' : '')
-  const nomePadrao = subNome(r.itens[0]) || 'o composto'
-  const fim = fimDe(r)
-  const depois = r.itens.map((i) => `${subNome(i)} ${i.doseUnidade ? fmtDose(lerNumero(i.doseTxt) ?? 0, i.doseUnidade) : ''}, ${descreverFrequencia(frequenciaDe(i), i.horarios)}`).join('; ')
-  // Onde fica o protocolo antes desta edição (para sair sem salvar).
-  const origem = r.base ? `/protocolos/${r.base.id}` : LISTA_PROTOCOLOS
-
-  /** Frasco que cada linha leva para o Estoque ao salvar (regra: todo frasco informado vai para o Estoque). */
-  const frascoNovoDe = (i: ItemRascunho, hoje: string) => {
-    const ligado = i.frascoId ? base.frascos.find((f) => f.id === i.frascoId) : undefined
-    return frascoDoCalculo(i, hoje, !!ligado && frascoUsavel(ligado, base.aplicacoes))
-  }
-  const corEscolhida = r.cor ?? proximaCor(base.protocolos.filter((p) => p.id !== r.protocoloId).map((p) => p.cor))
-
-  const gravar = async () => {
-    if (salvando.current) return
-    salvando.current = true
-    const { protocolo, itens } = montarProtocolo(r)
-    const hoje = hojeStr()
-    const novos: Record<string, NonNullable<ReturnType<typeof frascoDoCalculo>>> = {}
-    for (const i of r.itens) {
-      const f = frascoNovoDe(i, hoje)
-      if (f) novos[i.id] = f
-    }
-    let criados = 0
-    try {
-      criados = (await repo.salvarProtocolo({ ...protocolo, cor: corEscolhida }, itens, novos)).frascos.length
-    } catch (e) {
-      salvando.current = false
-      setConfirmar(false)
-      setErros([mensagemDeErro(e)])
-      return
-    }
-    // primeiro protocolo (ou um novo): pede ao navegador para não apagar os dados (sem janela no Chrome/Safari)
-    if (r.modo !== 'editar') void pedirArmazenamentoPersistente()
-    const destino = `/protocolos/${protocolo.id}`
-    // Fecha o cadastro: nenhum passo reabre depois disto (voltar, F5, link antigo).
-    rascunho.fechar(destino)
-    toast({ titulo: r.modo === 'editar' ? 'Alteração salva' : 'Protocolo salvo', texto: `${nomeProtocolo(protocolo, itens, base.subs)}${criados ? ` · ${criados === 1 ? 'frasco' : `${criados} frascos`} no Estoque` : ''}` })
-    // Editar: a tela anterior é o próprio protocolo. Novo/duplicar: o detalhe toma o lugar do assistente.
-    if (r.modo === 'editar') voltarOu(destino)
-    else nav(destino, { replace: true })
-  }
-  const salvar = () => {
-    const v = validarRascunho(r)
-    setErros(v.erros)
-    if (!v.ok) return
-    if (r.modo === 'editar') setConfirmar(true)
-    else void gravar()
-  }
-  const irPara = (k: number, rota: string) => {
-    rascunho.mudar(() => ({ atual: k }))
-    nav(rota, { replace: true, state: { volta: '/novo/revisao' } })
-  }
-
-  return (
-    <Etapa
-      n={4}
-      titulo={r.modo === 'editar' ? 'Editar protocolo' : r.modo === 'duplicar' ? 'Novo ciclo (cópia)' : 'Por quanto tempo?'}
-      aoVoltar={() => (r.modo === 'novo' ? nav('/novo/frequencia', { replace: true }) : sairDoAssistente(r, origem))}
-      rodape={
-        <>
-          {erros.length > 0 && (
-            <div role="alert" className="flex flex-col gap-1 rounded-xl bg-sup2 p-3 text-sm font-bold text-erro">
-              {erros.map((e) => <span key={e}>{e}</span>)}
-            </div>
-          )}
-          <button type="button" className="btn-primario" onClick={salvar}>{r.modo === 'editar' ? 'Salvar alteração' : 'Salvar protocolo'}</button>
-        </>
-      }
-    >
-      <label className="rotulo text-sm text-texto">
-        <span>Nome do protocolo <span className="font-medium text-fraco">(opcional)</span></span>
-        <input className="campo font-medium" maxLength={MAX_NOME_PROTOCOLO} placeholder="Ex.: meu protocolo da pele" value={r.nome} onChange={(e) => rascunho.mudar(() => ({ nome: e.target.value }))} />
-        <span className="text-sm leading-snug font-medium text-fraco">
-          Se deixar vazio, usamos o nome do composto (aqui, {nomePadrao}). Até {MAX_NOME_PROTOCOLO} caracteres; nomes repetidos são aceitos e diferenciados pela data de início.
-        </span>
-      </label>
-      <SeletorCor valor={corEscolhida} aoMudar={(cor) => rascunho.mudar(() => ({ cor }))} />
-      <div className="grid grid-cols-2 gap-2.5">
-        <label className="rotulo text-sm text-texto">
-          Começa em
-          <input type="date" className="campo px-2" value={r.inicio} onChange={(e) => rascunho.mudar(() => ({ inicio: e.target.value }))} />
-        </label>
-        <div className="rotulo text-sm text-texto">
-          <span>Duração</span>
-          <div className="flex gap-1.5">
-            {r.duracaoTipo !== 'sem-fim' && (
-              <input aria-label="Duração" inputMode="numeric" className="campo w-14 shrink-0 px-2 text-center" value={r.duracaoValor} onChange={(e) => rascunho.mudar(() => ({ duracaoValor: e.target.value }))} />
+        <h2 className="text-sm font-bold text-fraco">{it.horarios.length > 1 ? 'Horários' : 'Horário'}</h2>
+        {it.horarios.map((h, k) => (
+          <div key={k} className="flex gap-2">
+            <input
+              type="time"
+              aria-label={it.horarios.length > 1 ? `Horário ${k + 1}` : 'Horário'}
+              className="campo"
+              value={h}
+              onChange={(e) => { const v = e.target.value; rascunho.mudarItem((i) => ({ horarios: i.horarios.map((x, j) => (j === k ? v : x)) })); setErros([]) }}
+            />
+            {it.horarios.length > 1 && (
+              <button type="button" className="icone-btn shrink-0 border border-linha" aria-label={`Remover horário ${k + 1}`} onClick={() => rascunho.mudarItem((i) => ({ horarios: i.horarios.filter((_, j) => j !== k) }))}>
+                <IcoX tam={18} />
+              </button>
             )}
-            <select aria-label="Unidade da duração" className="campo min-w-0 px-2 text-sm" value={r.duracaoTipo} onChange={(e) => rascunho.mudar(() => ({ duracaoTipo: e.target.value as Rascunho['duracaoTipo'] }))}>
-              <option value="semanas">semanas</option>
-              <option value="dias">dias</option>
-              <option value="sem-fim">sem fim</option>
-            </select>
           </div>
-        </div>
-      </div>
-      <div className="card flex flex-col gap-3 px-4 py-3">
-        <label className="flex min-h-11 items-center justify-between gap-3">
-          <span className="flex flex-col gap-0.5">
-            <b className="text-sm">Ciclo com pausa</b>
-            <span className="text-sm text-fraco">Ex.: X dias sim, Y dias não. Opcional.</span>
-          </span>
-          <input type="checkbox" role="switch" className="h-6 w-6" checked={r.ciclo} onChange={(e) => rascunho.mudar(() => ({ ciclo: e.target.checked }))} />
-        </label>
-        {r.ciclo && (
-          <div className="flex items-center gap-2 text-sm font-semibold text-suave">
-            <input aria-label="Dias com dose" inputMode="numeric" className="campo h-11 w-16 text-center" value={r.diasOn} onChange={(e) => rascunho.mudar(() => ({ diasOn: e.target.value }))} />
-            dias sim,
-            <input aria-label="Dias de pausa" inputMode="numeric" className="campo h-11 w-16 text-center" value={r.diasOff} onChange={(e) => rascunho.mudar(() => ({ diasOff: e.target.value }))} />
-            dias não
-          </div>
-        )}
-      </div>
-
-      <section aria-label="Resumo" className="flex flex-col gap-2.5">
-        <span className="text-xs font-bold tracking-wide text-fraco uppercase">Confira antes de salvar</span>
-        {r.itens.map((i, k) => {
-          const frascos = i.substanciaId ? frascosNaOrdem(i.substanciaId, base.frascos, base.aplicacoes, hojeStr()) : []
-          const novoFrasco = frascoNovoDe(i, r.inicio)
-          // unidades na seringa com o frasco que a dose vai usar: o novo da calculadora, o escolhido ou o automático
-          const frascoDaConta = novoFrasco ?? (i.substanciaId ? escolherFrasco({ substanciaId: i.substanciaId, preferidos: [i.frascoId], frascos: base.frascos, aplicacoes: base.aplicacoes, hoje: hojeStr() }) : undefined)
-          const doseDaLinha = i.doseUnidade ? textoDoseUn(unidadesDaDose(lerNumero(i.doseTxt) ?? 0, i.doseUnidade, frascoDaConta, !!i.substanciaId && base.subs.get(i.substanciaId)?.tipo === 'blend')) : 'sem dose'
-          return (
-            <div key={i.id} className="card flex flex-col gap-1.5 p-4">
-              <b className="text-lg break-words">{subNome(i) || 'Sem substância'} · {doseDaLinha}</b>
-              <span className="text-sm leading-normal text-suave">
-                {descreverFrequencia(frequenciaDe(i), i.horarios).replace(/^./, (c) => c.toUpperCase())}
-                {r.inicio && `, de ${dataCurta(r.inicio)}${fim ? ` a ${dataCurta(fim)}` : ' sem data de fim'}`}
-                {r.duracaoTipo !== 'sem-fim' && ` (${r.duracaoValor} ${r.duracaoTipo})`}
-                {r.ciclo && `, ciclo ${r.diasOn} dias sim e ${r.diasOff} não`}.
-              </span>
-              {novoFrasco ? (
-                <span className="flex items-start gap-2 text-sm font-semibold text-suave">
-                  <IcoEstoque tam={18} className="mt-0.5 shrink-0 text-acento" />
-                  {novoFrasco.status === 'reconstituido'
-                    ? `Frasco novo: ${fmtNum(novoFrasco.mgTotal)} mg + ${fmtNum(novoFrasco.diluenteMl!)} mL, vai para o Estoque como reconstituído.`
-                    : `Frasco novo: ${fmtNum(novoFrasco.mgTotal)} mg, vai para o Estoque lacrado.`}
-                </span>
-              ) : frascos.length > 0 ? (
-                <label className="rotulo mt-1">
-                  Frasco do Estoque
-                  <select className="campo text-sm font-semibold" value={i.frascoId ?? ''} onChange={(e) => rascunho.mudar((x) => ({ itens: x.itens.map((y) => (y.id === i.id ? { ...y, frascoId: e.target.value || undefined } : y)) }))}>
-                    <option value="">Automático (o mais antigo com saldo)</option>
-                    {frascos.map((f) => <option key={f.id} value={f.id}>{fmtNum(f.mgTotal)} mg · {f.status === 'reconstituido' ? 'reconstituído' : 'fechado'}{f.validade ? ` · val. ${dataCurta(f.validade)}` : ''}</option>)}
-                  </select>
-                </label>
-              ) : (
-                <span className="flex items-start gap-2 text-sm font-semibold text-aviso-texto">
-                  <IcoAlerta tam={18} className="mt-0.5 shrink-0 text-aviso" />
-                  Sem frasco no estoque. Depois de salvar, adicione o frasco para acompanhar o saldo (ou informe os mg do frasco em Corrigir dose).
-                </span>
-              )}
-              <div className="flex flex-wrap gap-x-4">
-                <button type="button" className="link" onClick={() => irPara(k, '/novo/dose')}>Corrigir dose</button>
-                <button type="button" className="link" onClick={() => irPara(k, '/novo/frequencia')}>Corrigir horários</button>
-                {r.itens.length > 1 && (
-                  <button type="button" className="link text-erro" onClick={() => rascunho.mudar((x) => ({ itens: x.itens.filter((y) => y.id !== i.id), atual: 0 }))}>Remover</button>
-                )}
-              </div>
-            </div>
-          )
-        })}
+        ))}
+        <button type="button" className="link gap-2 self-start text-sm" onClick={novoHorario}><IcoMais tam={18} /> {it.horarios.length ? 'Outro horário' : 'Adicionar horário'}</button>
       </section>
+
       <button
         type="button"
-        className="link gap-2 text-sm"
-        onClick={() => {
-          rascunho.mudar((x) => ({ itens: [...x.itens, itemVazio()], atual: x.itens.length }))
-          nav('/novo/substancia', { replace: true })
-        }}
+        aria-expanded={aberto}
+        aria-controls="mais-opcoes"
+        className="card tocavel flex min-h-[52px] items-center justify-between gap-3 px-4 py-2 text-left"
+        onClick={() => setMais(!aberto)}
       >
-        <IcoMais tam={20} /> Adicionar outra substância a este protocolo
+        <span className="flex flex-col">
+          <b className="text-base">Mais opções</b>
+          <span className="text-sm text-fraco">Início, fim, ciclo, nome, cor e outras substâncias</span>
+        </span>
+        <IcoSeta tam={18} className={`shrink-0 text-acento transition-transform ${aberto ? 'rotate-90' : ''}`} />
       </button>
+      {aberto && (
+        <div id="mais-opcoes" className="anima-entrada flex flex-col gap-5">
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className="rotulo text-sm text-texto">
+              Começa em
+              <input type="date" className="campo px-2" value={r.inicio} onChange={(e) => rascunho.mudar(() => ({ inicio: e.target.value }))} />
+            </label>
+            <div className="rotulo text-sm text-texto">
+              <span>Duração</span>
+              <div className="flex gap-1.5">
+                {r.duracaoTipo !== 'sem-fim' && (
+                  <input aria-label="Duração" inputMode="numeric" className="campo w-14 shrink-0 px-2 text-center" value={r.duracaoValor} onChange={(e) => rascunho.mudar(() => ({ duracaoValor: e.target.value }))} />
+                )}
+                <select aria-label="Unidade da duração" className="campo min-w-0 px-2 text-sm" value={r.duracaoTipo} onChange={(e) => rascunho.mudar(() => ({ duracaoTipo: e.target.value as Rascunho['duracaoTipo'] }))}>
+                  <option value="sem-fim">sem fim</option>
+                  <option value="semanas">semanas</option>
+                  <option value="dias">dias</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="card flex flex-col gap-3 px-4 py-3">
+            <label className="flex min-h-11 items-center justify-between gap-3">
+              <span className="flex flex-col gap-0.5">
+                <b className="text-sm">Ciclo com pausa</b>
+                <span className="text-sm text-fraco">Ex.: X dias sim, Y dias não. Opcional.</span>
+              </span>
+              <input type="checkbox" role="switch" className="h-6 w-6" checked={r.ciclo} onChange={(e) => rascunho.mudar(() => ({ ciclo: e.target.checked }))} />
+            </label>
+            {r.ciclo && (
+              <div className="flex items-center gap-2 text-sm font-semibold text-suave">
+                <input aria-label="Dias com dose" inputMode="numeric" className="campo h-11 w-16 text-center" value={r.diasOn} onChange={(e) => rascunho.mudar(() => ({ diasOn: e.target.value }))} />
+                dias sim,
+                <input aria-label="Dias de pausa" inputMode="numeric" className="campo h-11 w-16 text-center" value={r.diasOff} onChange={(e) => rascunho.mudar(() => ({ diasOff: e.target.value }))} />
+                dias não
+              </div>
+            )}
+          </div>
+          <label className="rotulo text-sm text-texto">
+            <span>Nome do protocolo <span className="font-medium text-fraco">(opcional)</span></span>
+            <input className="campo font-medium" maxLength={MAX_NOME_PROTOCOLO} placeholder="Ex.: meu protocolo da pele" value={r.nome} onChange={(e) => rascunho.mudar(() => ({ nome: e.target.value }))} />
+            <span className="text-sm leading-snug font-medium text-fraco">
+              Se deixar vazio, fica o nome do composto (aqui, {nomePadrao}). Até {MAX_NOME_PROTOCOLO} caracteres; nomes repetidos são aceitos e diferenciados pela data de início.
+            </span>
+          </label>
+          <SeletorCor valor={corEscolhida} aoMudar={(cor) => rascunho.mudar(() => ({ cor }))} />
+          <section aria-labelledby="t-linhas" className="flex flex-col gap-2">
+            <h2 id="t-linhas" className="text-sm font-bold text-texto">Substâncias deste protocolo</h2>
+            <div className="card flex flex-col overflow-hidden">
+              {r.itens.map((i, k) => (
+                <div key={i.id} className="flex min-h-[52px] flex-wrap items-center gap-x-1 border-t border-sup2 py-1 pr-1 pl-4 first:border-t-0">
+                  <span className="min-w-0 flex-1 text-sm font-semibold break-words">{subNome(i) || 'Sem substância'} · {doseDaLinha(i)} · {descreverFrequencia(frequenciaDe(i), i.horarios)}</span>
+                  <button type="button" className="link px-2 text-sm" onClick={() => editarLinha(k)}>Editar</button>
+                  {r.itens.length > 1 && (
+                    <button type="button" className="link px-2 text-sm text-erro" onClick={() => rascunho.mudar((x) => ({ itens: x.itens.filter((y) => y.id !== i.id), atual: 0 }))}>Remover</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="link gap-2 text-sm"
+              onClick={() => {
+                rascunho.mudar((x) => ({ itens: [...x.itens, itemVazio()], atual: x.itens.length }))
+                nav('/novo/substancia', { replace: true })
+              }}
+            >
+              <IcoMais tam={20} /> Adicionar outra substância a este protocolo
+            </button>
+          </section>
+        </div>
+      )}
+
+      {r.itens.map((i) => {
+        const f = frascoNovoDe(i, r.inicio)
+        if (!f) return null
+        return (
+          <span key={i.id} className="flex items-start gap-2 text-sm font-semibold text-suave">
+            <IcoEstoque tam={18} className="mt-0.5 shrink-0 text-acento" />
+            {f.status === 'reconstituido'
+              ? `Frasco novo: ${fmtNum(f.mgTotal)} mg + ${fmtNum(f.diluenteMl!)} mL, vai para o Estoque como reconstituído.`
+              : `Frasco novo: ${fmtNum(f.mgTotal)} mg, vai para o Estoque lacrado.`}
+          </span>
+        )
+      })}
+
       {confirmar && (
         <Dialogo titulo="Salvar a alteração?" aoFechar={() => setConfirmar(false)}>
           <p className="m-0 text-sm text-suave">Vale a partir de hoje. As doses já registradas continuam com o valor da época.</p>
