@@ -1,10 +1,13 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/dm-sans/wght.css';
 
-/* Paleta "Preto real" (opção D): fundo preto puro, cinzas neutros, acento BRANCO.
-   Flat: sem sombra nem gradiente. Todo hex do app mora aqui (e em src/dominio/cores.ts, cores dos protocolos).
-   Com acento branco, a hierarquia vem do preenchimento: botão principal branco sólido com texto preto,
-   secundário com borda cinza, aba/opção escolhida com fundo #242424. */
+/* Temas: Preto (padrão, opção D), Índigo (opção B) e Claro (opção C). Os valores abaixo, no @theme,
+   são os do Preto; cada tema redefine as mesmas variáveis num bloco [data-tema=...] (mais abaixo).
+   O atributo vai no <html> (script do index.html, antes da primeira pintura, e src/sistema/tema.ts).
+   Flat: sem sombra nem gradiente. Todo hex do app mora aqui; src/dominio/temas.ts tem a mesma tabela
+   para os testes de contraste (temas.test.ts confere que as duas são iguais).
+   No Preto, com acento branco, a hierarquia vem do preenchimento: botão principal branco sólido com
+   texto preto, secundário com borda cinza, aba/opção escolhida com fundo #242424. */
 @theme {
   --color-fundo: #000000;
   --color-sup: #121212; /* cartão */
@@ -49,6 +52,128 @@
   --font-corpo: 'DM Sans Variable', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* ---------- Temas ----------
+   O seletor é [data-tema] (não só html[...]) para a miniatura de cada tema em Ajustes poder mostrar
+   as cores daquele tema dentro de qualquer outro. --prot-<id>: cor de cada protocolo no tema. */
+:root,
+[data-tema='preto'] {
+  --color-fundo: #000000;
+  --color-sup: #121212;
+  --color-sup2: #1c1c1c;
+  --color-acento: #ffffff;
+  --color-sobre-acento: #0b0b0b;
+  --color-acento-escuro: #3d3d3d;
+  --color-selecionado: #242424;
+  --color-texto: #f2f2f2;
+  --color-fraco: #a6a6a6;
+  --color-suave: #cccccc;
+  --color-linha: #2c2c2c;
+  --color-borda: #6e6e6e;
+  --color-aviso: #ffc46b;
+  --color-aviso-fundo: #2a1f0c;
+  --color-aviso-texto: #ffd99a;
+  --color-erro: #ff8a80;
+  --color-ok: #5fd98e;
+  --color-ok-fundo: #0d2016;
+  --color-veu: #000000;
+  --color-dica: #8c8c8c;
+  --veu-forca: 85%;
+  --prot-azul: #5db4ff;
+  --prot-rosa: #ff85b8;
+  --prot-amarelo: #f2e26e;
+  --prot-violeta: #d99cff;
+  --prot-celeste: #9fe3ff;
+  --prot-magenta: #f08ae0;
+  --prot-prata: #c9cfda;
+  --prot-lima: #cfee7c;
+  color-scheme: dark;
+}
+
+/* Índigo: azul-noite, acento lilás; o cartão "Próxima dose" fica lilás com texto azul-escuro. */
+[data-tema='indigo'] {
+  --color-fundo: #0c0e16;
+  --color-sup: #141724;
+  --color-sup2: #1c2032;
+  --color-acento: #a5adff;
+  --color-sobre-acento: #0e1130;
+  --color-acento-escuro: #262c6b;
+  --color-selecionado: #232850;
+  --color-texto: #ecedf5;
+  --color-fraco: #aeb3c8;
+  --color-suave: #cdd0e0;
+  --color-linha: #2a2f47;
+  --color-borda: #646b8c;
+  --color-aviso: #ffc46b;
+  --color-aviso-fundo: #2a2213;
+  --color-aviso-texto: #ffd99a;
+  --color-erro: #ff8f8f;
+  --color-ok: #6edc9a;
+  --color-ok-fundo: #10281d;
+  --color-veu: #000000;
+  --color-dica: #9096ae;
+  --veu-forca: 85%;
+  --prot-azul: #5db4ff;
+  --prot-rosa: #ff85b8;
+  --prot-amarelo: #f2e26e;
+  --prot-violeta: #d29cff;
+  --prot-celeste: #9fe3ff;
+  --prot-magenta: #f08ae0;
+  --prot-prata: #c9cfda;
+  --prot-lima: #cfee7c;
+  color-scheme: dark;
+}
+
+/* Claro: fundo claro, cartões brancos, acento azul; cartão "Próxima dose" azul com texto branco. */
+[data-tema='claro'] {
+  --color-fundo: #f3f6fa;
+  --color-sup: #ffffff;
+  --color-sup2: #ebf0f6;
+  --color-acento: #0b5fcc;
+  --color-sobre-acento: #ffffff;
+  --color-acento-escuro: #d9e8ff;
+  --color-selecionado: #e3eeff;
+  --color-texto: #0f1b2a;
+  --color-fraco: #4d5d70;
+  --color-suave: #33445a;
+  --color-linha: #d3dce7;
+  --color-borda: #7b8aa0;
+  --color-aviso: #945700;
+  --color-aviso-fundo: #fff1d6;
+  --color-aviso-texto: #6b4000;
+  --color-erro: #b42318;
+  --color-ok: #13733a;
+  --color-ok-fundo: #e4f4ea;
+  --color-veu: #0f1b2a;
+  --color-dica: #5f6c7d;
+  --veu-forca: 55%;
+  --prot-azul: #3f4fd9;
+  --prot-rosa: #c0267a;
+  --prot-amarelo: #746200;
+  --prot-violeta: #7b3fc4;
+  --prot-celeste: #0b6e8c;
+  --prot-magenta: #9b2aae;
+  --prot-prata: #596577;
+  --prot-lima: #4a6e00;
+  color-scheme: light;
+}
+
+/* Troca de tema em Ajustes: as cores passam suavemente (~200 ms). A classe fica no <html> só durante
+   a troca; com "reduzir movimento" ligado, a troca é direta. */
+@media (prefers-reduced-motion: no-preference) {
+  html.trocando-tema,
+  html.trocando-tema *,
+  html.trocando-tema *::before,
+  html.trocando-tema *::after {
+    transition:
+      background-color 200ms ease-out,
+      border-color 200ms ease-out,
+      color 200ms ease-out,
+      fill 200ms ease-out,
+      stroke 200ms ease-out,
+      outline-color 200ms ease-out !important;
+  }
+}
+
 @layer base {
   html,
   body {
@@ -56,7 +181,6 @@
     color: var(--color-texto);
     font-family: var(--font-corpo);
     -webkit-tap-highlight-color: transparent;
-    color-scheme: dark;
   }
   body {
     margin: 0;
@@ -86,6 +210,11 @@
     opacity: 1;
   }
   :focus-visible {
+    outline: 2px solid var(--color-acento);
+    outline-offset: 2px;
+  }
+  /* opção com o rádio escondido (ex.: tema em Ajustes): o anel vai na opção inteira */
+  .opcao-rotulo:has(input:focus-visible) {
     outline: 2px solid var(--color-acento);
     outline-offset: 2px;
   }
@@ -349,7 +478,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: color-mix(in srgb, var(--color-veu) 85%, transparent);
+    background: color-mix(in srgb, var(--color-veu) var(--veu-forca), transparent);
     animation: pt-aparecer 200ms ease-out;
   }
   & > * {

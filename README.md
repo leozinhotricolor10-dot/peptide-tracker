@@ -16,7 +16,7 @@ npm ci
 npm test          # testes das contas, agenda, backup e dos bugs corrigidos
 npm run build     # checa tipos e gera dist/
 npm run pages     # serve o dist/ como o GitHub Pages: http://localhost:4180/peptide-tracker/
-npm run e2e       # teste de ponta a ponta no dist/ (usa o Google Chrome instalado)
+npm run e2e       # teste de ponta a ponta no dist/ (usa o Google Chrome instalado; perto da meia-noite: E2E_FUSO=America/Noronha)
 npm run dev       # desenvolvimento (sem modo offline)
 ```
 
@@ -33,6 +33,7 @@ Os endereços internos usam `#` (ex.: `.../peptide-tracker/#/hoje`), então reca
 
 - `src/dominio/` contas puras e testadas: agenda (frequência, ciclo, pausas), reconstituição, saldo e custo, datas, sugestões de nomes, `.ics`
 - `src/dados/` única porta para o IndexedDB (Dexie), backup e a validação de arquivos importados
-- `src/telas/` telas · `src/ui/` peças visuais · `src/sistema/` avisos, instalação, fotos
+- `src/telas/` telas · `src/ui/` peças visuais · `src/sistema/` avisos, instalação, fotos, tema
+- Temas (Preto, Índigo, Claro, Automático): cores em `src/index.css` (um bloco por tema), mesma tabela em `src/dominio/temas.ts` para os testes de contraste
 - `src/sw.ts` service worker (offline e abrir o app ao tocar no aviso)
 - `AUDITORIA.md` o que foi revisado, corrigido e o que ficou como limitação

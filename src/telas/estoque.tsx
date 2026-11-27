@@ -110,7 +110,7 @@ export function Estoque() {
     const doses = item && emUsoF ? dosesRestantes(f, base.aplicacoes, item.doseValor, item.doseUnidade) : null
     const cada = item && emUsoF ? cadaDose(base, f, item) : null
     return (
-      <div key={f.id} style={{ '--i': k, ...(prot && emUsoF ? { borderLeftColor: corDe(prot).hex } : {}) } as CSSProperties} className={`card anima-entrada flex flex-col gap-2.5 p-4 ${prot && emUsoF ? 'border-l-[5px]' : ''} ${selo.cls.includes('aviso') ? 'border-aviso' : ''}`}>
+      <div key={f.id} style={{ '--i': k, ...(prot && emUsoF ? { borderLeftColor: corDe(prot).css } : {}) } as CSSProperties} className={`card anima-entrada flex flex-col gap-2.5 p-4 ${prot && emUsoF ? 'border-l-[5px]' : ''} ${selo.cls.includes('aviso') ? 'border-aviso' : ''}`}>
         <Link to={`/estoque/frasco/${f.id}`} className="flex items-start justify-between gap-2">
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className="text-lg font-extrabold break-words">{nomeComMg(nome, f.mgTotal)}</span>

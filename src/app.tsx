@@ -11,6 +11,7 @@ import { PedidoAvisos } from './telas/inicio.tsx'
 import { EVENTO_HORA_DOSE, iniciarAgendador } from './sistema/avisos.ts'
 import type { Slot } from './dominio/agenda.ts'
 import { nomeSubstancia } from './dominio/nomes.ts'
+import { aplicarTema } from './sistema/tema.ts'
 
 /** Rotas que funcionam sem aceite do aviso. */
 const PUBLICAS = ['/boas-vindas', '/aviso', '/saida', '/restaurar', '/privacidade', '/termos']
@@ -141,7 +142,12 @@ function Abas() {
 
 export function Raiz() {
   const aceite = useConfig('aceite')
+  const tema = useConfig('tema')
   const loc = useLocation()
+  // o banco manda no tema (escolha em Ajustes, backup importado, dados apagados = Preto)
+  useEffect(() => {
+    if (tema.carregado) aplicarTema(tema.valor)
+  }, [tema.carregado, tema.valor])
   useEffect(() => {
     if (aceite.valor) {
       void repo.normalizarPausas()

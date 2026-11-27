@@ -854,7 +854,7 @@ export function SeletorCor({ valor, aoMudar }: { valor: string; aoMudar: (cor: s
               onClick={() => aoMudar(c.id)}
               className={`tocavel flex h-11 w-11 items-center justify-center rounded-full border-2 ${sel ? 'border-texto' : 'border-transparent'}`}
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sobre-acento" style={{ backgroundColor: c.hex }}>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-sobre-acento" style={{ backgroundColor: c.css }}>
                 {sel && <IcoCheck tam={18} />}
               </span>
             </button>

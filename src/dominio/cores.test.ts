@@ -1,6 +1,7 @@
-// Cor de cada protocolo: paleta legível no fundo escuro, longe das cores de status, atribuição estável.
+// Cor de cada protocolo: paleta legível no fundo de cada tema, longe das cores de status, atribuição estável.
 import { describe, expect, it } from 'vitest'
 import { atribuirCores, CORES_PROTOCOLO, corDe, corValida, proximaCor } from './cores.ts'
+import { CORES_POR_TEMA, PALETAS, TEMAS } from './temas.ts'
 
 function luminancia(hex: string): number {
   const c = [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
@@ -20,7 +21,7 @@ function matiz(hex: string): number {
   return (h * 60 + 360) % 360
 }
 
-describe('paleta das cores de protocolo', () => {
+describe('paleta das cores de protocolo (em cada tema)', () => {
   it('8 a 10 cores, ids e nomes únicos, nomes em português', () => {
     expect(CORES_PROTOCOLO.length).toBeGreaterThanOrEqual(8)
     expect(CORES_PROTOCOLO.length).toBeLessThanOrEqual(10)
@@ -28,24 +29,36 @@ describe('paleta das cores de protocolo', () => {
     expect(new Set(CORES_PROTOCOLO.map((c) => c.hex)).size).toBe(CORES_PROTOCOLO.length)
   })
 
-  it('todas legíveis no fundo e nos cartões (contraste >= 4,5:1)', () => {
+  it.each(TEMAS)('tema %s: todas legíveis no fundo, nos cartões e na opção escolhida (contraste >= 4,5:1)', (t) => {
+    const p = PALETAS[t]
     for (const c of CORES_PROTOCOLO) {
-      expect(contraste(c.hex, '#000000'), c.nome).toBeGreaterThanOrEqual(4.5) // fundo
-      expect(contraste(c.hex, '#121212'), c.nome).toBeGreaterThanOrEqual(4.5) // cartão
-      expect(contraste(c.hex, '#1c1c1c'), c.nome).toBeGreaterThanOrEqual(4.5) // cartão 2
+      const hex = CORES_POR_TEMA[t][c.id]
+      expect(contraste(hex, p.fundo), `${t} ${c.nome} no fundo`).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(hex, p.sup), `${t} ${c.nome} no cartão`).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(hex, p.sup2), `${t} ${c.nome} no cartão 2`).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(hex, p.selecionado), `${t} ${c.nome} na opção escolhida`).toBeGreaterThanOrEqual(4.5)
+      // o ✓ da cor escolhida (cor sobre-acento em cima da bolinha) também aparece
+      expect(contraste(hex, p['sobre-acento']), `${t} ${c.nome} com o ✓`).toBeGreaterThanOrEqual(3)
     }
   })
 
-  it('não imitam o verde/vermelho/âmbar de status (o destaque é branco, sem matiz)', () => {
-    const status = ['#5fd98e', '#ff8a80', '#ffc46b'].map(matiz)
+  it.each(TEMAS)('tema %s: 8 tons diferentes, longe do verde/vermelho/âmbar de status do tema', (t) => {
+    const p = PALETAS[t]
+    const tons = Object.values(CORES_POR_TEMA[t])
+    expect(new Set(tons).size).toBe(CORES_PROTOCOLO.length)
+    const status = [p.ok, p.erro, p.aviso].map(matiz)
     for (const c of CORES_PROTOCOLO) {
-      const h = matiz(c.hex)
+      const h = matiz(CORES_POR_TEMA[t][c.id])
       if (h < 0) continue
       for (const s of status) {
         const dif = Math.min(Math.abs(h - s), 360 - Math.abs(h - s))
-        expect(dif, `${c.nome} perto de uma cor de status`).toBeGreaterThanOrEqual(15)
+        expect(dif, `${t}: ${c.nome} perto de uma cor de status`).toBeGreaterThanOrEqual(15)
       }
     }
+  })
+
+  it('na tela a cor vem da variável do tema (var(--prot-<id>)), nunca de um hex fixo', () => {
+    for (const c of CORES_PROTOCOLO) expect(c.css).toBe(`var(--prot-${c.id})`)
   })
 })
 
