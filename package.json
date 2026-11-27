@@ -13,7 +13,8 @@
     "preview": "vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "e2e": "node e2e/fumaca.mjs",
-    "pages": "node tools/servir-pages.mjs 4180"
+    "pages": "node tools/servir-pages.mjs 4180",
+    "cores": "node tools/medir-cores.mjs"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.2.8",

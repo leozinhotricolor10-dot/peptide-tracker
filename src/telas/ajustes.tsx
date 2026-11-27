@@ -143,7 +143,7 @@ export function Lembretes() {
         </div>
       </section>
 
-      <div className="flex flex-col gap-2 rounded-xl bg-aviso-fundo p-4 text-sm leading-relaxed text-aviso-texto">
+      <div className="caixa-aviso flex flex-col gap-2 p-4 text-sm leading-relaxed">
         <b className="flex items-center gap-2"><IcoAlerta tam={18} /> Limite desta versão (sem servidor)</b>
         <span>A notificação é criada pelo próprio aparelho, sem servidor. Por isso ela só chega com o app aberto ou aberto há pouco tempo. <b>Com o app fechado, o aviso não é garantido</b> (isso exige um servidor de avisos, previsto para uma próxima versão).</span>
         <span>Com o app fechado, quem avisa é a <b>agenda do celular</b>: ela avisa sempre, mesmo sem internet.</span>
@@ -361,7 +361,7 @@ export function Backup() {
           <span className="text-sm font-semibold text-fraco">(o arquivo fica maior)</span>
         </label>
         {grande && (
-          <div role="status" className="flex flex-col gap-2 rounded-xl bg-aviso-fundo px-4 py-3 text-sm font-semibold text-aviso-texto">
+          <div role="status" className="caixa-aviso flex flex-col gap-2 px-4 py-3 text-sm font-semibold">
             <span className="flex items-start gap-2"><IcoAlerta tam={18} className="mt-0.5 shrink-0 text-aviso" /> Com fotos, o arquivo fica com cerca de {fmtBytes(est.bytes)}. Arquivos desse tamanho costumam não passar por WhatsApp e e-mail.</span>
             <button type="button" className="btn-secundario" disabled={envio.ocupado} onClick={() => void envio.enviar(false)}>
               <IcoCompartilhar tam={20} /> Enviar sem fotos{estSem ? ` (${fmtBytes(estSem.bytes)})` : ''}

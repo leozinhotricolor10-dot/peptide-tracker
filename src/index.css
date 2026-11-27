@@ -2,7 +2,11 @@
 @import '@fontsource-variable/dm-sans/wght.css';
 
 /* Cores: um tema só, claro e clínico (fundo cinza-azulado, cartões brancos, acento azul).
-   Flat: sem sombra nem gradiente. Todo hex do app mora aqui; src/dominio/paleta.ts tem a mesma
+   Regra 60-30-10: ~60% fundo, ~30% superfícies (cartões, linhas), ~10% acento azul, só no que pede
+   ação ou mostra onde a pessoa está (botão principal, link, aba ativa, item escolhido, foco, progresso).
+   Status (tomada, atrasada, perdida, aviso) em ícone + texto; fundo colorido só em selo pequeno.
+   Cor de protocolo só em marcador pequeno (faixa de 5-6 px, bolinha, pontinhos da semana).
+   Medição: tools/medir-cores.mjs (npm run cores). Flat: sem sombra nem gradiente. Todo hex do app mora aqui; src/dominio/paleta.ts tem a mesma
    tabela (e src/dominio/cores.ts os tons dos protocolos) para os testes de contraste
    (paleta.test.ts confere que as tabelas e este arquivo são iguais). */
 @theme {
@@ -11,7 +15,6 @@
   --color-sup2: #ebf0f6; /* cartão dentro de cartão, aviso (toast) */
   --color-acento: #0b5fcc;
   --color-sobre-acento: #ffffff; /* texto sobre o acento, sobre o verde/vermelho cheios e sobre o véu */
-  --color-acento-escuro: #d9e8ff; /* texto secundário sobre o acento */
   --color-selecionado: #e3eeff;
   --color-texto: #0f1b2a;
   --color-fraco: #4d5d70; /* secundário */
@@ -49,17 +52,18 @@
   --font-corpo: 'DM Sans Variable', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Cor de cada protocolo (ids em src/dominio/cores.ts) e força do véu atrás de folhas e diálogos. */
+/* Cor de cada protocolo (ids em src/dominio/cores.ts; tons suaves, só em marcador pequeno)
+   e força do véu atrás de folhas e diálogos. */
 :root {
   --veu-forca: 55%;
-  --prot-azul: #3f4fd9;
-  --prot-rosa: #c0267a;
-  --prot-amarelo: #746200;
-  --prot-violeta: #7b3fc4;
-  --prot-celeste: #0b6e8c;
-  --prot-magenta: #9b2aae;
-  --prot-prata: #596577;
-  --prot-lima: #4a6e00;
+  --prot-azul: #6f7fc9;
+  --prot-rosa: #c05a86;
+  --prot-amarelo: #887d2c;
+  --prot-violeta: #9270c2;
+  --prot-celeste: #3a8ca0;
+  --prot-magenta: #ad5ea5;
+  --prot-prata: #717d8e;
+  --prot-lima: #618a33;
   color-scheme: light;
 }
 
@@ -101,10 +105,6 @@
   :focus-visible {
     outline: 2px solid var(--color-acento);
     outline-offset: 2px;
-  }
-  /* dentro de um bloco azul (cartão "Próxima dose"), o anel azul sumiria: fica branco */
-  .sobre-acento :focus-visible {
-    outline-color: var(--color-sobre-acento);
   }
   ::selection {
     background: var(--color-acento);
@@ -160,6 +160,12 @@
   &[aria-pressed='true'] {
     @apply border-2 border-acento bg-selecionado font-extrabold text-acento;
   }
+}
+
+/* Aviso dentro de uma tela: fundo do cartão, borda âmbar suave, texto âmbar escuro (sem bloco âmbar
+   cheio, que pesaria mais que o resto da tela). Ícone em text-aviso. */
+@utility caixa-aviso {
+  @apply rounded-xl border border-aviso/60 bg-sup text-aviso-texto;
 }
 
 @utility selo {

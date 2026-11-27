@@ -185,7 +185,7 @@ export function Dialogo({ titulo, aoFechar, children, icone }: { titulo: ReactNo
 export function Vazio({ titulo, texto, children, icone }: { titulo: string; texto: ReactNode; children?: ReactNode; icone?: ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-4 px-2 py-10 text-center">
-      {icone && <span className="flex h-16 w-16 items-center justify-center rounded-full bg-selecionado text-acento">{icone}</span>}
+      {icone && <span className="flex h-16 w-16 items-center justify-center rounded-full bg-sup2 text-fraco">{icone}</span>}
       <h2 className="text-2xl font-extrabold">{titulo}</h2>
       <p className="m-0 text-base leading-relaxed text-suave">{texto}</p>
       {children}
@@ -285,7 +285,7 @@ export function StatusTomada({ status }: { status: 'feita' | 'pulada' }) {
 
 export function Nota({ children, tipo = 'info' }: { children: ReactNode; tipo?: 'info' | 'aviso' }) {
   return (
-    <p className={`m-0 rounded-xl px-4 py-3 text-sm leading-relaxed ${tipo === 'aviso' ? 'bg-aviso-fundo font-semibold text-aviso-texto' : 'bg-sup2 text-suave'}`}>
+    <p className={`m-0 rounded-xl px-4 py-3 text-sm leading-relaxed ${tipo === 'aviso' ? 'caixa-aviso font-semibold' : 'bg-sup2 text-suave'}`}>
       {children}
     </p>
   )

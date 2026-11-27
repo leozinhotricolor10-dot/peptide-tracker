@@ -6,13 +6,13 @@
 // protocolo, var(--prot-<id>) (tons em src/dominio/cores.ts).
 
 export type Token =
-  | 'fundo' | 'sup' | 'sup2' | 'acento' | 'sobre-acento' | 'acento-escuro' | 'selecionado'
+  | 'fundo' | 'sup' | 'sup2' | 'acento' | 'sobre-acento' | 'selecionado'
   | 'texto' | 'fraco' | 'suave' | 'linha' | 'borda' | 'aviso' | 'aviso-fundo' | 'aviso-texto'
   | 'erro' | 'ok' | 'ok-fundo' | 'veu' | 'dica'
 
 export const PALETA: Record<Token, string> = {
   fundo: '#f3f6fa', sup: '#ffffff', sup2: '#ebf0f6', acento: '#0b5fcc', 'sobre-acento': '#ffffff',
-  'acento-escuro': '#d9e8ff', selecionado: '#e3eeff', texto: '#0f1b2a', fraco: '#4d5d70', suave: '#33445a',
+  selecionado: '#e3eeff', texto: '#0f1b2a', fraco: '#4d5d70', suave: '#33445a',
   linha: '#d3dce7', borda: '#7b8aa0', aviso: '#945700', 'aviso-fundo': '#fff1d6', 'aviso-texto': '#6b4000',
   erro: '#b42318', ok: '#13733a', 'ok-fundo': '#e4f4ea', veu: '#0f1b2a', dica: '#5f6c7d',
 }
@@ -32,10 +32,10 @@ export const PARES_TEXTO: readonly [Token, Token][] = [
   ...(['texto', 'fraco', 'suave', 'acento', 'aviso', 'erro', 'ok', 'dica'] as const).flatMap((t) =>
     (['fundo', 'sup', 'sup2', 'selecionado'] as const).map((f) => [t, f] as [Token, Token]),
   ),
-  ['aviso-texto', 'aviso-fundo'], ['aviso', 'aviso-fundo'], ['texto', 'aviso-fundo'],
+  ['aviso-texto', 'aviso-fundo'], ['aviso', 'aviso-fundo'], ['aviso-texto', 'sup'], ['aviso-texto', 'sup2'], ['texto', 'aviso-fundo'],
   ['ok', 'ok-fundo'], ['texto', 'ok-fundo'], ['fraco', 'ok-fundo'],
-  // cartão "Próxima dose" (fundo no acento), botões cheios e legenda das fotos (véu escuro)
-  ['sobre-acento', 'acento'], ['acento-escuro', 'acento'], ['sobre-acento', 'ok'], ['sobre-acento', 'erro'], ['sobre-acento', 'veu'],
+  // botões cheios (acento, verde, vermelho) e legenda das fotos (véu escuro)
+  ['sobre-acento', 'acento'],['sobre-acento', 'ok'], ['sobre-acento', 'erro'], ['sobre-acento', 'veu'],
   ['acento', 'sup'], ['fraco', 'sup2'],
 ]
 

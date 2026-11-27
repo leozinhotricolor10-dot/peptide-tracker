@@ -50,7 +50,7 @@ export function CheckAnimado({
 /** Cartão "Tudo feito hoje" (Hoje), com a celebração um pouco maior quando acabou de acontecer. */
 export function TudoFeito({ total, animar, children }: { total: number; animar: boolean; children?: ReactNode }) {
   return (
-    <div role="status" className={`card relative flex items-center gap-4 overflow-hidden border-ok/40 bg-ok-fundo p-5 ${animar ? 'tudo-feito-entra' : ''}`}>
+    <div role="status" className={`card relative flex items-center gap-4 overflow-hidden p-5 ${animar ? 'tudo-feito-entra' : ''}`}>
       <CheckAnimado tam={56} festa grande animar={animar} className="bg-ok text-sobre-acento" onda="border-ok" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-[22px] leading-tight font-extrabold text-texto">Tudo feito hoje</span>

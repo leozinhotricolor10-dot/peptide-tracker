@@ -62,7 +62,7 @@ function seloFrasco(f: Frasco, base: Base, hoje: string): { t: string; cls: stri
   }
   const s = saldoFrasco(f, base.aplicacoes)
   if (s.dosesFeitas > 0 && f.mgTotal > 0 && s.mgRestante / f.mgTotal <= LIMITE_ACABANDO) return { t: '⚠ Acabando', cls: 'bg-aviso-fundo text-aviso' }
-  return f.status === 'fechado' ? { t: 'Lacrado', cls: 'bg-sup2 text-suave' } : { t: '● Em uso', cls: 'bg-ok-fundo text-ok' }
+  return f.status === 'fechado' ? { t: 'Lacrado', cls: 'bg-sup2 text-suave' } : { t: '● Em uso', cls: 'bg-sup2 text-suave' }
 }
 
 export function Estoque() {
@@ -162,7 +162,7 @@ export function Estoque() {
       {cab}
       <div className="grid grid-cols-3 gap-2">
         <div className="card flex flex-col gap-0.5 p-3"><span className="text-mini font-bold text-fraco">Em uso</span><b className="text-xl">{emUso.length}</b></div>
-        <div className={`card flex flex-col gap-0.5 p-3 ${vencendo ? 'border-aviso/40 bg-aviso-fundo' : ''}`}><span className={`text-mini font-bold ${vencendo ? 'text-aviso-texto' : 'text-fraco'}`}>Vencem em {DIAS_AVISO_VENCIMENTO} dias</span><b className={`text-xl ${vencendo ? 'text-aviso' : ''}`}>{vencendo}</b></div>
+        <div className={`card flex flex-col gap-0.5 p-3 ${vencendo ? 'border-aviso/60' : ''}`}><span className={`text-mini font-bold ${vencendo ? 'text-aviso-texto' : 'text-fraco'}`}>Vencem em {DIAS_AVISO_VENCIMENTO} dias</span><b className={`text-xl ${vencendo ? 'text-aviso' : ''}`}>{vencendo}</b></div>
         <div className="card flex flex-col gap-0.5 p-3"><span className="text-mini font-bold text-fraco">Gasto no mês</span><b className="text-base">{fmtReais(gastoMes)}</b></div>
       </div>
       {emUso.length === 0 && <p className="m-0 card p-4 text-sm text-suave">Nenhum frasco em uso.</p>}
@@ -216,7 +216,7 @@ function EscolherSubstancia({ base, valor, aoEscolher }: { base: Base; valor?: s
               })}
             >
               {nome}
-              <span className={`selo ${r.origem === 'minha' ? 'bg-selecionado text-acento' : 'bg-sup2 text-fraco'}`}>{r.origem === 'minha' ? 'Sua' : 'Lista'}</span>
+              <span className={`selo ${r.origem === 'minha' ? 'bg-sup2 text-suave' : 'bg-sup2 text-fraco'}`}>{r.origem === 'minha' ? 'Sua' : 'Lista'}</span>
             </button>
           )
         })}

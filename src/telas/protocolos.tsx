@@ -23,7 +23,7 @@ const ABAS = ['ativo', 'pausado', 'encerrado'] as const
 const ROTULO_ESTADO: Record<EstadoProtocolo, string> = { ativo: 'Ativo', pausado: 'Pausado', encerrado: 'Concluído' }
 
 function SeloEstado({ estado }: { estado: EstadoProtocolo }) {
-  const cls = estado === 'ativo' ? 'bg-ok-fundo text-ok' : estado === 'pausado' ? 'bg-aviso-fundo text-aviso' : 'bg-sup2 text-fraco'
+  const cls = estado === 'ativo' ? 'bg-sup2 text-suave' : estado === 'pausado' ? 'bg-aviso-fundo text-aviso' : 'bg-sup2 text-fraco'
   const Ico = estado === 'ativo' ? IcoPlay : estado === 'pausado' ? IcoPausa : IcoParar
   return <span className={`selo shrink-0 ${cls}`}><Ico tam={12} /> {ROTULO_ESTADO[estado]}</span>
 }
@@ -125,15 +125,15 @@ export function SeloEstoque({ e, nome }: { e: EstoqueDoItem; nome?: string }) {
   const doses = Math.round(useNumeroAnimado(e.doses ?? 0))
   if (!e.frasco) {
     return (
-      <span className="flex items-center gap-1.5 self-start rounded-full bg-aviso-fundo px-2.5 py-1 text-sm font-bold text-aviso-texto">
-        <IcoAlerta tam={14} /> Sem frasco no estoque{nome ? ` · ${nome}` : ''}
+      <span className="flex items-center gap-1.5 self-start text-sm font-bold text-aviso-texto">
+        <IcoAlerta tam={14} className="shrink-0 text-aviso" /> Sem frasco no estoque{nome ? ` · ${nome}` : ''}
       </span>
     )
   }
   const pouco = e.vencido || (e.doses !== null && e.doses <= 2)
   return (
     <span className={`flex items-center gap-1.5 text-sm font-semibold ${pouco ? 'text-aviso-texto' : 'text-suave'}`}>
-      {pouco ? <IcoAlerta tam={14} className="shrink-0 text-aviso" /> : <IcoEstoque tam={14} className="shrink-0 text-acento" />}
+      {pouco ? <IcoAlerta tam={14} className="shrink-0 text-aviso" /> : <IcoEstoque tam={14} className="shrink-0 text-fraco" />}
       {nome ? `${nome} · ` : ''}{resumoEstoque(e, e.doses === null ? null : doses)}
     </span>
   )

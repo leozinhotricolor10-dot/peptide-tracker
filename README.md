@@ -17,6 +17,7 @@ npm test          # testes das contas, agenda, backup e dos bugs corrigidos
 npm run build     # checa tipos e gera dist/
 npm run pages     # serve o dist/ como o GitHub Pages: http://localhost:4180/peptide-tracker/
 npm run e2e       # teste de ponta a ponta no dist/ (usa o Google Chrome instalado; perto da meia-noite: E2E_FUSO=America/Noronha)
+npm run cores     # mede a regra 60-30-10 (fundo, superfícies, acento, status, protocolo) nas telas principais do dist/
 npm run dev       # desenvolvimento (sem modo offline)
 ```
 

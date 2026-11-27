@@ -129,6 +129,28 @@ const conferirContraste = async (onde, p = page, raiz = '#root') => {
   if (r.length) throw new Error(`${onde}: texto com contraste baixo ${r.join(' | ')}`)
 }
 
+/**
+ * Regra 60-30-10: nenhum fundo em cor de status ou de protocolo maior que um selo (até 40 px de altura ou 4.000 px²)
+ * e fundo azul do acento só em botão/link e barra de progresso. A proporção por área fica em tools/medir-cores.mjs.
+ */
+const conferir603010 = async (onde, raiz = '#root') => {
+  const r = await page.evaluate(([rz, acento, vivas]) => {
+    const ruins = []
+    for (const el of document.querySelectorAll(`${rz} *`)) {
+      const bg = getComputedStyle(el).backgroundColor
+      if (bg !== acento && !vivas.includes(bg)) continue
+      const c = el.getBoundingClientRect()
+      const area = c.width * c.height
+      if (!area) continue
+      const nome = `${el.tagName.toLowerCase()} "${(el.textContent || el.getAttribute('aria-label') || '').trim().slice(0, 25)}"`
+      if (bg === acento && !el.matches('button, a') && !el.closest('[role=progressbar]')) ruins.push(`azul do acento fora de ação: ${nome}`)
+      if (vivas.includes(bg) && area > 4000 && c.height > 40) ruins.push(`fundo colorido grande (${Math.round(area)} px²): ${nome}`)
+    }
+    return ruins
+  }, [raiz, rgbDe(PALETA.acento), [PALETA.ok, PALETA['ok-fundo'], PALETA.aviso, PALETA['aviso-fundo'], PALETA.erro, ...CORES_PROTOCOLO.map((c) => c.hex)].map(rgbDe)])
+  if (r.length) throw new Error(`${onde}: ${r.join(' | ')}`)
+}
+
 /** Tudo o que o app gravou no aparelho (tabelas do IndexedDB). */
 const tudoNoBanco = (p = page) => p.evaluate(async () => {
   const r = indexedDB.open('peptide-tracker')
@@ -482,7 +504,7 @@ await passo('cores distintas entre os protocolos e F5 mantém cores e frascos', 
     const ct = await cor(tesa.id)
     const cr = await cor(reta.id)
     if (ct === cr) throw new Error(`mesma cor nos dois protocolos: ${ct}`)
-    igual(cr, 'rgb(123, 63, 196)', 'violeta na borda da Retatrutida')
+    igual(cr, rgbDe(CORES_PROTOCOLO.find((c) => c.id === 'violeta').hex), 'violeta na borda da Retatrutida')
     const todas = await cartoes.evaluateAll((els) => els.map((el) => getComputedStyle(el).borderLeftColor))
     igual(new Set(todas).size, todas.length, 'cada protocolo ativo com uma cor')
     await page.locator(`a.card[href$="/protocolos/${tesa.id}"]`).getByText('Frasco: 4 doses restantes').waitFor()
@@ -1274,13 +1296,17 @@ for (const [w, h] of [[390, 844], [360, 640]]) {
     if (!coresProt.length) throw new Error('nenhuma dose na Hoje')
     const tons = CORES_PROTOCOLO.map((c) => rgbDe(c.hex))
     for (const c of coresProt) if (!tons.includes(c)) throw new Error(`cor de protocolo fora da paleta: ${c}`)
-    const cartao = page.locator('main .sobre-acento').first()
+    const cartao = page.locator('main [data-proxima-dose]').first()
     if (await cartao.count()) {
-      igual(await cartao.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETA.acento), 'cartão da próxima dose no azul do acento')
-      igual(await cartao.evaluate((el) => getComputedStyle(el).color), rgbDe(PALETA['sobre-acento']), 'texto branco sobre o acento')
+      igual(await cartao.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETA.sup), 'cartão da próxima dose branco (60-30-10)')
+      if (!tons.includes(await cartao.evaluate((el) => getComputedStyle(el).borderLeftColor))) throw new Error('cartão da próxima dose sem a faixa do protocolo')
+      const botao = cartao.getByRole('button', { name: 'Registrar dose', exact: true })
+      igual(await botao.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETA.acento), 'só o botão do cartão no azul do acento')
+      igual(await botao.evaluate((el) => getComputedStyle(el).color), rgbDe(PALETA['sobre-acento']), 'texto branco no botão')
     }
     await conferirTela(`Hoje (${w})`)
     await conferirContraste(`Hoje (${w})`)
+    await conferir603010(`Hoje (${w})`)
     await capturar(`claro-hoje-${w}`)
     await page.locator('main [data-estado]').first().click()
     const folha = page.getByRole('dialog')
@@ -1300,6 +1326,7 @@ for (const [w, h] of [[390, 844], [360, 640]]) {
       await page.locator('h1').first().waitFor()
       await conferirTela(`${nome} (${w})`)
       await conferirContraste(`${nome} (${w})`)
+      await conferir603010(`${nome} (${w})`)
       await capturar(`claro-${nome}-${w}`)
     }
     await page.goto(BASE + '#/peso')
@@ -1328,6 +1355,9 @@ await passo('tema claro: "Tudo feito hoje", celebração e aviso (toast) legíve
   await page.waitForTimeout(1000)
   igual(await aviso.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETA.sup2), 'aviso no cartão 2')
   await conferirContraste('Tudo feito + aviso', page, 'body')
+  const tudo = page.getByRole('status').filter({ hasText: 'Tudo feito hoje' })
+  igual(await tudo.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETA.sup), '"Tudo feito hoje" em cartão branco (60-30-10)')
+  await conferir603010('Tudo feito')
   await capturar('claro-tudo-feito-390')
   await aviso.getByRole('button', { name: 'Desfazer' }).click()
   await page.locator('main').getByRole('button', { name: 'Registrar dose', exact: true }).waitFor()

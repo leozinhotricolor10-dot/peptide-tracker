@@ -322,7 +322,7 @@ function Seringa({ d, troca, atalho }: { d: DoseUn; troca: MudancaUnidades | nul
       <b className="text-[30px] leading-tight font-extrabold text-acento">{fmtUnidadesExtenso(d.unidades)}</b>
       <span className="text-sm leading-snug text-suave">na seringa ({fmtNum(d.ml)} mL) · seringa de insulina de {UNIDADES_POR_ML} unidades por mL</span>
       {troca && (
-        <p className="m-0 rounded-lg bg-aviso-fundo px-3 py-2 text-sm font-bold text-aviso-texto">
+        <p className="caixa-aviso m-0 px-3 py-2 text-sm font-bold">
           {troca.frascoNovo ? 'Frasco novo' : 'A diluição do frasco mudou'}: agora a mesma dose equivale a {fmtUnidadesExtenso(troca.agora)} (antes {fmtNum(troca.antes)}).
         </p>
       )}
@@ -333,10 +333,10 @@ function Seringa({ d, troca, atalho }: { d: DoseUn; troca: MudancaUnidades | nul
         </p>
       )}
       {d.abaixoDaMenorMarca && (
-        <p className="m-0 rounded-lg bg-aviso-fundo px-3 py-2 text-sm font-semibold text-aviso-texto">Menos de meia unidade: a seringa de insulina não tem marca para isso. Confira os números.</p>
+        <p className="caixa-aviso m-0 px-3 py-2 text-sm font-semibold">Menos de meia unidade: a seringa de insulina não tem marca para isso. Confira os números.</p>
       )}
       {d.acimaDaSeringa && (
-        <p className="m-0 rounded-lg bg-aviso-fundo px-3 py-2 text-sm font-semibold text-aviso-texto">Passa de {UNIDADES_POR_ML} unidades: não cabe de uma vez numa seringa de 1 mL. Confira os números.</p>
+        <p className="caixa-aviso m-0 px-3 py-2 text-sm font-semibold">Passa de {UNIDADES_POR_ML} unidades: não cabe de uma vez numa seringa de 1 mL. Confira os números.</p>
       )}
     </div>
   )

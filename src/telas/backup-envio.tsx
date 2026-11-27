@@ -22,7 +22,7 @@ export const TEXTO_INSTALAR_IOS = 'Este app ainda não está na Tela de Início.
 export function AvisoRisco({ compacto }: { compacto?: boolean }) {
   const inst = useInstalacao()
   return (
-    <div className={`flex flex-col gap-1.5 text-sm leading-relaxed ${compacto ? '' : 'rounded-xl bg-aviso-fundo px-4 py-3 font-semibold'} text-aviso-texto`}>
+    <div className={`flex flex-col gap-1.5 text-sm leading-relaxed ${compacto ? 'text-aviso-texto' : 'caixa-aviso px-4 py-3 font-semibold'}`}>
       <p className="m-0">{TEXTO_RISCO}</p>
       {inst.ios && <p className="m-0">{TEXTO_RISCO_IOS}</p>}
       {inst.ios && !inst.instalado && (
@@ -143,7 +143,7 @@ export function useEnviarBackup() {
         </Dialogo>
       )}
       {estado?.tipo === 'pronto' && (
-        <Dialogo titulo="Arquivo pronto" aoFechar={() => setEstado(null)} icone={<IcoCompartilhar className="text-acento" tam={28} />}>
+        <Dialogo titulo="Arquivo pronto" aoFechar={() => setEstado(null)} icone={<IcoCompartilhar className="text-fraco" tam={28} />}>
           <p className="m-0 text-base leading-relaxed text-suave">O arquivo demorou um pouco para ficar pronto. Toque em Enviar para escolher para onde mandar.</p>
           <button
             type="button"

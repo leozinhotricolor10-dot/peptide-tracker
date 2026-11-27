@@ -1,4 +1,8 @@
-// Cor de cada protocolo: legível no fundo e nos cartões do tema claro, longe das cores de status, atribuição estável.
+/// <reference types="node" />
+// Cor de cada protocolo (regra 60-30-10): marcador suave visível no fundo e nos cartões (>= 3:1), nunca
+// texto, distinta das outras, do acento e das cores de status (também em luminosidade); atribuição estável.
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { atribuirCores, CORES_PROTOCOLO, corDe, corValida, proximaCor } from './cores.ts'
 import { PALETA as p } from './paleta.ts'
@@ -21,6 +25,20 @@ function matiz(hex: string): number {
   return (h * 60 + 360) % 360
 }
 
+/** CIELAB (D65): [L*, a*, b*]. */
+function lab(hex: string): [number, number, number] {
+  const [r, g, b] = [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16) / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  const xyz = [(r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047, r * 0.2126 + g * 0.7152 + b * 0.0722, (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883]
+  const [fx, fy, fz] = xyz.map((t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116))
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)]
+}
+const croma = (hex: string) => Math.hypot(lab(hex)[1], lab(hex)[2])
+const deltaE = (x: string, y: string) => {
+  const [a, b] = [lab(x), lab(y)]
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+}
+const raiz = join(import.meta.dirname, '..')
+
 describe('paleta das cores de protocolo', () => {
   it('8 a 10 cores, ids e nomes únicos, nomes em português', () => {
     expect(CORES_PROTOCOLO.length).toBeGreaterThanOrEqual(8)
@@ -29,14 +47,48 @@ describe('paleta das cores de protocolo', () => {
     expect(new Set(CORES_PROTOCOLO.map((c) => c.hex)).size).toBe(CORES_PROTOCOLO.length)
   })
 
-  it('todas legíveis no fundo, nos cartões (cartão e cartão 2) e na opção escolhida (contraste >= 4,5:1)', () => {
+  it('marcadores (faixa, bolinha, pontinho) visíveis no fundo, nos cartões e na opção escolhida (contraste >= 3:1, regra de elemento gráfico)', () => {
     for (const c of CORES_PROTOCOLO) {
-      expect(contraste(c.hex, p.fundo), `${c.nome} no fundo`).toBeGreaterThanOrEqual(4.5)
-      expect(contraste(c.hex, p.sup), `${c.nome} no cartão`).toBeGreaterThanOrEqual(4.5)
-      expect(contraste(c.hex, p.sup2), `${c.nome} no cartão 2`).toBeGreaterThanOrEqual(4.5)
-      expect(contraste(c.hex, p.selecionado), `${c.nome} na opção escolhida`).toBeGreaterThanOrEqual(4.5)
+      expect(contraste(c.hex, p.fundo), `${c.nome} no fundo`).toBeGreaterThanOrEqual(3)
+      expect(contraste(c.hex, p.sup), `${c.nome} no cartão`).toBeGreaterThanOrEqual(3)
+      expect(contraste(c.hex, p.sup2), `${c.nome} no cartão 2`).toBeGreaterThanOrEqual(3)
+      expect(contraste(c.hex, p.selecionado), `${c.nome} na opção escolhida`).toBeGreaterThanOrEqual(3)
       // o ✓ da cor escolhida (cor sobre-acento em cima da bolinha) também aparece
       expect(contraste(c.hex, p['sobre-acento']), `${c.nome} com o ✓`).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('nunca viram cor de texto (se virassem, precisariam de 4,5:1, que estes tons suaves não têm)', () => {
+    const telas = [join(raiz, 'ui'), join(raiz, 'telas')].flatMap((d) => readdirSync(d).filter((f) => f.endsWith('.tsx')).map((f) => join(d, f)))
+    for (const arq of telas) {
+      const codigo = readFileSync(arq, 'utf8')
+      // `color:` sozinho (não borderLeftColor nem backgroundColor) recebendo a cor do protocolo
+      expect(codigo, arq).not.toMatch(/(?<![A-Za-z])color:\s*(corDe\(|[\w.]*\.css\b)/)
+      expect(codigo, arq).not.toMatch(/text-\[var\(--prot-/)
+    }
+    // e se algum dia virarem texto, a regra é esta:
+    const comoTexto = CORES_PROTOCOLO.filter((c) => contraste(c.hex, p.sup) >= 4.5)
+    expect(comoTexto.length).toBeLessThan(CORES_PROTOCOLO.length)
+  })
+
+  it('suaves: croma (intensidade da cor) até 52, bem abaixo do azul do acento (66)', () => {
+    for (const c of CORES_PROTOCOLO) {
+      expect(croma(c.hex), c.nome).toBeLessThanOrEqual(52)
+      expect(croma(c.hex), c.nome).toBeLessThan(croma(p.acento) - 10)
+    }
+  })
+
+  it('distintas entre si (diferença de cor ΔE >= 15 entre qualquer par)', () => {
+    for (const [i, a] of CORES_PROTOCOLO.entries())
+      for (const b of CORES_PROTOCOLO.slice(i + 1)) expect(deltaE(a.hex, b.hex), `${a.nome} x ${b.nome}`).toBeGreaterThanOrEqual(15)
+  })
+
+  it('distintas do azul do acento e das cores de status: ΔE >= 20 e mais claras (L* pelo menos 8 acima), não só outro matiz', () => {
+    for (const [nome, ref] of Object.entries({ acento: p.acento, tomada: p.ok, perdida: p.erro, aviso: p.aviso })) {
+      for (const c of CORES_PROTOCOLO) {
+        expect(deltaE(c.hex, ref), `${c.nome} x ${nome}`).toBeGreaterThanOrEqual(20)
+        expect(lab(c.hex)[0] - lab(ref)[0], `${c.nome} x ${nome} (luminosidade)`).toBeGreaterThanOrEqual(8)
+      }
     }
   })
 

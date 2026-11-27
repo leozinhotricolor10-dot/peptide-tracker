@@ -93,7 +93,7 @@ export function Peso() {
             <span className="text-xs font-bold tracking-wide text-fraco uppercase">Peso atual</span>
             <span className="text-[34px] leading-none font-extrabold">{atual ? <><NumeroAnimado valor={atual.valor} formatar={(v) => fmtNum(v, 1)} /> <span className="text-lg text-fraco">kg</span></> : '—'}</span>
           </span>
-          {variacao(sPeso) !== null && <span className="rounded-full bg-selecionado px-3 py-1 text-sm font-bold text-acento">{fmtVar(variacao(sPeso), 'kg')} em 30 dias</span>}
+          {variacao(sPeso) !== null && <span className="rounded-full bg-sup2 px-3 py-1 text-sm font-bold text-suave">{fmtVar(variacao(sPeso), 'kg')} em 30 dias</span>}
         </Link>
         <Grafico pontos={noPeriodo} marcos={marcos(base)} unidade="kg" descricao={`Peso nos últimos ${periodo} dias`} />
         <div role="tablist" aria-label="Período" className="grid grid-cols-3 gap-1 rounded-xl bg-fundo p-1">
@@ -116,7 +116,7 @@ export function Peso() {
         })}
       </div>
       <Link to="/peso/fotos" className="card flex min-h-[60px] items-center justify-between px-4">
-        <span className="flex items-center gap-3 text-base font-bold"><IcoImagem className="text-acento" /> Fotos de progresso</span>
+        <span className="flex items-center gap-3 text-base font-bold"><IcoImagem className="text-fraco" /> Fotos de progresso</span>
         <span className="flex items-center gap-1 text-sm text-fraco">{fotos.length} <IcoSeta tam={18} /></span>
       </Link>
       {fotos.length >= 2 && <Link to="/peso/fotos/comparar" className="link">Comparar duas datas</Link>}

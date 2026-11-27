@@ -264,7 +264,7 @@ export function PassoOQue() {
                   <span className="text-base font-bold break-words">{nome}</span>
                   <span className="flex shrink-0 gap-1.5">
                     {tipo === 'blend' && <span className="selo border border-borda text-suave">Blend</span>}
-                    <span className={`selo ${res.origem === 'minha' ? 'bg-selecionado text-acento' : 'bg-sup2 text-fraco'}`}>{res.origem === 'minha' ? 'Sua' : 'Lista'}</span>
+                    <span className={`selo ${res.origem === 'minha' ? 'bg-sup2 text-suave' : 'bg-sup2 text-fraco'}`}>{res.origem === 'minha' ? 'Sua' : 'Lista'}</span>
                   </span>
                 </button>
               )
@@ -812,7 +812,7 @@ export function PassoQuando() {
         if (!f) return null
         return (
           <span key={i.id} className="flex items-start gap-2 text-sm font-semibold text-suave">
-            <IcoEstoque tam={18} className="mt-0.5 shrink-0 text-acento" />
+            <IcoEstoque tam={18} className="mt-0.5 shrink-0 text-fraco" />
             {f.status === 'reconstituido'
               ? `Frasco novo: ${fmtNum(f.mgTotal)} mg + ${fmtNum(f.diluenteMl!)} mL, vai para o Estoque como reconstituído.`
               : `Frasco novo: ${fmtNum(f.mgTotal)} mg, vai para o Estoque lacrado.`}

@@ -284,3 +284,34 @@ Pares mais justos (todos ≥ 4,5:1): texto de exemplo sobre selecionado 4,57 (no
 Conferido no build servido como no Pages (e2e com Chrome automático e `npm run pages` na porta 4180), 390×844 e 360×640: boas-vindas, saída do 18+, primeiro acesso (passos 1 e 2, pedido de avisos), Hoje (cartão "Próxima dose"), folha de dose, aviso com celebração, "Tudo feito hoje", Protocolos, detalhe, Estoque, Peso (vazio e com gráfico: linha `#0B5FCC`, eixo `#4D5D70`), Backup, Ajustes, páginas não encontradas, sem internet, 404. Em todas: contraste ≥ 4,5:1 em cada texto visível contra o fundo real, sem alvo < 44 px, sem rolagem lateral, sem texto em inglês, console limpo.
 
 Fora desta rodada: quem já instalou pode continuar vendo o ícone preto até o sistema atualizar o atalho (depende do celular; reinstalar resolve); não testado em aparelho real.
+
+## Rodada de 26/11/2026: regra de cores 60-30-10
+
+Pedido do dono: "pode aplicar o 60-30-10". ~60% fundo neutro, ~30% superfícies neutras, ~10% acento azul, só no que pede ação ou mostra onde a pessoa está. Só visual; nenhum comportamento, texto de regra ou dado mudou.
+
+| # | Tipo | O que mudou | Coberto por |
+|---|---|---|---|
+| C01 | Pedido | Cartão "Próxima dose" (Hoje): de bloco azul cheio para cartão branco com a faixa de 6 px do protocolo; rótulo "PRÓXIMA DOSE" cinza ou "⚠ DOSE ATRASADA" âmbar; horário grande (26 px) à direita; nome 30 px; só o botão "Registrar dose" em azul sólido. Saíram o token `acento-escuro` (`#D9E8FF`, texto sobre o azul) e a regra de foco branco `.sobre-acento` (não há mais bloco azul) | e2e 49/50 (fundo do cartão = cartão branco, faixa na cor do protocolo, botão azul com texto branco) |
+| C02 | Pedido | "Tudo feito hoje": cartão branco (antes verde-claro com borda verde). Celebração igual (verde de tomada, ~800 ms, nada com reduzir movimento) | e2e 51 (fundo branco, contraste, celebração e aviso) |
+| C03 | Pedido | Status sem fundo grande: avisos da Atenção (frasco vencendo/acabando, lembrete de backup) e caixas de aviso dentro das telas (Configurações, Backup, calculadora, folha de dose, protocolo pausado) viram `caixa-aviso`: fundo do cartão, borda âmbar a 60%, ícone âmbar, título âmbar escuro (`#6B4000`, 8,9:1 no branco). "Sem frasco no estoque" e "Tudo feito nos últimos N dias" viram ícone + texto. Fundo colorido só em selo pequeno | e2e `conferir603010` em Hoje, Protocolos, detalhe, Estoque, Peso, Backup, Ajustes (390 e 360) e "Tudo feito": nenhum fundo de status/protocolo com mais de 40 px de altura e 4.000 px² |
+| C04 | Pedido | Acento reservado: azul cheio só em botão/link e barra de progresso (o e2e falha se aparecer em outro elemento). Neutros: selos "Ativo", "Em uso" e "Sua", variação do peso, botão "Desfazer" do aviso (branco com borda, texto azul), ícone do aviso de informação; ícones decorativos (sino, frasco, peso, imagem, compartilhar, escudo, telas vazias) e setas de abrir em cinza `#4D5D70` | e2e `conferir603010` + contraste de todo texto |
+| C05 | Pedido | Cores dos protocolos mais suaves, mesmos ids: azul `#3F4FD9`→`#6F7FC9`, rosa `#C0267A`→`#C05A86`, amarelo `#746200`→`#887D2C`, violeta `#7B3FC4`→`#9270C2`, celeste `#0B6E8C`→`#3A8CA0`, magenta `#9B2AAE`→`#AD5EA5`, prata `#596577`→`#717D8E`, lima `#4A6E00`→`#618A33`. Só em marcador (faixa, bolinha, pontinhos), nunca fundo grande nem texto | `cores.test.ts`: contraste ≥ 3:1 no fundo, cartão, cartão 2 e selecionado (menor: azul no selecionado 3,23; maior: magenta no cartão 4,27); nenhum `color:` com a cor do protocolo em `src/ui` e `src/telas`; croma ≤ 52 (acento 66); ΔE ≥ 15 entre elas (menor: azul × violeta 16,8); ΔE ≥ 20 do acento e dos status e L* pelo menos 8 acima (menor: lima × tomada ΔE 23, magenta × aviso ΔL* 8); matiz a 15°+ dos status (amarelo 53° × aviso 35°) |
+| C06 | Ferramenta | `tools/medir-cores.mjs` (`npm run cores`): grava um aparelho de exemplo (3 protocolos, 12 dias de registros, dose de ontem sem registro, frasco acabando, backup de 10 dias, pesos), abre Hoje, folha de dose, Protocolos, detalhe, Estoque, Peso e "Tudo feito" em 390 × 844 com o relógio parado às 14:00 e classifica cada pixel da captura pela cor mais próxima da paleta. `--comparar antes.json` imprime antes → depois; `--capturas pasta --prefixo nome` salva as imagens | rodado no commit anterior (antes) e neste (depois) |
+
+Proporção por tela, primeira tela (390 × 844), antes → depois (neutros = fundo + superfícies + texto neutro; a borda suavizada das letras cai na cor mais próxima, por isso o texto parece pouco):
+
+| Tela | Fundo | Superfícies | Neutros (60+30) | Acento (10) | Status | Protocolo | Status + protocolo |
+|---|---|---|---|---|---|---|---|
+| Hoje (dose pendente + Atenção) | 28,8 → 29,3% | 47,6 → 58,7% | 77,8 → **89,9%** | 19,6 → **6,5%** | 1,5 → 1,5% | 1,1 → 2,1% | 2,6 → **3,6%** |
+| Folha de dose | 16,0 → 16,0% | 79,1 → 78,5% | 97,2 → 96,6% | 1,1 → 1,0% | 1,2 → 1,0% | 0,5 → 1,3% | 1,7 → 2,4% |
+| Protocolos | 31,2 → 31,2% | 58,8 → 59,5% | 91,8 → 92,7% | 4,4 → 4,3% | 2,5 → 1,0% | 1,3 → 2,1% | 3,8 → 3,0% |
+| Detalhe | 75,2 → 75,2% | 19,3 → 19,1% | 96,5 → 96,4% | 0,8 → 0,7% | 1,9 → 1,2% | 0,8 → 1,8% | 2,7 → 3,0% |
+| Estoque | 22,0 → 22,0% | 67,8 → 68,0% | 91,9 → 92,4% | 4,2 → 4,1% | 2,3 → 1,1% | 1,5 → 2,5% | 3,8 → 3,6% |
+| Peso | 31,1 → 31,1% | 60,7 → 61,3% | 93,8 → 94,5% | 5,0 → 3,7% | 0,9 → 0,8% | 0,3 → 1,0% | 1,2 → 1,8% |
+| Hoje ("Tudo feito hoje") | 30,8 → 30,9% | 46,5 → 60,6% | 79,0 → 93,0% | 1,9 → 1,8% | 17,9 → 3,1% | 1,3 → 2,1% | 19,1 → 5,2% |
+
+Hoje rolando a página inteira: neutros 76,6 → 92,2%, acento 9,4 → 4,2%, status 13,2 → 1,4% (eram os blocos âmbar da Atenção). Metas da Hoje (neutros ≥ 85%, acento ≤ 10%, status + protocolo ≤ 5%) atingidas. A fatia de protocolo subiu um pouco porque os tons novos são mais claros e a borda suavizada das faixas passou a cair neles (antes caía no texto escuro); continua só em faixas e bolinhas.
+
+Conferido no build servido por `npm run pages` (Chrome automático, 390 × 844 e 360 × 640, com toque, relógio parado): boas-vindas e 1º passo do primeiro acesso, Hoje com dose pendente e Atenção, Hoje com "Dose atrasada", Hoje com "Tudo feito hoje", folha de dose, Protocolos, detalhe, Estoque, Peso, Ajustes (22 telas, 960 textos medidos). Em todas: todo texto ≥ 4,5:1 contra o fundo real, nenhum alvo < 44 px, sem rolagem lateral, sem texto em inglês, console limpo, nenhum fundo colorido grande. Única peça azul cheia fora de botão: os tracinhos "Passo 1 de 2" do cadastro (indicador de progresso, permitido pela regra).
+
+Fora desta rodada: ícone do app, tela de abertura e página 404 não mudaram (já eram fundo claro e gota azul); o tracinho de progresso do cadastro e a linha do gráfico de peso continuam azuis (progresso); não testado em aparelho real.

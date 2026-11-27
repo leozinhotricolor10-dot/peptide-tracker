@@ -36,7 +36,7 @@ export function BoasVindas() {
   return (
     <Tela className="min-h-dvh">
       <div className="flex flex-col gap-4 pt-4">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-selecionado text-acento">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sup2 text-fraco">
           <IcoEscudo tam={30} />
         </span>
         <h1 className="text-[32px] leading-tight font-extrabold tracking-tight">Seu diário de protocolos</h1>
@@ -170,7 +170,7 @@ export function PrePermissao({ aoFechar, aoTerminar }: { aoFechar: () => void; a
     <Dialogo titulo="Avisos na hora da dose" aoFechar={aoFechar}>
       <div className="flex flex-col gap-1.5 rounded-xl bg-sup2 p-4">
         <span className="text-xs font-bold tracking-wide text-fraco uppercase">Exemplo do que aparece</span>
-        <span className="flex items-center gap-2 text-base font-bold"><IcoSino tam={18} className="text-acento" /> {TEXTO_AVISO}</span>
+        <span className="flex items-center gap-2 text-base font-bold"><IcoSino tam={18} className="text-fraco" /> {TEXTO_AVISO}</span>
       </div>
       <ul className="m-0 flex flex-col gap-2 pl-5 text-sm leading-relaxed text-suave">
         <li>O aviso nunca mostra o nome da substância nem a dose.</li>
@@ -253,7 +253,7 @@ export function PedidoAvisos() {
     }
   }
   return (
-    <Dialogo titulo="Quer ser avisado na hora da dose?" aoFechar={() => { setEtapa(null); void responder() }} icone={<IcoSino tam={28} className="text-acento" />}>
+    <Dialogo titulo="Quer ser avisado na hora da dose?" aoFechar={() => { setEtapa(null); void responder() }} icone={<IcoSino tam={28} className="text-fraco" />}>
       <div className="flex flex-col gap-1.5 rounded-xl bg-sup2 p-4">
         <span className="text-xs font-bold tracking-wide text-fraco uppercase">Exemplo do que aparece</span>
         <span className="text-base font-bold">{TEXTO_AVISO}</span>
@@ -281,7 +281,7 @@ export function ConviteInstalar() {
   return (
     <section aria-labelledby="t-instalar" data-convite-instalar="" className="card anima-entrada flex flex-col gap-3 p-4">
       <span className="flex items-start gap-2.5">
-        <IcoCelular tam={22} className="mt-0.5 shrink-0 text-acento" />
+        <IcoCelular tam={22} className="mt-0.5 shrink-0 text-fraco" />
         <span className="flex flex-col gap-0.5">
           <b id="t-instalar" className="text-base">Coloque o app na tela inicial</b>
           <span className="text-sm leading-relaxed text-suave">Abre como um app, funciona sem internet e seus dados ficam mais protegidos.</span>

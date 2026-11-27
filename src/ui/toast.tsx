@@ -138,7 +138,7 @@ function Aviso({ t, saindo, fechar, mostrar }: { t: Atual; saindo: boolean; fech
 
   const icone =
     t.tipo === 'info' ? (
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-selecionado text-acento"><IcoInfo tam={20} /></span>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sup text-fraco"><IcoInfo tam={20} /></span>
     ) : t.tipo === 'erro' ? (
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-aviso-fundo text-aviso"><IcoAlerta tam={20} /></span>
     ) : (
@@ -165,7 +165,7 @@ function Aviso({ t, saindo, fechar, mostrar }: { t: Atual; saindo: boolean; fech
         {t.texto && <span className="text-sm break-words text-fraco">{t.texto}</span>}
       </span>
       {t.desfazer && (
-        <button type="button" className="h-11 shrink-0 rounded-xl bg-selecionado px-4 text-sm font-extrabold text-acento" onClick={() => void desfazer()}>
+        <button type="button" className="h-11 shrink-0 rounded-xl border border-borda bg-sup px-4 text-sm font-extrabold text-acento" onClick={() => void desfazer()}>
           Desfazer
         </button>
       )}

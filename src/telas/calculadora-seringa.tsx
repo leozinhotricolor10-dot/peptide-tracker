@@ -107,7 +107,7 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, ligadoUsavel, soma
               </p>
             )}
             {c.abaixoDaMenorMarca && (
-              <p className="m-0 rounded-xl bg-aviso-fundo px-3 py-2.5 text-sm font-semibold text-aviso-texto">Menos de meia unidade: a seringa de insulina não tem marca para isso. Confira os números.</p>
+              <p className="caixa-aviso m-0 px-3 py-2.5 text-sm font-semibold">Menos de meia unidade: a seringa de insulina não tem marca para isso. Confira os números.</p>
             )}
           </>
         )}
@@ -127,7 +127,7 @@ export function CalculadoraSeringa({ it, blend, frascoLigado, ligadoUsavel, soma
 
       {/* Regra do dono: todo frasco informado vai para o Estoque (sem interruptor). */}
       <div className="flex items-start gap-2.5 border-t border-sup2 pt-3">
-        <IcoEstoque tam={20} className="mt-0.5 shrink-0 text-acento" />
+        <IcoEstoque tam={20} className="mt-0.5 shrink-0 text-fraco" />
         <span className="flex flex-col gap-0.5">
           {ligadoUsavel ? (
             <>

@@ -168,7 +168,7 @@ export function Hoje() {
 
       {reativar.valor && (
         <div role="status" className="card flex flex-col gap-2 p-4">
-          <span className="flex items-start gap-2 text-sm font-semibold"><IcoSino tam={20} className="mt-0.5 shrink-0 text-acento" /> Seus dados voltaram, mas os avisos ficam ligados a cada aparelho. Ative de novo neste.</span>
+          <span className="flex items-start gap-2 text-sm font-semibold"><IcoSino tam={20} className="mt-0.5 shrink-0 text-fraco" /> Seus dados voltaram, mas os avisos ficam ligados a cada aparelho. Ative de novo neste.</span>
           <div className="flex gap-2">
             <button type="button" className="btn-texto flex-1" onClick={() => repo.delConfig('reativarAvisos')}>Agora não</button>
             <button type="button" className="btn-primario h-11 flex-1" onClick={() => setDialogo('pre')}>Ativar avisos</button>
@@ -177,7 +177,7 @@ export function Hoje() {
       )}
 
       {proxHoje ? (
-        <ProximaDose key={proxHoje.s.chave + proxHoje.s.itemId} trocou={trocouProxima} atrasada={proxHoje.st === 'atrasada'} horario={proxHoje.s.horario} nome={nomeSubstancia(proxHoje.s.substanciaId, base.subs)} dose={doseTexto(base, proxHoje.s)} registrar={() => clicarDose(proxHoje.s, proxHoje.st)} />
+        <ProximaDose key={proxHoje.s.chave + proxHoje.s.itemId} trocou={trocouProxima} atrasada={proxHoje.st === 'atrasada'} horario={proxHoje.s.horario} nome={nomeSubstancia(proxHoje.s.substanciaId, base.subs)} dose={doseTexto(base, proxHoje.s)} prot={base.protocolos.find((p) => p.id === proxHoje.s.protocoloId)} registrar={() => clicarDose(proxHoje.s, proxHoje.st)} />
       ) : tudoFeito ? (
         <TudoFeito total={slots.length} animar={acabouAgora}>
           {futura && <span className="mt-1 text-sm font-semibold text-suave">Próxima: {diaRelativo(futura.dia, hoje).toLowerCase()} às {futura.horario} · {nomeSubstancia(futura.substanciaId, base.subs)}</span>}
@@ -268,18 +268,25 @@ export function Hoje() {
   )
 }
 
-function ProximaDose({ trocou, atrasada, horario, nome, dose, registrar }: { trocou: boolean; atrasada: boolean; horario: string; nome: string; dose: string; registrar: () => void }) {
+/**
+ * Cartão de destaque da Hoje (o item mais importante): cartão branco com a faixa do protocolo,
+ * título grande e horário em destaque; o azul fica só no botão (regra 60-30-10).
+ */
+function ProximaDose({ trocou, atrasada, horario, nome, dose, prot, registrar }: { trocou: boolean; atrasada: boolean; horario: string; nome: string; dose: string; prot?: Protocolo; registrar: () => void }) {
   return (
-    <div className={`flex flex-col gap-4 sobre-acento rounded-[18px] bg-acento p-5 text-sobre-acento ${trocou ? 'anima-troca' : ''}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold tracking-wide text-acento-escuro uppercase">{atrasada ? 'Dose atrasada' : 'Próxima dose'}</span>
-        <span className="rounded-full bg-sup px-3 py-1.5 text-base font-bold text-acento tabular-nums">{horario}</span>
+    <div data-proxima-dose="" style={bordaCor(prot)} className={`card flex flex-col gap-4 border-l-[6px] p-5 ${trocou ? 'anima-troca' : ''}`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className={`flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase ${atrasada ? 'text-aviso' : 'text-fraco'}`}>
+          {atrasada && <IcoAlerta tam={14} />}
+          {atrasada ? 'Dose atrasada' : 'Próxima dose'}
+        </span>
+        <span className="font-titulo text-[26px] leading-none font-extrabold tabular-nums">{horario}</span>
       </div>
       <div className="flex flex-col gap-1">
         <span className="font-titulo text-[30px] leading-tight font-extrabold break-words">{nome}</span>
-        <span className="text-lg font-semibold text-acento-escuro">{dose}</span>
+        <span className="text-lg font-semibold text-suave">{dose}</span>
       </div>
-      <button type="button" className="btn bg-sup text-acento" onClick={registrar}>Registrar dose</button>
+      <button type="button" className="btn-primario" onClick={registrar}>Registrar dose</button>
     </div>
   )
 }
@@ -306,7 +313,7 @@ function LinhaDose({ k, s, st, ap, prot, nome, dose, semFrasco, clicar }: { k: n
           {st === 'feita' && ap ? `✓ Tomada às ${horaDe(new Date(ap.dataHora))} · ${dose}` : st === 'pulada' ? '✕ Não feita' : st === 'atrasada' ? `${dose} · atrasada` : `${dose} · pendente`}
         </span>
         {semFrasco && (
-          <span className="mt-0.5 flex items-center gap-1 self-start rounded-full bg-aviso-fundo px-2 py-0.5 text-mini font-bold text-aviso-texto"><IcoAlerta tam={12} /> Sem frasco no estoque</span>
+          <span className="mt-0.5 flex items-center gap-1 self-start text-sm font-bold text-aviso-texto"><IcoAlerta tam={14} className="shrink-0 text-aviso" /> Sem frasco no estoque</span>
         )}
       </span>
       <span className="text-sm font-bold">{s.horario}</span>
@@ -378,7 +385,7 @@ function SuaSemana({ semana, hoje, base, abrirDia }: { semana: ResumoSemana; hoj
           </span>
         )}
         {semana.sequencia > 1 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-ok-fundo px-2.5 py-0.5 text-sm font-bold text-ok">
+          <span className="inline-flex items-center gap-1 text-sm font-bold text-ok">
             <IcoCheck tam={13} /> Tudo feito nos últimos {semana.sequencia} dias de dose
           </span>
         )}
@@ -477,13 +484,15 @@ function LinhaDoDia({ d, hoje, base, clicar }: { d: DoseDoDia; hoje: string; bas
 
 function CartaoAviso({ tom, icone, titulo, texto, acao, para, onClick, prot }: { tom: 'aviso' | 'neutro'; icone: ReactNode; titulo: string; texto: string; acao: string; para?: string; onClick?: () => void; prot?: Protocolo }) {
   const aviso = tom === 'aviso'
-  const cls = `tocavel flex min-h-[60px] w-full items-center gap-3 rounded-xl px-4 py-3 text-left ${aviso ? 'bg-aviso-fundo' : 'card border-l-[5px]'}`
+  // aviso: cartão branco com borda âmbar, ícone e título âmbar (urgente sem pintar a tela);
+  // neutro: cartão com a faixa do protocolo e ícone cinza
+  const cls = `tocavel flex min-h-[60px] w-full items-center gap-3 rounded-xl px-4 py-3 text-left ${aviso ? 'caixa-aviso' : 'card border-l-[5px]'}`
   const corpo = (
     <>
-      <span className={`shrink-0 ${aviso ? 'text-aviso' : 'text-acento'}`}>{icone}</span>
+      <span className={`shrink-0 ${aviso ? 'text-aviso' : 'text-fraco'}`}>{icone}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className={`text-sm font-bold ${aviso ? 'text-aviso-texto' : ''}`}>{titulo}</span>
-        <span className={`text-sm ${aviso ? 'text-aviso-texto' : 'text-fraco'}`}>{texto}</span>
+        <span className={`text-sm font-bold ${aviso ? 'text-aviso-texto' : 'text-texto'}`}>{titulo}</span>
+        <span className="text-sm text-fraco">{texto}</span>
       </span>
       <span className={`flex shrink-0 items-center text-sm font-bold ${aviso ? 'text-aviso' : 'text-acento'}`}>{acao}<IcoSeta tam={16} /></span>
     </>
@@ -542,12 +551,12 @@ function Atencao({ alertas, base, hoje, abrirFrasco, abrirOntem, children }: { a
             const varias = base.itens.filter((x) => x.protocoloId === a.protocoloId).length > 1
             return (
               <Link key={'s' + a.itemId} to={`/estoque/frasco/novo?sub=${a.substanciaId}&item=${a.itemId}`} style={bordaCor(p)} className="card tocavel flex min-h-[52px] items-center gap-3 border-l-[5px] px-4 py-3">
-                <IcoEstoque tam={22} className="shrink-0 text-acento" />
+                <IcoEstoque tam={22} className="shrink-0 text-fraco" />
                 <span className="flex flex-1 flex-col gap-0.5">
                   <span className="text-sm font-bold">Adicione o frasco para acompanhar o estoque</span>
                   <span className="text-sm text-fraco">{p ? nomeProtocolo(p, base.itens, base.subs) : ''}{varias ? ` · ${sub(a.substanciaId)}` : ''} · sem frasco no estoque</span>
                 </span>
-                <IcoSeta tam={18} className="text-acento" />
+                <IcoSeta tam={18} className="text-fraco" />
               </Link>
             )
           }
@@ -610,7 +619,7 @@ function Atalhos({ peso, estoque, base }: { peso: ReturnType<typeof resumoPeso>;
       <div className="card flex flex-col">
         <div className="flex items-center gap-1 border-b border-sup2 pr-2">
           <Link to="/peso" className="tocavel flex min-h-[60px] min-w-0 flex-1 items-center gap-3 px-4 py-2.5">
-            <IcoPeso tam={22} className="shrink-0 text-acento" />
+            <IcoPeso tam={22} className="shrink-0 text-fraco" />
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="text-sm font-bold">{peso ? kg(peso.ultimo.kg) : 'Peso'}</span>
               <span className="text-sm text-fraco">{peso ? variacao : 'Nenhum peso registrado'}</span>
@@ -621,12 +630,12 @@ function Atalhos({ peso, estoque, base }: { peso: ReturnType<typeof resumoPeso>;
           </Link>
         </div>
         <Link to="/estoque" className="tocavel flex min-h-[60px] items-center gap-3 px-4 py-2.5">
-          <IcoEstoque tam={22} className="shrink-0 text-acento" />
+          <IcoEstoque tam={22} className="shrink-0 text-fraco" />
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="text-sm font-bold">{estoque.emUso === 0 ? 'Nenhum frasco em uso' : plural(estoque.emUso, 'frasco em uso', 'frascos em uso')}</span>
             {perto && <span className="text-sm text-fraco">{nomeSubstancia(perto.substanciaId, base.subs)}: {perto.doses === 0 ? 'menos de 1 dose' : plural(perto.doses, 'dose restante', 'doses restantes')}</span>}
           </span>
-          <IcoSeta tam={18} className="text-acento" />
+          <IcoSeta tam={18} className="text-fraco" />
         </Link>
       </div>
     </section>
@@ -643,7 +652,7 @@ function LembreteDoBackup({ lembrete, hoje, envio }: { lembrete: LembreteBackup;
     await envio.enviar(true)
   }
   return (
-    <section aria-labelledby="t-lembrete-backup" data-lembrete-backup="" className="flex flex-col gap-2.5 rounded-xl border border-aviso/40 bg-aviso-fundo p-4">
+    <section aria-labelledby="t-lembrete-backup" data-lembrete-backup="" className="caixa-aviso flex flex-col gap-2.5 p-4">
       <span className="flex items-start gap-2">
         <IcoAlerta tam={22} className="mt-0.5 shrink-0 text-aviso" />
         <b id="t-lembrete-backup" className="text-sm text-aviso-texto">
@@ -653,10 +662,10 @@ function LembreteDoBackup({ lembrete, hoje, envio }: { lembrete: LembreteBackup;
       {lembrete.tipo === 'primeiro' ? (
         <AvisoRisco compacto />
       ) : (
-        <p className="m-0 text-sm leading-relaxed font-semibold text-aviso-texto">Você registrou coisas novas desde então. Uma cópia atualizada protege esses registros.</p>
+        <p className="m-0 text-sm leading-relaxed text-suave">Você registrou coisas novas desde então. Uma cópia atualizada protege esses registros.</p>
       )}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-texto flex-1 text-aviso-texto" onClick={() => void repo.setConfig('backupAdiadoAte', adiarLembrete(hoje))}>Lembrar depois</button>
+        <button type="button" className="btn-texto flex-1" onClick={() => void repo.setConfig('backupAdiadoAte', adiarLembrete(hoje))}>Lembrar depois</button>
         <button type="button" className="btn-primario h-11 flex-[2] whitespace-nowrap" disabled={envio.ocupado} aria-busy={envio.ocupado} onClick={() => void enviarAgora()}>
           {envio.ocupado ? 'Preparando…' : 'Enviar backup agora'}
         </button>
