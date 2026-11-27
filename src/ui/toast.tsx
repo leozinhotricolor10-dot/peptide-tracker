@@ -1,5 +1,5 @@
 // Aviso (toast) do app, um componente só para todos os avisos (N31 e os demais).
-// Tema escuro, entra de baixo com mola, barrinha mostra quanto falta para sumir (pausa com o dedo
+// Fundo cinza-claro com borda, entra de baixo com mola, barrinha mostra quanto falta para sumir (pausa com o dedo
 // em cima), arrastar para o lado dispensa, sai descendo. "festa" = celebração do registro de dose.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type PointerEvent as PE, type ReactNode } from 'react'
 import { IcoAlerta, IcoInfo } from './icones.tsx'

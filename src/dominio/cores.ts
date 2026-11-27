@@ -1,30 +1,33 @@
 // Cor de cada protocolo: só para reconhecer o cartão de relance. O nome continua sempre visível
-// (a cor nunca é a única forma de distinguir). O tom depende do tema (src/dominio/temas.ts e
-// src/index.css): nos temas escuros, tons claros; no Claro, tons escuros. Sempre contraste >= 4,5:1
-// com o fundo e com os cartões do tema e longe dos verdes/vermelhos/âmbar de status. Os ids nunca
+// (a cor nunca é a única forma de distinguir). Tons escuros sobre o fundo claro do app: contraste
+// >= 4,5:1 com o fundo e com os cartões e longe dos verdes/vermelhos/âmbar de status. Os ids nunca
 // mudam (ficam gravados nos protocolos e no backup); só os tons podem mudar. Testado em cores.test.ts.
-// Na tela, a cor vem de `css` (var(--prot-<id>)), que acompanha o tema; `hex` é o tom do tema Preto.
+// Na tela, a cor vem de `css` (var(--prot-<id>), definida em src/index.css); `hex` é o mesmo tom,
+// para os testes (paleta.test.ts confere que o CSS e esta tabela são iguais).
 import type { Protocolo } from './tipos.ts'
 
 export interface CorProtocolo {
   id: string
   nome: string
-  /** Tom no tema Preto (referência); para pintar, use `css`. */
+  /** Tom da cor (o mesmo do CSS); para pintar, use `css`. */
   hex: string
-  /** Cor que acompanha o tema atual: var(--prot-<id>). */
+  /** Variável do CSS com a cor: var(--prot-<id>). */
   css: string
 }
 
-/** Ordem = ordem da atribuição automática (as primeiras são as mais diferentes entre si). */
+/**
+ * Ordem = ordem da atribuição automática (as primeiras são as mais diferentes entre si).
+ * Amarelo: #7A6200 do desenho virou #746200 (ficava a 13° do âmbar de aviso #945700; agora 15°+).
+ */
 export const CORES_PROTOCOLO: readonly CorProtocolo[] = [
-  { id: 'azul', nome: 'Azul', hex: '#5db4ff', css: 'var(--prot-azul)' },
-  { id: 'rosa', nome: 'Rosa', hex: '#ff85b8', css: 'var(--prot-rosa)' },
-  { id: 'amarelo', nome: 'Amarelo', hex: '#f2e26e', css: 'var(--prot-amarelo)' },
-  { id: 'violeta', nome: 'Violeta', hex: '#d99cff', css: 'var(--prot-violeta)' },
-  { id: 'celeste', nome: 'Celeste', hex: '#9fe3ff', css: 'var(--prot-celeste)' },
-  { id: 'magenta', nome: 'Magenta', hex: '#f08ae0', css: 'var(--prot-magenta)' },
-  { id: 'prata', nome: 'Prata', hex: '#c9cfda', css: 'var(--prot-prata)' },
-  { id: 'lima', nome: 'Lima', hex: '#cfee7c', css: 'var(--prot-lima)' },
+  { id: 'azul', nome: 'Azul', hex: '#3f4fd9', css: 'var(--prot-azul)' },
+  { id: 'rosa', nome: 'Rosa', hex: '#c0267a', css: 'var(--prot-rosa)' },
+  { id: 'amarelo', nome: 'Amarelo', hex: '#746200', css: 'var(--prot-amarelo)' },
+  { id: 'violeta', nome: 'Violeta', hex: '#7b3fc4', css: 'var(--prot-violeta)' },
+  { id: 'celeste', nome: 'Celeste', hex: '#0b6e8c', css: 'var(--prot-celeste)' },
+  { id: 'magenta', nome: 'Magenta', hex: '#9b2aae', css: 'var(--prot-magenta)' },
+  { id: 'prata', nome: 'Prata', hex: '#596577', css: 'var(--prot-prata)' },
+  { id: 'lima', nome: 'Lima', hex: '#4a6e00', css: 'var(--prot-lima)' },
 ]
 
 const POR_ID = new Map(CORES_PROTOCOLO.map((c) => [c.id, c]))

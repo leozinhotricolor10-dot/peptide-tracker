@@ -35,6 +35,13 @@ export class BancoLocal extends Dexie {
         const comCor = atribuirCores(todos)
         await tabela.bulkPut(comCor)
       })
+    // v3: o app passou a ter um tema só (claro); a escolha antiga de tema (Preto, Índigo, Claro,
+    // Automático) não serve mais e sai do banco (assim também não vai para backups novos).
+    this.version(3)
+      .stores({})
+      .upgrade(async (tx) => {
+        await tx.table<ConfigItem, string>('config').delete('tema')
+      })
   }
 }
 

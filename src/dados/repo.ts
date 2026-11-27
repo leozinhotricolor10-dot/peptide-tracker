@@ -16,7 +16,6 @@ import { normalizar } from '../dominio/sugestoes.ts'
 import { hojeStr } from '../dominio/datas.ts'
 import { fecharPausa } from '../dominio/agenda.ts'
 import { corValida, proximaCor } from '../dominio/cores.ts'
-import type { PreferenciaTema } from '../dominio/temas.ts'
 
 export function novoId(): string {
   return crypto.randomUUID()
@@ -96,8 +95,6 @@ export interface ConfigMapa {
   notificados: string[]
   agendaGeradaEm: string
   avisoVencimentoDias: number
-  /** Tema escolhido em Ajustes (vai no backup; sem ele, Preto). */
-  tema: PreferenciaTema
 }
 
 export interface UsoSubstancia {

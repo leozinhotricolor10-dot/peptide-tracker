@@ -16,7 +16,6 @@ import type {
 } from '../dominio/tipos.ts'
 
 import { atribuirCores, corValida } from '../dominio/cores.ts'
-import { preferenciaValida } from '../dominio/temas.ts'
 
 export class BackupInvalido extends Error {}
 
@@ -251,7 +250,8 @@ const CONFIG_OK: Record<string, (v: unknown) => boolean> = {
   sugestoesVersao: (v) => typeof v === 'number' && Number.isFinite(v),
   agendaGeradaEm: (v) => typeof v === 'string' && !Number.isNaN(new Date(v).getTime()),
   avisoVencimentoDias: (v) => typeof v === 'number' && Number.isFinite(v),
-  tema: preferenciaValida,
+  // "tema" (escolha de cor das versões antigas, hoje o app só tem o tema claro) não está aqui:
+  // backups antigos com ele importam normalmente e o campo é ignorado.
 }
 
 export function configs(v: unknown): ConfigItem[] {

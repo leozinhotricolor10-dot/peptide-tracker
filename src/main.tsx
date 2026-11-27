@@ -29,6 +29,14 @@ const base = import.meta.env.BASE_URL
 const resto = location.pathname.startsWith(base) ? location.pathname.slice(base.length).replace(/^index\.html$/, '').replace(/\/+$/, '') : ''
 if (resto && !location.hash) location.replace(`${base}#/${resto}${location.search}`)
 
+// Versões antigas guardavam aqui uma cópia da escolha de tema (Preto, Índigo, Claro, Automático).
+// Hoje o app só tem o tema claro: a cópia sai (a do banco sai na versão 3 do banco, src/dados/db.ts).
+try {
+  localStorage.removeItem('pt-tema')
+} catch {
+  /* navegador sem armazenamento local: nada a limpar */
+}
+
 const router = createHashRouter([
   {
     path: '/',

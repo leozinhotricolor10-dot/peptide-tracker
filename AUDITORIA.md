@@ -241,7 +241,7 @@ Conferido no build servido por `npm run pages` (Chrome automático, 390×844 e 3
 
 Fora desta rodada: o seletor de horário é o do navegador (no iPhone é a roda do sistema); o convite para instalar no Android depende de o navegador oferecer a instalação (sem isso mostra "Ver como"); não testado em aparelho real.
 
-## Rodada de 22/11/2026: temas (Preto, Índigo, Claro, Automático)
+## Rodada de 22/11/2026: temas (Preto, Índigo, Claro, Automático) — histórico; desfeita em 26/11/2026 (tema único claro)
 
 Pedido do dono. O Preto não mudou. Como funciona: cada tema é um bloco de variáveis CSS em `src/index.css` (`[data-tema='preto'|'indigo'|'claro']`, o atributo fica no `<html>`); os componentes só usam as classes dos tokens e a cor do protocolo vem de `var(--prot-<id>)` (`CorProtocolo.css`). `src/dominio/temas.ts` tem a mesma tabela (testes e theme-color); `src/sistema/tema.ts` aplica (atributo, `meta theme-color`, `meta color-scheme`, cópia em localStorage, escuta do aparelho no Automático); `Raiz` aplica o que está no banco (escolha, backup importado, dados apagados). O `index.html` tem um script inline de poucas linhas que lê a cópia e marca o `<html>` antes da primeira pintura (com try/catch; sem armazenamento = Preto).
 
@@ -261,3 +261,26 @@ Pares de texto mais justos (todos ≥ 4,5:1): **Preto** texto de exemplo sobre s
 Conferido no build servido por `npm run pages` (Chrome automático, 390×844 e 360×640, com toque), em Índigo e Claro: boas-vindas, passos 1 e 2, diálogo do pedido de avisos, Hoje, folha de dose, aviso "Dose registrada", "Tudo feito hoje", Protocolos, detalhe, Estoque, Peso com gráfico, Ajustes, Backup e campos do Novo frasco (60 telas). Em todas: contraste de cada texto visível ≥ 4,5:1 contra o fundo real, sem alvo < 44 px, sem rolagem lateral, sem texto em inglês, console limpo.
 
 Fora desta rodada: ícones e manifest seguem pretos (a tela de abertura do Android fica preta mesmo no Claro, por um instante); a página 404 do Pages segue preta; o tema não é escolhido no primeiro acesso (só em Ajustes); "Apagar todos os dados" volta ao Preto; não testado em aparelho real.
+
+## Rodada de 26/11/2026: tema único claro e azul
+
+Decisão do dono: ficar só com o tema branco e azul ("o mais clínico"). Saem Preto, Índigo, Automático, a escolha em Ajustes e todo o código de troca. O Claro de 22/11 vira o tema fixo, com os mesmos valores.
+
+Como ficou: as cores estão no `@theme` de `src/index.css` (tons dos protocolos e força do véu num `:root` logo abaixo, `color-scheme: light`); `src/dominio/paleta.ts` tem a mesma tabela para os testes (antes `temas.ts`); `src/dominio/cores.ts` guarda os tons dos protocolos (agora os do Claro). Saíram `src/sistema/tema.ts`, o script inline do `index.html`, os blocos `[data-tema=...]`, a transição de troca e a seção Aparência de `ajustes.tsx`.
+
+| # | Tipo | O que mudou | Coberto por |
+|---|---|---|---|
+| U01 | Pedido | Tema único: Preto, Índigo e Automático removidos; Ajustes sem a seção Aparência; sem `data-tema` no `<html>` | `dominio/paleta.test.ts` (CSS = tabela; nenhum resto de `data-tema`, `pt-tema`, `#000000`, `#A5ADFF`...) + e2e 48 |
+| U02 | Pedido | Sem piscar: `index.html` pinta `#F3F6FA` no 1º quadro, `theme-color` `#F3F6FA`, `color-scheme` light; sem script | `paleta.test.ts` + e2e 52 (1º quadro depois do F5) |
+| U03 | Migração | Escolha antiga sai do banco na versão 3 do Dexie (`config.tema` apagado; o resto fica) e a cópia `pt-tema` do localStorage é apagada ao abrir. Quem tinha Preto/Índigo/Automático vê o claro sem erro | `dados/tema-antigo.test.ts` (banco v2 com cada valor) + e2e 53; conferido também num perfil de navegador real com o app de 08/11 (banco v1): "Atualizar" levou ao banco v3, cores dos protocolos atribuídas, fundo claro, console limpo |
+| U04 | Pedido | Backup: o campo `tema` não vai mais no arquivo (nem se tiver sobrado no banco); ao importar, `tema` com qualquer valor ou ausente é ignorado (a validação não conhece mais a chave). Escolha: não exportar em vez de gravar "claro" fixo, porque a importação já ignora chaves desconhecidas e uma versão antiga do app que receba o arquivo novo só cai no seu padrão, sem erro | `tema-antigo.test.ts` + e2e 54 |
+| U05 | Pedido | Ícones: a mesma gota, branca sobre azul `#0B5FCC` (5,9:1), mesmos arquivos e tamanhos (`favicon.svg`, `pwa-192`, `pwa-512` arredondados; `pwa-maskable-512` quadrado cheio com a gota a 80%, dentro da área segura; `apple-touch-icon` 180 sem transparência). Gerados por `tools/gerar-icones.mjs` (Chrome instalado via `playwright-core`, já no projeto; nada novo instalado) | `paleta.test.ts` (favicon) + imagens conferidas |
+| U06 | Pedido | Manifest `background_color`/`theme_color` `#F3F6FA` (abertura do Android clara); `apple-mobile-web-app-status-bar-style` `default` (com `black-translucent` o relógio ficaria branco sobre o fundo claro); 404 do Pages no tema claro, link azul com 44 px | `paleta.test.ts` + e2e 9 (manifest e 404 servidos) |
+| U07 | Achado | Legenda das fotos de progresso herdava o texto escuro sobre o véu escuro a 80% (ilegível no claro): agora branca (`text-sobre-acento`, 17,3:1 sobre o véu cheio) | `paleta.test.ts` (par `sobre-acento`/`veu`) |
+| U08 | Testes | Testes de troca de tema, Automático e preferência removidos; ficam os de contraste do claro (todos os pares de texto, contornos, 8 cores de protocolo contra fundo, cartão, cartão 2 e selecionado). O e2e mede o contraste de todo texto visível também em boas-vindas, saída do 18+, primeiro acesso (360), pedido de avisos, páginas não encontradas e sem internet | `npm test` (244) + `npm run e2e` (55 passos) |
+
+Pares mais justos (todos ≥ 4,5:1): texto de exemplo sobre selecionado 4,57 (no campo, 4,93); secundário sobre o acento (`#D9E8FF` sobre `#0B5FCC`) 4,81; rosa sobre selecionado 4,72; aviso sobre cartão 2 5,06.
+
+Conferido no build servido como no Pages (e2e com Chrome automático e `npm run pages` na porta 4180), 390×844 e 360×640: boas-vindas, saída do 18+, primeiro acesso (passos 1 e 2, pedido de avisos), Hoje (cartão "Próxima dose"), folha de dose, aviso com celebração, "Tudo feito hoje", Protocolos, detalhe, Estoque, Peso (vazio e com gráfico: linha `#0B5FCC`, eixo `#4D5D70`), Backup, Ajustes, páginas não encontradas, sem internet, 404. Em todas: contraste ≥ 4,5:1 em cada texto visível contra o fundo real, sem alvo < 44 px, sem rolagem lateral, sem texto em inglês, console limpo.
+
+Fora desta rodada: quem já instalou pode continuar vendo o ícone preto até o sistema atualizar o atalho (depende do celular; reinstalar resolve); não testado em aparelho real.

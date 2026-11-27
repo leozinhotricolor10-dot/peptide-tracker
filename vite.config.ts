@@ -16,9 +16,11 @@ const base = `/${pasta.replace(/^\/+|\/+$/g, '')}/`.replace(/^\/\/$/, '/')
  * Se alguém abrir um endereço antigo sem # (ex.: /peptide-tracker/hoje), esta página leva para /#/hoje.
  */
 function pagina404(): Plugin {
+  // cores do tema claro (src/dominio/paleta.ts): fundo #f3f6fa, texto #0f1b2a, link #0b5fcc
   const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Peptide Tracker</title><style>html,body{background:#000000;color:#F2F2F2;font-family:system-ui,sans-serif;margin:0}</style>
+<meta name="theme-color" content="#f3f6fa"><meta name="color-scheme" content="light">
+<title>Peptide Tracker</title><style>html,body{background:#f3f6fa;color:#0f1b2a;font-family:system-ui,sans-serif;margin:0}a{color:#0b5fcc;font-weight:700;display:inline-flex;align-items:center;min-height:44px}</style>
 <script>
 (function () {
   var base = ${JSON.stringify(base)};
@@ -29,7 +31,7 @@ function pagina404(): Plugin {
   }
 })();
 </script></head>
-<body><p style="padding:24px">Página não encontrada. <a style="color:#FFFFFF" href="${base}">Abrir o app</a></p></body></html>
+<body><p style="padding:24px;line-height:1.5">Página não encontrada. <a href="${base}">Abrir o app</a></p></body></html>
 `
   return {
     name: 'pagina-404',
@@ -80,8 +82,9 @@ export default defineConfig({
         scope: base,
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#000000',
-        theme_color: '#000000',
+        // cores do tema claro (src/dominio/paleta.ts): tela de abertura do Android e barra do sistema
+        background_color: '#f3f6fa',
+        theme_color: '#f3f6fa',
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },

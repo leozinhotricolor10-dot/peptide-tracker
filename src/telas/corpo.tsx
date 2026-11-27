@@ -272,7 +272,7 @@ function Miniatura({ foto, aoAbrir }: { foto: Foto; aoAbrir: () => void }) {
   return (
     <button type="button" onClick={aoAbrir} aria-label={`Foto ${rot}, ${dataMedia(foto.data)}`} className="relative aspect-[3/4] overflow-hidden rounded-xl border border-linha bg-sup2">
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
-      <span className="absolute inset-x-0 bottom-0 bg-veu/80 py-1 text-center text-mini font-bold">{rot}</span>
+      <span className="absolute inset-x-0 bottom-0 bg-veu/80 py-1 text-center text-mini font-bold text-sobre-acento">{rot}</span>
     </button>
   )
 }

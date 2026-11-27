@@ -9,6 +9,8 @@ export const FORMATO_BACKUP = 1
 
 /** Config que é do aparelho e não viaja no arquivo. */
 const CONFIG_LOCAL = new Set(['aceite', 'notificados', 'reativarAvisos', 'backupAdiadoAte', 'backupImpressao', 'pedidoAvisos', 'conviteInstalar'])
+/** Config que não existe mais e não vai no arquivo (a escolha de tema das versões antigas; o app só tem o tema claro). */
+const CONFIG_ANTIGA = new Set(['tema'])
 
 interface FotoArquivo extends Omit<Foto, 'blob'> {
   dados: string
@@ -72,7 +74,7 @@ export async function montarBackup(repo: Repo, incluirFotos: boolean, agora = ne
       aplicacoes: await db.aplicacoes.toArray(),
       medicoes: await db.medicoes.toArray(),
       frascos: await db.frascos.toArray(),
-      config: (await db.config.toArray()).filter((c) => !CONFIG_LOCAL.has(c.chave)),
+      config: (await db.config.toArray()).filter((c) => !CONFIG_LOCAL.has(c.chave) && !CONFIG_ANTIGA.has(c.chave)),
     },
     fotos,
   }

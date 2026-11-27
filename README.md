@@ -33,7 +33,8 @@ Os endereços internos usam `#` (ex.: `.../peptide-tracker/#/hoje`), então reca
 
 - `src/dominio/` contas puras e testadas: agenda (frequência, ciclo, pausas), reconstituição, saldo e custo, datas, sugestões de nomes, `.ics`
 - `src/dados/` única porta para o IndexedDB (Dexie), backup e a validação de arquivos importados
-- `src/telas/` telas · `src/ui/` peças visuais · `src/sistema/` avisos, instalação, fotos, tema
-- Temas (Preto, Índigo, Claro, Automático): cores em `src/index.css` (um bloco por tema), mesma tabela em `src/dominio/temas.ts` para os testes de contraste
+- `src/telas/` telas · `src/ui/` peças visuais · `src/sistema/` avisos, instalação, fotos
+- Cores (um tema só, claro): `src/index.css` (`@theme` e `:root`), mesma tabela em `src/dominio/paleta.ts` (e tons dos protocolos em `src/dominio/cores.ts`) para os testes de contraste
+- Ícones do app (`public/`): `node tools/gerar-icones.mjs` gera favicon, 192, 512, maskable 512 e apple-touch 180 a partir de um desenho só (usa o Chrome instalado via playwright-core, sem dependência nova)
 - `src/sw.ts` service worker (offline e abrir o app ao tocar no aviso)
 - `AUDITORIA.md` o que foi revisado, corrigido e o que ficou como limitação

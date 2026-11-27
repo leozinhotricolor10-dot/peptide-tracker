@@ -4,7 +4,8 @@
 // Falha (código 1) se algum passo não acontecer ou se aparecer erro/aviso no console.
 import { chromium } from 'playwright-core'
 import { servir } from '../tools/servir-pages.mjs'
-import { CORES_POR_TEMA, PALETAS } from '../src/dominio/temas.ts'
+import { PALETA } from '../src/dominio/paleta.ts'
+import { CORES_PROTOCOLO } from '../src/dominio/cores.ts'
 
 const { url: BASE, fechar } = await servir(4199)
 // Fuso do navegador do teste. Perto da meia-noite a dose das 00:00 ainda não está atrasada: use outro fuso (ex.: E2E_FUSO=America/Noronha).
@@ -67,6 +68,67 @@ const conferirTela = async (onde, raiz = '#root') => {
   if (ingles) throw new Error(`${onde}: texto em inglês ${ingles.join(', ')}`)
 }
 
+const rgbDe = (hex) => `rgb(${[1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)).join(', ')})`
+/**
+ * Contraste de todo texto visível da tela contra o fundo real (camadas de fundo somadas, inclusive
+ * as semitransparentes). Devolve os trechos abaixo de 4,5:1. Texto desativado (opacidade < 1) não conta.
+ */
+const textosFracos = (p = page, raiz = '#root') => p.evaluate((r) => {
+  const cv = document.createElement('canvas')
+  cv.width = cv.height = 1
+  const cx = cv.getContext('2d', { willReadFrequently: true })
+  const cor = (c) => {
+    cx.clearRect(0, 0, 1, 1)
+    cx.fillStyle = '#000'
+    cx.fillStyle = c
+    cx.fillRect(0, 0, 1, 1)
+    const d = cx.getImageData(0, 0, 1, 1).data
+    return [d[0], d[1], d[2], d[3] / 255]
+  }
+  const lum = ([a, b, c]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(a) + 0.7152 * f(b) + 0.0722 * f(c) }
+  const sobre = (cima, baixo) => [0, 1, 2].map((k) => cima[k] * cima[3] + baixo[k] * (1 - cima[3])).concat(1)
+  const fundoDe = (el) => {
+    const camadas = []
+    for (let e = el; e; e = e.parentElement) {
+      const c = cor(getComputedStyle(e).backgroundColor)
+      if (c[3] > 0) camadas.push(c)
+      if (c[3] >= 1) break
+    }
+    let f = cor(getComputedStyle(document.documentElement).backgroundColor)
+    if (f[3] < 1) f = [255, 255, 255, 1]
+    for (const c of camadas.reverse()) f = sobre(c, f)
+    return f
+  }
+  const ruins = []
+  const raizEl = document.querySelector(r)
+  if (!raizEl) return ruins
+  const andar = document.createTreeWalker(raizEl, NodeFilter.SHOW_TEXT)
+  const vistos = new Set()
+  for (let n = andar.nextNode(); n; n = andar.nextNode()) {
+    const el = n.parentElement
+    if (!n.textContent.trim() || !el || vistos.has(el)) continue
+    vistos.add(el)
+    if (!el.getClientRects().length) continue
+    const st = getComputedStyle(el)
+    if (st.visibility === 'hidden' || el.closest('.sr-only,[aria-hidden=true]')) continue
+    let apagado = false
+    for (let e = el; e; e = e.parentElement) if (Number(getComputedStyle(e).opacity) < 1) apagado = true
+    if (apagado || el.closest(':disabled,[aria-disabled=true]')) continue
+    let t = cor(el instanceof SVGElement ? st.fill : st.color)
+    const f = fundoDe(el)
+    if (t[3] < 1) t = sobre(t, f)
+    const [a, b] = [lum(t), lum(f)]
+    const c = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+    if (c < 4.5) ruins.push(`"${n.textContent.trim().slice(0, 30)}" ${c.toFixed(2)}`)
+  }
+  return ruins
+}, raiz)
+const conferirContraste = async (onde, p = page, raiz = '#root') => {
+  await p.waitForTimeout(500) // animações de entrada (opacidade) terminam
+  const r = await textosFracos(p, raiz)
+  if (r.length) throw new Error(`${onde}: texto com contraste baixo ${r.join(' | ')}`)
+}
+
 /** Tudo o que o app gravou no aparelho (tabelas do IndexedDB). */
 const tudoNoBanco = (p = page) => p.evaluate(async () => {
   const r = indexedDB.open('peptide-tracker')
@@ -88,6 +150,7 @@ await passo('abre na subpasta e cai nas boas-vindas (boas-vindas e aviso 18+ na 
   await L('Privacidade').waitFor()
   await L('Termos de uso').waitFor()
   await conferirTela('boas-vindas (390)')
+  await conferirContraste('boas-vindas (390)')
   await capturar('boas-vindas-390')
 })
 await passo('recusar o aviso 18+ leva à saída sem gravar nada', async () => {
@@ -96,6 +159,9 @@ await passo('recusar o aviso 18+ leva à saída sem gravar nada', async () => {
   await page.getByLabel('Tenho 18 anos ou mais').check() // marcar só uma não grava nada
   await L('Não aceito').click()
   await page.getByRole('heading', { name: 'Tudo bem', level: 1 }).waitFor() // espera a troca de tela (antes lia o título cedo demais)
+  await conferirTela('saída do 18+ (390)')
+  await conferirContraste('saída do 18+ (390)')
+  await capturar('saida-18-390')
   const b = await tudoNoBanco()
   const gravado = Object.entries(b).filter(([, v]) => v.length).map(([k]) => k)
   igual(gravado.join(','), '', 'nenhuma tabela com dado depois de recusar')
@@ -244,7 +310,10 @@ await passo('endereços inexistentes mostram mensagem, não tela branca', async 
     await page.goto(BASE + rota)
     await page.reload()
     await page.getByRole('heading', { name: titulo, level: 1 }).waitFor()
+    await conferirTela(titulo)
+    await conferirContraste(titulo)
   }
+  await capturar('pagina-nao-encontrada-390')
 })
 await passo('service worker ativo com escopo da subpasta e manifest certo', async () => {
   await page.goto(BASE + '#/hoje')
@@ -252,6 +321,9 @@ await passo('service worker ativo com escopo da subpasta e manifest certo', asyn
   igual(escopo, BASE, 'escopo do service worker')
   const m = await (await page.request.get(BASE + 'manifest.webmanifest')).json()
   igual([m.start_url, m.scope, m.id].join(' '), '/peptide-tracker/ /peptide-tracker/ /peptide-tracker/', 'manifest')
+  igual([m.background_color, m.theme_color].join(' '), `${PALETA.fundo} ${PALETA.fundo}`, 'tela de abertura e barra do sistema no fundo claro')
+  const p404 = await (await page.request.get(BASE + '404.html')).text()
+  if (!p404.includes(`background:${PALETA.fundo};color:${PALETA.texto}`)) throw new Error('404.html fora do tema claro')
 })
 await passo('sem internet: recarrega e mostra os dados', async () => {
   await page.reload()
@@ -260,6 +332,8 @@ await passo('sem internet: recarrega e mostra os dados', async () => {
   await page.goto(BASE + '#/hoje')
   await page.getByText('Sem internet.').waitFor()
   await page.locator('main', { hasText: 'Tomada às' }).waitFor()
+  await conferirContraste('sem internet')
+  await capturar('sem-internet-390')
   await contexto.setOffline(false)
 })
 await passo('apagar frasco com dose ligada: some do Estoque, a dose fica no histórico; desfazer devolve', async () => {
@@ -408,7 +482,7 @@ await passo('cores distintas entre os protocolos e F5 mantém cores e frascos', 
     const ct = await cor(tesa.id)
     const cr = await cor(reta.id)
     if (ct === cr) throw new Error(`mesma cor nos dois protocolos: ${ct}`)
-    igual(cr, 'rgb(217, 156, 255)', 'violeta na borda da Retatrutida')
+    igual(cr, 'rgb(123, 63, 196)', 'violeta na borda da Retatrutida')
     const todas = await cartoes.evaluateAll((els) => els.map((el) => getComputedStyle(el).borderLeftColor))
     igual(new Set(todas).size, todas.length, 'cada protocolo ativo com uma cor')
     await page.locator(`a.card[href$="/protocolos/${tesa.id}"]`).getByText('Frasco: 4 doses restantes').waitFor()
@@ -432,7 +506,7 @@ const contraste = (seletor) => page.locator(seletor).first().evaluate((el) => {
   const b = lum(rgb(getComputedStyle(fundo).backgroundColor))
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
 })
-await passo('registrar dose: celebração aparece e termina, aviso escuro com tempo e Desfazer, frasco conta 4 → 3', async () => {
+await passo('registrar dose: celebração aparece e termina, aviso (cinza-claro, com borda) com tempo e Desfazer, frasco conta 4 → 3', async () => {
   await page.goto(BASE + '#/protocolos/' + tesa.id)
   await page.getByText('Frasco: 4 doses restantes').waitFor()
   const antes = (await lerBanco()).aplicacoes.length
@@ -443,7 +517,7 @@ await passo('registrar dose: celebração aparece e termina, aviso escuro com te
   igual(await aviso.getAttribute('data-festa'), 'true', 'aviso com celebração')
   await aviso.locator('[data-celebracao] .onda').first().waitFor({ state: 'attached' })
   await page.locator('main .anima-nova').first().waitFor() // linha nova em "Últimos registros"
-  igual(await aviso.evaluate((el) => getComputedStyle(el).backgroundColor), 'rgb(28, 28, 28)', 'aviso no tema escuro (não branco)')
+  igual(await aviso.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETA.sup2), 'aviso no cartão 2 do tema')
   igual(await aviso.locator('.tempo-anima').evaluate((el) => getComputedStyle(el).animationDuration), '6s', 'barrinha de tempo de 6 s')
   const c = await contraste('[role=status] >> text=Desfazer')
   if (c < 4.5) throw new Error(`contraste do Desfazer ${c.toFixed(2)}:1`)
@@ -1023,6 +1097,8 @@ await passo('primeiro acesso mínimo (360 × 640): Boas-vindas+18+ → O quê e 
     await p.waitForTimeout(350)
     telas.push((await p.locator('h1').first().textContent()).trim())
     await conferirEm(p, nome)
+    await conferirContraste(nome, p)
+    if (CAPTURAS) await p.screenshot({ path: `${CAPTURAS}/primeiro-acesso-${nome.replace(/\s+/g, '-')}.png` })
   }
   await p.goto(BASE)
   await p.waitForURL(/#\/boas-vindas$/)
@@ -1046,6 +1122,7 @@ await passo('primeiro acesso mínimo (360 × 640): Boas-vindas+18+ → O quê e 
   await p.getByRole('alertdialog', { name: PEDIDO_AVISOS }).waitFor()
   await p.waitForTimeout(400) // fim da animação de entrada
   await conferirEm(p, 'pedido de avisos 360', '[role=alertdialog]') // botões não encolhem no diálogo alto
+  await conferirContraste('pedido de avisos 360', p, '[role=alertdialog]')
   igual(telas.length, 3, `telas antes da Hoje (${telas.join(' → ')})`)
   igual(telas.join(' → '), 'Seu diário de protocolos → O quê e quanto → Quando', 'caminho')
   if (toques > 6) throw new Error(`${toques} toques`)
@@ -1173,188 +1250,124 @@ await passo('usuário antigo (aceite e primeiro acesso da versão anterior): nã
   igual((await tudoNoBanco(p)).config.find((c) => c.chave === 'aceite')?.valor?.em, '2026-11-01T12:00:00.000Z', 'aceite anterior mantido')
   await ctx.close()
 })
-// ---------- temas: Preto, Índigo, Claro e Automático ----------
-const rgbDe = (hex) => `rgb(${[1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)).join(', ')})`
-/**
- * Contraste de todo texto visível da tela contra o fundo real (camadas de fundo somadas, inclusive
- * as semitransparentes). Devolve os trechos abaixo de 4,5:1. Texto desativado (opacidade < 1) não conta.
- */
-const textosFracos = (p = page, raiz = '#root') => p.evaluate((r) => {
-  const cv = document.createElement('canvas')
-  cv.width = cv.height = 1
-  const cx = cv.getContext('2d', { willReadFrequently: true })
-  const cor = (c) => {
-    cx.clearRect(0, 0, 1, 1)
-    cx.fillStyle = '#000'
-    cx.fillStyle = c
-    cx.fillRect(0, 0, 1, 1)
-    const d = cx.getImageData(0, 0, 1, 1).data
-    return [d[0], d[1], d[2], d[3] / 255]
-  }
-  const lum = ([a, b, c]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(a) + 0.7152 * f(b) + 0.0722 * f(c) }
-  const sobre = (cima, baixo) => [0, 1, 2].map((k) => cima[k] * cima[3] + baixo[k] * (1 - cima[3])).concat(1)
-  const fundoDe = (el) => {
-    const camadas = []
-    for (let e = el; e; e = e.parentElement) {
-      const c = cor(getComputedStyle(e).backgroundColor)
-      if (c[3] > 0) camadas.push(c)
-      if (c[3] >= 1) break
-    }
-    let f = cor(getComputedStyle(document.documentElement).backgroundColor)
-    if (f[3] < 1) f = [255, 255, 255, 1]
-    for (const c of camadas.reverse()) f = sobre(c, f)
-    return f
-  }
-  const ruins = []
-  const raizEl = document.querySelector(r)
-  if (!raizEl) return ruins
-  const andar = document.createTreeWalker(raizEl, NodeFilter.SHOW_TEXT)
-  const vistos = new Set()
-  for (let n = andar.nextNode(); n; n = andar.nextNode()) {
-    const el = n.parentElement
-    if (!n.textContent.trim() || !el || vistos.has(el)) continue
-    vistos.add(el)
-    if (!el.getClientRects().length) continue
-    const st = getComputedStyle(el)
-    if (st.visibility === 'hidden' || el.closest('.sr-only,[aria-hidden=true]')) continue
-    let apagado = false
-    for (let e = el; e; e = e.parentElement) if (Number(getComputedStyle(e).opacity) < 1) apagado = true
-    if (apagado || el.closest(':disabled,[aria-disabled=true]')) continue
-    let t = cor(el instanceof SVGElement ? st.fill : st.color)
-    const f = fundoDe(el)
-    if (t[3] < 1) t = sobre(t, f)
-    const [a, b] = [lum(t), lum(f)]
-    const c = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
-    if (c < 4.5) ruins.push(`"${n.textContent.trim().slice(0, 30)}" ${c.toFixed(2)}`)
-  }
-  return ruins
-}, raiz)
-const conferirContraste = async (onde, p = page, raiz = '#root') => {
-  await p.waitForTimeout(500) // animações de entrada (opacidade) terminam
-  const r = await textosFracos(p, raiz)
-  if (r.length) throw new Error(`${onde}: texto com contraste baixo ${r.join(' | ')}`)
-}
-const temaNaTela = (p = page) => p.evaluate(() => [document.documentElement.dataset.tema, getComputedStyle(document.body).backgroundColor, document.querySelector('meta[name="theme-color"]').content, document.querySelector('meta[name="color-scheme"]').content, localStorage.getItem('pt-tema')])
-const escolherTema = async (t) => {
-  await page.goto(BASE + '#/ajustes')
-  const opcao = page.locator(`[data-tema-opcao=${t}]`)
-  await opcao.click()
-  await page.waitForFunction((v) => v === 'auto' || document.documentElement.dataset.tema === v, t)
-  igual(await opcao.locator('input').isChecked(), true, `opção ${t} marcada`)
-  await page.waitForTimeout(350) // fim da transição de cor (200 ms)
-}
-const NOMES_TEMA = { preto: 'Preto', indigo: 'Índigo', claro: 'Claro' }
+// ---------- tema único: claro (fundo cinza-azulado, cartões brancos, acento azul) ----------
+const corDoFundo = rgbDe(PALETA.fundo)
+/** [tem data-tema?, fundo do body, theme-color, color-scheme, cópia antiga do tema no localStorage] */
+const estadoTema = (p = page) => p.evaluate(() => [document.documentElement.hasAttribute('data-tema'), getComputedStyle(document.body).backgroundColor, document.querySelector('meta[name="theme-color"]').content, document.querySelector('meta[name="color-scheme"]').content, localStorage.getItem('pt-tema')])
+const TEMA_CLARO = `false ${corDoFundo} ${PALETA.fundo} light `
 
-await passo('tema: Ajustes > Aparência tem 4 opções num grupo de rádio (Preto marcado), setas trocam, foco visível, alvos >= 44 px', async () => {
+await passo('tema claro único: Ajustes sem "Aparência" nem escolha de tema; barra do sistema e esquema claros', async () => {
   await page.goto(BASE + '#/ajustes')
-  const grupo = page.getByRole('group', { name: 'Tema' })
-  await grupo.waitFor()
-  igual(await grupo.getByRole('radio').count(), 4, '4 opções')
-  for (const [nome, marcado] of [['Preto', true], ['Índigo', false], ['Claro', false], ['Automático', false]]) {
-    igual(await grupo.getByRole('radio', { name: new RegExp(`^${nome}`) }).isChecked(), marcado, `${nome} marcado?`)
-  }
-  igual((await temaNaTela()).slice(0, 4).join(' '), 'preto rgb(0, 0, 0) #000000 dark', 'começa no Preto')
-  await grupo.getByRole('radio', { name: /^Preto/ }).focus()
-  await page.keyboard.press('ArrowRight')
-  await page.waitForFunction(() => document.documentElement.dataset.tema === 'indigo')
-  igual(await page.locator('[data-tema-opcao=indigo]').evaluate((el) => getComputedStyle(el).outlineStyle), 'solid', 'foco visível na opção')
-  await page.keyboard.press('ArrowLeft')
-  await page.waitForFunction(() => document.documentElement.dataset.tema === 'preto')
-  await conferirTela('Ajustes com Aparência')
-  await conferirContraste('Ajustes (Preto)')
+  await page.getByRole('heading', { name: 'Configurações', level: 1 }).waitFor()
+  igual(await page.getByRole('group', { name: 'Tema' }).count(), 0, 'sem grupo Tema')
+  igual(await page.getByRole('radio').count(), 0, 'sem opções de tema')
+  igual(await page.getByText('Aparência').count(), 0, 'sem seção Aparência')
+  igual((await estadoTema()).join(' '), TEMA_CLARO, 'tema claro')
 })
 
-for (const t of ['indigo', 'claro', 'preto']) {
-  await passo(`tema ${NOMES_TEMA[t]}: troca na hora; Hoje, cartão da próxima dose, folha de dose e cores dos protocolos no tema; F5 sem piscar o tema errado`, async () => {
-    const pal = PALETAS[t]
-    await escolherTema(t)
-    igual((await temaNaTela()).join(' '), `${t} ${rgbDe(pal.fundo)} ${pal.fundo} ${t === 'claro' ? 'light' : 'dark'} ${t}`, 'tema aplicado e copiado')
-    igual(await lerConfig('tema'), t, 'tema gravado no banco')
-    await page.waitForTimeout(400)
-    await conferirTela(`Ajustes (${t})`)
-    await conferirContraste(`Ajustes (${t})`)
-    await capturar(`tema-${t}-ajustes`)
+for (const [w, h] of [[390, 844], [360, 640]]) {
+  await passo(`tema claro em ${w} × ${h}: Hoje, folha de dose, Protocolos, detalhe, Estoque, Peso, Backup e Ajustes com todo texto >= 4,5:1, sem alvo pequeno, sem rolagem lateral`, async () => {
+    await page.setViewportSize({ width: w, height: h })
     await page.goto(BASE + '#/hoje')
     await page.getByRole('heading', { name: 'Doses de hoje' }).waitFor()
     const coresProt = await page.locator('main [data-estado]').evaluateAll((els) => els.map((el) => getComputedStyle(el).borderLeftColor))
     if (!coresProt.length) throw new Error('nenhuma dose na Hoje')
-    const doTema = Object.values(CORES_POR_TEMA[t]).map(rgbDe)
-    for (const c of coresProt) if (!doTema.includes(c)) throw new Error(`cor de protocolo fora do tema ${t}: ${c}`)
+    const tons = CORES_PROTOCOLO.map((c) => rgbDe(c.hex))
+    for (const c of coresProt) if (!tons.includes(c)) throw new Error(`cor de protocolo fora da paleta: ${c}`)
     const cartao = page.locator('main .sobre-acento').first()
     if (await cartao.count()) {
-      igual(await cartao.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(pal.acento), 'cartão da próxima dose no acento do tema')
-      igual(await cartao.evaluate((el) => getComputedStyle(el).color), rgbDe(pal['sobre-acento']), 'texto sobre o acento')
+      igual(await cartao.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETA.acento), 'cartão da próxima dose no azul do acento')
+      igual(await cartao.evaluate((el) => getComputedStyle(el).color), rgbDe(PALETA['sobre-acento']), 'texto branco sobre o acento')
     }
-    await conferirTela(`Hoje (${t})`)
-    await conferirContraste(`Hoje (${t})`)
-    await capturar(`tema-${t}-hoje`)
+    await conferirTela(`Hoje (${w})`)
+    await conferirContraste(`Hoje (${w})`)
+    await capturar(`claro-hoje-${w}`)
     await page.locator('main [data-estado]').first().click()
     const folha = page.getByRole('dialog')
     await folha.waitFor()
     await page.waitForTimeout(400)
-    igual(await folha.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(pal.sup), 'folha de dose no cartão do tema')
-    await conferirContraste(`folha de dose (${t})`, page, '[role=dialog]')
-    await capturar(`tema-${t}-folha`)
+    igual(await folha.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETA.sup), 'folha de dose branca')
+    await conferirTela(`folha de dose (${w})`, '[role=dialog]')
+    await conferirContraste(`folha de dose (${w})`, page, '[role=dialog]')
+    await capturar(`claro-folha-de-dose-${w}`)
     await page.keyboard.press('Escape')
     await folha.waitFor({ state: 'detached' })
-    // F5: o 1º quadro já tem o fundo do tema e o atributo nunca passa por outro tema
-    await page.addInitScript(() => {
-      window.__temas = []
-      new MutationObserver((ms) => { for (const m of ms) if (m.target === document.documentElement) window.__temas.push(m.target.dataset.tema) }).observe(document, { attributes: true, subtree: true, attributeFilter: ['data-tema'] }) // o <html> ainda não existe aqui
-      // 1º quadro: o que vier antes (DOMContentLoaded ou o 1º requestAnimationFrame), já com o <body>
-      const marcar = () => { if (!window.__quadro1 && document.body) window.__quadro1 = [document.documentElement.dataset.tema, getComputedStyle(document.body).backgroundColor] }
-      document.addEventListener('DOMContentLoaded', marcar)
-      requestAnimationFrame(marcar)
-    })
-    await page.reload()
-    await page.getByRole('heading', { name: 'Doses de hoje' }).waitFor()
-    const [quadro1, historico] = await page.evaluate(() => [window.__quadro1, window.__temas])
-    igual(quadro1.join(' '), `${t} ${rgbDe(pal.fundo)}`, '1º quadro depois do F5')
-    igual([...new Set(historico)].join(','), t, 'o tema não trocou depois de aplicado')
-  })
-}
-
-await passo('tema: "Tudo feito hoje", aviso (toast), Protocolos, Estoque e Peso legíveis no Índigo e no Claro', async () => {
-  for (const t of ['indigo', 'claro']) {
-    await escolherTema(t)
-    await page.goto(BASE + '#/hoje')
-    await page.getByRole('heading', { name: 'Doses de hoje' }).waitFor()
-    for (let i = 0; i < 8 && !(await page.getByText('Tudo feito hoje').count()); i++) {
-      await page.locator('main').getByRole('button', { name: 'Registrar dose', exact: true }).click()
-      const fiz = page.getByRole('dialog').getByRole('button', { name: 'Fiz agora' })
-      const salvar = page.getByRole('dialog').getByRole('button', { name: 'Salvar registro' })
-      await fiz.or(salvar).first().waitFor()
-      if (await fiz.count()) await fiz.click()
-      await salvar.click()
-      await page.getByRole('status').filter({ hasText: 'Dose registrada' }).waitFor()
-      await page.waitForTimeout(300)
-    }
-    const aviso = page.getByRole('status').filter({ hasText: 'Dose registrada' })
-    await page.getByRole('status').filter({ hasText: 'Tudo feito hoje' }).waitFor()
-    await page.waitForTimeout(1000)
-    igual(await aviso.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETAS[t].sup2), `aviso no tema ${t}`)
-    await conferirContraste(`Tudo feito + aviso (${t})`, page, 'body')
-    await capturar(`tema-${t}-tudo-feito`)
-    await aviso.getByRole('button', { name: 'Desfazer' }).click()
-    await page.locator('main').getByRole('button', { name: 'Registrar dose', exact: true }).waitFor()
-    for (const rota of ['#/protocolos', '#/estoque', '#/peso']) {
+    await page.goto(BASE + '#/protocolos')
+    await page.locator('a.card[href*="/protocolos/"]').first().waitFor()
+    const detalhe = (await page.locator('a.card[href*="/protocolos/"]').first().getAttribute('href')).replace(/^.*#/, '#')
+    for (const [rota, nome] of [['#/protocolos', 'protocolos'], [detalhe, 'detalhe'], ['#/estoque', 'estoque'], ['#/peso', 'peso'], ['#/ajustes/backup', 'backup'], ['#/ajustes', 'ajustes']]) {
       await page.goto(BASE + rota)
       await page.locator('h1').first().waitFor()
-      await conferirTela(`${rota} (${t})`)
-      await conferirContraste(`${rota} (${t})`)
+      await conferirTela(`${nome} (${w})`)
+      await conferirContraste(`${nome} (${w})`)
+      await capturar(`claro-${nome}-${w}`)
     }
+    await page.goto(BASE + '#/peso')
+    await page.locator('h1').first().waitFor()
     const linha = page.locator('svg .grafico-linha').first()
-    if (await linha.count()) igual(await linha.evaluate((el) => getComputedStyle(el).stroke), rgbDe(PALETAS[t].acento), `linha do gráfico no acento (${t})`)
+    if (await linha.count()) igual(await linha.evaluate((el) => getComputedStyle(el).stroke), rgbDe(PALETA.acento), 'linha do gráfico no acento')
+  })
+}
+await page.setViewportSize({ width: 390, height: 844 })
+
+await passo('tema claro: "Tudo feito hoje", celebração e aviso (toast) legíveis', async () => {
+  await page.goto(BASE + '#/hoje')
+  await page.getByRole('heading', { name: 'Doses de hoje' }).waitFor()
+  for (let i = 0; i < 8 && !(await page.getByText('Tudo feito hoje').count()); i++) {
+    await page.locator('main').getByRole('button', { name: 'Registrar dose', exact: true }).click()
+    const fiz = page.getByRole('dialog').getByRole('button', { name: 'Fiz agora' })
+    const salvar = page.getByRole('dialog').getByRole('button', { name: 'Salvar registro' })
+    await fiz.or(salvar).first().waitFor()
+    if (await fiz.count()) await fiz.click()
+    await salvar.click()
+    await page.getByRole('status').filter({ hasText: 'Dose registrada' }).waitFor()
+    await page.waitForTimeout(300)
+  }
+  const aviso = page.getByRole('status').filter({ hasText: 'Dose registrada' })
+  await page.getByRole('status').filter({ hasText: 'Tudo feito hoje' }).waitFor()
+  await page.waitForTimeout(1000)
+  igual(await aviso.evaluate((el) => getComputedStyle(el).backgroundColor), rgbDe(PALETA.sup2), 'aviso no cartão 2')
+  await conferirContraste('Tudo feito + aviso', page, 'body')
+  await capturar('claro-tudo-feito-390')
+  await aviso.getByRole('button', { name: 'Desfazer' }).click()
+  await page.locator('main').getByRole('button', { name: 'Registrar dose', exact: true }).waitFor()
+})
+
+await passo('F5 sem piscar: o 1º quadro já tem o fundo claro e nada de tema é marcado no <html>', async () => {
+  await page.goto(BASE + '#/hoje')
+  await page.getByRole('heading', { name: 'Doses de hoje' }).waitFor()
+  await page.addInitScript(() => {
+    window.__marcas = []
+    new MutationObserver((ms) => { for (const m of ms) if (m.target === document.documentElement) window.__marcas.push(m.attributeName) }).observe(document, { attributes: true, subtree: true, attributeFilter: ['data-tema', 'class'] })
+    // 1º quadro: o que vier antes (DOMContentLoaded ou o 1º requestAnimationFrame), já com o <body>
+    const marcar = () => { if (!window.__quadro1 && document.body) window.__quadro1 = getComputedStyle(document.body).backgroundColor }
+    document.addEventListener('DOMContentLoaded', marcar)
+    requestAnimationFrame(marcar)
+  })
+  await page.reload()
+  await page.getByRole('heading', { name: 'Doses de hoje' }).waitFor()
+  const [quadro1, marcas] = await page.evaluate(() => [window.__quadro1, window.__marcas])
+  igual(quadro1, corDoFundo, '1º quadro depois do F5')
+  igual(marcas.includes('data-tema'), false, 'sem data-tema no <html>')
+  igual((await estadoTema()).join(' '), TEMA_CLARO, 'tema claro depois do F5')
+})
+
+await passo('quem tinha Preto, Índigo ou Automático salvo: abre no claro sem erro e a cópia antiga do tema some', async () => {
+  for (const antigo of ['preto', 'indigo', 'auto']) {
+    await gravarConfig('tema', antigo)
+    await page.evaluate((v) => localStorage.setItem('pt-tema', v), antigo)
+    await page.reload()
+    await page.getByRole('heading', { name: 'Doses de hoje' }).waitFor()
+    igual((await estadoTema()).join(' '), TEMA_CLARO, `claro com "${antigo}" salvo`)
   }
 })
 
-await passo('tema: backup exportado leva o tema; importar restaura; backup antigo sem tema volta ao Preto', async () => {
-  await escolherTema('claro')
+await passo('backup: exportação nova sem o campo "tema"; backups antigos com "tema" (Preto, Índigo, Automático) e sem ele importam e o app segue claro', async () => {
   await page.goto(BASE + '#/ajustes/backup')
   const [baixado] = await Promise.all([page.waitForEvent('download'), B('Só baixar o arquivo').click()])
   const texto = await (await import('node:fs/promises')).readFile(await baixado.path(), 'utf8')
   const arquivo = JSON.parse(texto)
-  if (!arquivo.tabelas.config.some((c) => c.chave === 'tema' && c.valor === 'claro')) throw new Error('backup sem o tema')
+  if (arquivo.tabelas.config.some((c) => c.chave === 'tema')) throw new Error('backup novo ainda leva o tema')
   const entendi = page.getByRole('alertdialog').getByRole('button', { name: 'Entendi' })
   if (await entendi.waitFor({ timeout: 3000 }).then(() => true, () => false)) await entendi.click()
   const restaurar = async (conteudo) => {
@@ -1362,35 +1375,14 @@ await passo('tema: backup exportado leva o tema; importar restaura; backup antig
     await page.getByTestId('arquivo-backup').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(conteudo) })
     await page.getByRole('alertdialog', { name: 'Restaurar este backup?' }).getByRole('button', { name: 'Restaurar', exact: true }).click()
     await page.waitForURL(/#\/hoje$/)
+    await page.getByRole('heading', { name: 'Doses de hoje' }).waitFor()
   }
-  await escolherTema('indigo')
-  await restaurar(texto)
-  await page.waitForFunction(() => document.documentElement.dataset.tema === 'claro')
-  igual((await temaNaTela())[4], 'claro', 'cópia local do tema restaurado')
-  igual(await lerConfig('tema'), 'claro', 'tema restaurado no banco')
-  const antigo = { ...arquivo, tabelas: { ...arquivo.tabelas, config: arquivo.tabelas.config.filter((c) => c.chave !== 'tema') } }
-  await restaurar(JSON.stringify(antigo))
-  await page.waitForFunction(() => document.documentElement.dataset.tema === 'preto')
-  igual(await lerConfig('tema'), undefined, 'backup antigo não traz tema')
-  igual((await temaNaTela())[4], 'preto', 'cópia local volta ao Preto')
-})
-
-await passo('tema Automático: segue o aparelho (claro → Claro, escuro → Preto) e muda ao vivo; F5 mantém', async () => {
-  await page.emulateMedia({ colorScheme: 'light' })
-  await escolherTema('auto')
-  await page.waitForFunction(() => document.documentElement.dataset.tema === 'claro')
-  igual(await lerConfig('tema'), 'auto', 'Automático gravado')
-  await page.locator('[data-tema-opcao=auto]').getByText('Igual ao aparelho (agora: Claro)').waitFor()
-  await page.emulateMedia({ colorScheme: 'dark' })
-  await page.waitForFunction(() => document.documentElement.dataset.tema === 'preto')
-  await page.locator('[data-tema-opcao=auto]').getByText('Igual ao aparelho (agora: Preto)').waitFor()
-  await page.emulateMedia({ colorScheme: 'light' })
-  await page.reload()
-  await page.locator('[data-tema-opcao=auto]').waitFor()
-  igual(await page.evaluate(() => window.__quadro1?.[0]), 'claro', '1º quadro no Claro (aparelho claro)')
-  await escolherTema('preto')
-  await page.emulateMedia({ colorScheme: 'dark' })
-  igual((await temaNaTela())[0], 'preto', 'volta ao Preto')
+  for (const valor of ['preto', 'indigo', 'auto', undefined]) {
+    const config = valor === undefined ? arquivo.tabelas.config : [...arquivo.tabelas.config, { chave: 'tema', valor }]
+    await restaurar(JSON.stringify({ ...arquivo, tabelas: { ...arquivo.tabelas, config } }))
+    igual(await lerConfig('tema'), undefined, `tema "${valor}" ignorado na importação`)
+    igual((await estadoTema()).join(' '), TEMA_CLARO, `claro depois de importar (tema "${valor}")`)
+  }
 })
 await passo('nenhum erro ou aviso no console e nenhum HTTP com erro', async () => {
   if (problemas.length) throw new Error(problemas.join(' | '))

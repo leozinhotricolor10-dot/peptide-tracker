@@ -1,6 +1,6 @@
 // T61 Configurações, T62 Lembretes, M61 agenda (.ics), T63 Backup, M62 restaurar, E72 erro,
 // M63/M64 apagar tudo, T64 Sobre, Privacidade, Termos, T65 Minhas substâncias, M65.
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useNavigate } from 'react-router'
 import { repo, useBase, useConfig, type Base } from '../dados/index.ts'
@@ -23,8 +23,6 @@ import { useInstalacao } from '../sistema/instalar.ts'
 import { AvisosBloqueados, PrePermissao, VERSAO_AVISO } from './inicio.tsx'
 import { rascunho } from './rascunho.ts'
 import type { Substancia } from '../dominio/tipos.ts'
-import { PREFERENCIAS_TEMA, ROTULO_TEMA, TEMA_PADRAO, type PreferenciaTema, type Tema } from '../dominio/temas.ts'
-import { aplicarTema, temaNaTela } from '../sistema/tema.ts'
 
 export const VERSAO_APP = '0.1.0 (MVP)'
 
@@ -61,7 +59,6 @@ export function Ajustes() {
     <Tela>
       <Cabecalho titulo="Configurações" voltar="/hoje" />
       <Grupo titulo="Lembretes"><LinhaLink to="/ajustes/lembretes" rotulo="Lembretes e agenda" valor={lembrete} /></Grupo>
-      <Aparencia />
       <Grupo titulo="Preferências">
         <LinhaLink to="/ajustes/substancias" rotulo="Minhas substâncias" valor={String(minhas)} />
         <div className="flex min-h-[52px] items-center justify-between border-t border-sup2 px-4 text-sm font-bold"><span>Unidades</span><span className="text-sm text-fraco">kg · cm</span></div>
@@ -77,75 +74,6 @@ export function Ajustes() {
       <Grupo titulo="Zona de perigo"><LinhaLink to="/ajustes/apagar" rotulo="Apagar todos os dados" perigo /></Grupo>
       <p className="m-0 text-center text-sm text-fraco">Versão {VERSAO_APP}{aceite.valor ? ` · aviso aceito em ${dataBr(diaDe(new Date(aceite.valor.em)))}` : ''}</p>
     </Tela>
-  )
-}
-
-/** Amostra do tema: fundo, um cartão com a borda na cor de protocolo, uma linha de texto e o acento. */
-function Miniatura({ tema }: { tema: Tema }) {
-  return (
-    <span data-tema={tema} className="flex h-full flex-1 flex-col justify-center gap-1.5 bg-fundo p-2">
-      <span className="flex items-center gap-1.5 rounded-md border border-linha border-l-[3px] bg-sup px-1.5 py-1.5" style={{ borderLeftColor: 'var(--prot-azul)' }}>
-        <span className="h-1.5 flex-1 rounded-full bg-texto" />
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-ok" />
-      </span>
-      <span className="h-3.5 rounded-md bg-acento" />
-    </span>
-  )
-}
-
-/** Ajustes > Aparência > Tema: 4 opções (grupo de rádio nativo), troca na hora. */
-function Aparencia() {
-  const salvo = useConfig('tema')
-  const toast = useToast()
-  const escolhido: PreferenciaTema = salvo.valor ?? TEMA_PADRAO
-  const [naTela, setNaTela] = useState<Tema>(temaNaTela)
-  // no Automático, o rótulo mostra o tema que está valendo agora (muda junto com o aparelho)
-  useEffect(() => {
-    const atualizar = () => setNaTela(temaNaTela())
-    const obs = new MutationObserver(atualizar)
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-tema'] })
-    atualizar()
-    return () => obs.disconnect()
-  }, [])
-  const escolher = async (pref: PreferenciaTema) => {
-    if (pref === escolhido) return
-    aplicarTema(pref, true)
-    try {
-      await repo.setConfig('tema', pref)
-    } catch (e) {
-      aplicarTema(escolhido, true)
-      toast({ tipo: 'info', titulo: 'Não deu para gravar o tema', texto: mensagemDeErro(e) })
-    }
-  }
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-xs font-bold tracking-wide text-fraco uppercase">Aparência</h2>
-      <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0" data-temas>
-        <legend className="mb-2 p-0 text-sm font-bold text-texto">Tema</legend>
-        <div className="grid grid-cols-2 gap-2.5">
-          {PREFERENCIAS_TEMA.map((t) => {
-            const sel = t === escolhido
-            const r = ROTULO_TEMA[t]
-            return (
-              <label key={t} data-tema-opcao={t} className={`opcao-rotulo tocavel flex min-h-11 cursor-pointer flex-col overflow-hidden rounded-[14px] border-2 ${sel ? 'border-acento bg-selecionado' : 'border-linha bg-sup'}`}>
-                <input type="radio" name="tema" value={t} checked={sel} onChange={() => void escolher(t)} className="sr-only" />
-                <span aria-hidden="true" className="flex h-[72px] border-b border-linha">
-                  {t === 'auto' ? <><Miniatura tema="preto" /><Miniatura tema="claro" /></> : <Miniatura tema={t} />}
-                </span>
-                <span className="flex flex-col gap-0.5 px-3 py-2.5">
-                  <span className="flex items-center gap-1.5 text-base font-bold text-texto">
-                    {sel && <IcoCheck tam={18} className="shrink-0 text-acento" />}
-                    {r.nome}
-                    {sel && <span className="sr-only"> (em uso)</span>}
-                  </span>
-                  <span className="text-sm text-fraco">{t === 'auto' ? `${r.descricao} (agora: ${ROTULO_TEMA[naTela].nome})` : r.descricao}</span>
-                </span>
-              </label>
-            )
-          })}
-        </div>
-      </fieldset>
-    </section>
   )
 }
 

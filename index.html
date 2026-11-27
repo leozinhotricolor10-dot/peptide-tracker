@@ -3,35 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#f3f6fa" />
+    <meta name="color-scheme" content="light" />
     <meta name="description" content="Diário pessoal de protocolos, doses, peso e estoque. Dados só no aparelho." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Peptide Tracker" />
     <title>Peptide Tracker</title>
-    <style>html,body{background:#000000;color:#f2f2f2;margin:0}html[data-tema=indigo],html[data-tema=indigo] body{background:#0c0e16;color:#ecedf5}html[data-tema=claro],html[data-tema=claro] body{background:#f3f6fa;color:#0f1b2a}</style>
-    <script>
-      // Tema antes da primeira pintura: lê a cópia da escolha (src/sistema/tema.ts) e marca o <html>.
-      (function () {
-        var cor = { preto: '#000000', indigo: '#0c0e16', claro: '#f3f6fa' }
-        var t = 'preto'
-        try {
-          var p = localStorage.getItem('pt-tema')
-          if (p === 'auto') p = window.matchMedia('(prefers-color-scheme: light)').matches ? 'claro' : 'preto'
-          if (p && Object.prototype.hasOwnProperty.call(cor, p)) t = p
-        } catch (e) {}
-        var h = document.documentElement
-        h.setAttribute('data-tema', t)
-        try {
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', cor[t])
-          document.querySelector('meta[name="color-scheme"]').setAttribute('content', t === 'claro' ? 'light' : 'dark')
-        } catch (e) {}
-      })()
-    </script>
+    <!-- fundo e texto do app já no 1º quadro (mesmas cores de src/index.css; sem piscar) -->
+    <style>html,body{background:#f3f6fa;color:#0f1b2a;margin:0}</style>
   </head>
   <body>
     <div id="root"></div>
