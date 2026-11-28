@@ -9,7 +9,8 @@ import { nomeProtocolo, nomeSubstancia } from '../dominio/nomes.ts'
 import type { Aplicacao, EstadoProtocolo, Protocolo } from '../dominio/tipos.ts'
 import { Carregando, Dialogo, NaoAchou, Nota, Sheet, StatusTomada, Tela, Vazio } from '../ui/base.tsx'
 import { useVoltar } from '../ui/navegar.ts'
-import { IcoAlerta, IcoEstoque, IcoCopiar, IcoEditar, IcoMais, IcoPausa, IcoPlay, IcoParar, IcoPontos, IcoProtocolos, IcoVoltar, IcoSeta, IcoBaixo, IcoLixo } from '../ui/icones.tsx'
+import { IcoAlerta, IcoEstoque, IcoCopiar, IcoEditar, IcoMais, IcoPausa, IcoPlay, IcoParar, IcoPontos, IcoVoltar, IcoSeta, IcoBaixo, IcoLixo } from '../ui/icones.tsx'
+import { DesenhoBancada } from '../ui/desenhos.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { BotaoAcao } from '../ui/acao.tsx'
 import { useDoseUI } from './dose.tsx'
@@ -25,7 +26,7 @@ const ROTULO_ESTADO: Record<EstadoProtocolo, string> = { ativo: 'Ativo', pausado
 function SeloEstado({ estado }: { estado: EstadoProtocolo }) {
   const cls = estado === 'ativo' ? 'bg-sup2 text-suave' : estado === 'pausado' ? 'bg-aviso-fundo text-aviso' : 'bg-sup2 text-fraco'
   const Ico = estado === 'ativo' ? IcoPlay : estado === 'pausado' ? IcoPausa : IcoParar
-  return <span className={`selo shrink-0 ${cls}`}><Ico tam={12} /> {ROTULO_ESTADO[estado]}</span>
+  return <span className={`selo shrink-0 ${cls}`}><Ico tam={16} /> {ROTULO_ESTADO[estado]}</span>
 }
 
 function linhasDe(base: Base, p: Protocolo) {
@@ -38,16 +39,16 @@ export function Protocolos() {
   const hoje = hojeStr()
   const cabecalho = (
     <div className="flex items-center justify-between">
-      <h1 className="text-titulo leading-tight font-extrabold tracking-tight">Protocolos</h1>
-      <Link to="/novo" className="flex h-11 items-center gap-1.5 rounded-[10px] bg-acento px-4 text-sm font-bold text-sobre-acento"><IcoMais tam={20} /> Novo</Link>
+      <h1 className="text-titulo leading-tight font-semibold">Protocolos</h1>
+      <Link to="/novo" className="btn-primario-curto"><IcoMais tam={20} /> Novo</Link>
     </div>
   )
   if (!base) return <Tela>{cabecalho}<Carregando /></Tela>
   if (!base.protocolos.length) {
     return (
       <Tela>
-        <h1 className="text-titulo font-extrabold">Protocolos</h1>
-        <Vazio icone={<IcoProtocolos tam={30} />} titulo="Nenhum protocolo ainda" texto="Um protocolo aqui é o registro do que você já decidiu usar: substância, dose, horários e por quanto tempo.">
+        <h1 className="text-titulo font-semibold">Protocolos</h1>
+        <Vazio desenho={<DesenhoBancada />} titulo="Nenhum protocolo ainda" texto="Um protocolo aqui é o registro do que você já decidiu usar: substância, dose, horários e por quanto tempo.">
           <Link to="/novo" className="btn-primario">Criar protocolo</Link>
         </Vazio>
       </Tela>
@@ -61,9 +62,9 @@ export function Protocolos() {
       {cabecalho}
       <div role="tablist" aria-label="Estado" className="relative grid grid-cols-3 gap-1 rounded-xl bg-sup p-1">
         {/* fundo da aba escolhida desliza entre as abas (só transform) */}
-        <span aria-hidden="true" className="indicador-aba absolute top-1 bottom-1 left-1 rounded-[10px] bg-selecionado" style={{ width: 'calc((100% - 1rem) / 3)', transform: `translateX(calc(${ABAS.indexOf(aba)} * (100% + 0.25rem)))` }} />
+        <span aria-hidden="true" className="indicador-aba absolute top-1 bottom-1 left-1 rounded-lg bg-selecionado" style={{ width: 'calc((100% - 1rem) / 3)', transform: `translateX(calc(${ABAS.indexOf(aba)} * (100% + 0.25rem)))` }} />
         {ABAS.map((e) => (
-          <button key={e} type="button" role="tab" aria-selected={aba === e} onClick={() => setAba(e)} className={`relative h-11 rounded-[10px] text-sm font-bold ${aba === e ? 'text-acento' : 'text-fraco'}`}>
+          <button key={e} type="button" role="tab" aria-selected={aba === e} onClick={() => setAba(e)} className={`relative h-11 rounded-lg text-sm font-medium ${aba === e ? 'text-acento' : 'text-fraco'}`}>
             {e === 'ativo' ? 'Ativos' : e === 'pausado' ? 'Pausados' : 'Concluídos'}
             {porEstado(e).length > 0 && ` (${porEstado(e).length})`}
           </button>
@@ -79,23 +80,23 @@ export function Protocolos() {
         const est = estadoEfetivo(p, hoje)
         const estoques = est !== 'encerrado' ? itens.map((i) => estoqueDoItem(i, base.frascos, base.aplicacoes, hoje)) : []
         return (
-          <Link key={p.id} to={`/protocolos/${p.id}`} style={{ '--i': k, ...bordaCor(p) } as CSSProperties} className="card tocavel anima-entrada flex flex-col gap-3 border-l-[5px] p-4">
+          <Link key={p.id} to={`/protocolos/${p.id}`} style={{ '--i': k, ...bordaCor(p) } as CSSProperties} className="card tocavel anima-entrada flex flex-col gap-3 border-l-4 p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="flex items-center gap-2 text-[19px] font-extrabold tracking-tight break-words"><PontoCor protocolo={p} />{nomeProtocolo(p, base.itens, base.subs)}</span>
+                <span className="flex items-center gap-2 text-lg font-semibold break-words">{nomeProtocolo(p, base.itens, base.subs)}</span>
                 <span className="text-sm text-fraco">{pr.texto} · iniciado em {dataDiaMes(p.inicio)}</span>
               </div>
-              <SeloEstado estado={estadoEfetivo(p, hoje)} />
+              {est !== 'ativo' && <SeloEstado estado={est} />}
             </div>
             {total > 0 && (
               <div className="h-2 overflow-hidden rounded-full bg-sup2" role="progressbar" aria-label="Andamento do protocolo" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(feito * 100)}>
                 <div className="barra-anima h-full w-full rounded-full bg-acento" style={{ transform: `translateX(${(feito - 1) * 100}%)` }} />
               </div>
             )}
-            <div className="flex flex-col gap-1.5 border-t border-sup2 pt-3">
+            <div className="flex flex-col gap-2 border-t border-sup2 pt-3">
               {itens.map((i) => (
                 <span key={i.id} className="flex flex-wrap justify-between gap-x-3 text-sm">
-                  <b className="break-words">{nomeSubstancia(i.substanciaId, base.subs)}</b>
+                  {(itens.length > 1 || nomeSubstancia(i.substanciaId, base.subs) !== nomeProtocolo(p, base.itens, base.subs)) && <b className="break-words">{nomeSubstancia(i.substanciaId, base.subs)}</b>}
                   <span className="text-suave">{textoDoItem(base, i.id)} · {frequenciaCurta(i.frequencia, i.horarios)}</span>
                 </span>
               ))}
@@ -107,9 +108,9 @@ export function Protocolos() {
                 ))}
               </div>
             )}
-            {estadoEfetivo(p, hoje) === 'pausado' && <span className="text-sm font-semibold text-aviso">{p.pausadoAte ? `Pausado até ${dataCurta(p.pausadoAte)}` : 'Pausado sem data de volta'}</span>}
+            {estadoEfetivo(p, hoje) === 'pausado' && <span className="text-sm font-medium text-aviso">{p.pausadoAte ? `Pausado até ${dataCurta(p.pausadoAte)}` : 'Pausado sem data de volta'}</span>}
             {pr.pausaDeCiclo && estadoEfetivo(p, hoje) === 'ativo' && (
-              <span className="rounded-lg bg-sup2 px-3 py-2 text-sm font-semibold text-suave">Pausa de ciclo · próximo ciclo começa em {pr.diasAteVoltar} dia{pr.diasAteVoltar === 1 ? '' : 's'}</span>
+              <span className="rounded-lg bg-sup2 px-3 py-2 text-sm font-medium text-suave">Pausa de ciclo · próximo ciclo começa em {pr.diasAteVoltar} dia{pr.diasAteVoltar === 1 ? '' : 's'}</span>
             )}
           </Link>
         )
@@ -125,15 +126,15 @@ export function SeloEstoque({ e, nome }: { e: EstoqueDoItem; nome?: string }) {
   const doses = Math.round(useNumeroAnimado(e.doses ?? 0))
   if (!e.frasco) {
     return (
-      <span className="flex items-center gap-1.5 self-start text-sm font-bold text-aviso-texto">
-        <IcoAlerta tam={14} className="shrink-0 text-aviso" /> Sem frasco no estoque{nome ? ` · ${nome}` : ''}
+      <span className="flex items-center gap-2 self-start text-sm font-medium text-aviso-texto">
+        <IcoAlerta tam={16} className="shrink-0 text-aviso" /> Sem frasco no estoque{nome ? ` · ${nome}` : ''}
       </span>
     )
   }
   const pouco = e.vencido || (e.doses !== null && e.doses <= 2)
   return (
-    <span className={`flex items-center gap-1.5 text-sm font-semibold ${pouco ? 'text-aviso-texto' : 'text-suave'}`}>
-      {pouco ? <IcoAlerta tam={14} className="shrink-0 text-aviso" /> : <IcoEstoque tam={14} className="shrink-0 text-fraco" />}
+    <span className={`flex items-center gap-2 text-sm font-medium ${pouco ? 'text-aviso-texto' : 'text-suave'}`}>
+      {pouco ? <IcoAlerta tam={16} className="shrink-0 text-aviso" /> : <IcoEstoque tam={16} className="shrink-0 text-fraco" />}
       {nome ? `${nome} · ` : ''}{resumoEstoque(e, e.doses === null ? null : doses)}
     </span>
   )
@@ -171,11 +172,11 @@ export function DetalheProtocolo() {
     <Tela className="min-h-dvh">
       <div className="flex items-center justify-between">
         <button type="button" onClick={() => voltarOu('/protocolos')} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>
-        <button type="button" onClick={() => setAcao('menu')} aria-label="Mais ações" className="icone-btn -mr-2.5"><IcoPontos tam={22} /></button>
+        <button type="button" onClick={() => setAcao('menu')} aria-label="Mais ações" className="icone-btn -mr-2.5"><IcoPontos tam={20} /></button>
       </div>
       <div className="flex flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
-          <h1 className="flex items-center gap-2.5 text-[28px] leading-tight font-extrabold tracking-tight break-words"><PontoCor protocolo={p} tam={14} />{nome}</h1>
+          <h1 className="flex items-center gap-2 text-2xl leading-tight font-semibold break-words"><PontoCor protocolo={p} tam={14} />{nome}</h1>
           <SeloEstado estado={estado} />
         </div>
         <span className="text-sm text-fraco">Iniciado em {dataBr(p.inicio)}{p.fim ? ` · até ${dataBr(p.fim)}` : ' · sem data de fim'}</span>
@@ -191,14 +192,14 @@ export function DetalheProtocolo() {
         </Nota>
       )}
 
-      <div className="card anima-entrada flex flex-col border-l-[5px]" style={bordaCor(p)}>
+      <div className="card anima-entrada flex flex-col border-l-4" style={bordaCor(p)}>
         {itens.map((i) => {
           const s = base.subs.get(i.substanciaId)
           const e = estado !== 'encerrado' ? estoqueDoItem(i, base.frascos, base.aplicacoes, hoje) : undefined
           const du = doseDoItem(base, i.id, hoje)
           return (
             <div key={i.id} className="flex flex-col gap-1 border-t border-sup2 px-4 py-3 first:border-t-0">
-              <span className="flex flex-wrap items-center gap-2 text-base font-bold">
+              <span className="flex flex-wrap items-center gap-2 text-base font-medium">
                 {s?.nome ?? 'Substância'}
                 {s?.tipo === 'blend' && <span className="selo border border-borda text-suave">Blend</span>}
               </span>
@@ -215,7 +216,7 @@ export function DetalheProtocolo() {
                   )}
                   {(!e.frasco || (e.doses !== null && e.doses <= 2)) && (
                     <Link to={`/estoque/frasco/novo?sub=${i.substanciaId}&item=${i.id}`} className="link">
-                      <IcoMais tam={18} /> {e.frasco ? 'Adicionar o próximo frasco' : 'Adicione o frasco para acompanhar o estoque'}
+                      <IcoMais tam={20} /> {e.frasco ? 'Adicionar o próximo frasco' : 'Adicione o frasco para acompanhar o estoque'}
                     </Link>
                   )}
                 </div>
@@ -240,21 +241,21 @@ export function DetalheProtocolo() {
       )}
 
       <div className="card flex items-center justify-between px-4 py-3">
-        <span className="text-sm font-bold">{pr.texto}</span>
+        <span className="text-sm font-medium">{pr.texto}</span>
         <span className="text-sm text-fraco">{p.ciclo ? `Ciclo ${p.ciclo.diasOn} sim / ${p.ciclo.diasOff} não${pr.pausaDeCiclo ? ' · em pausa' : ''}` : 'Sem ciclo'}</span>
       </div>
 
       {estado !== 'encerrado' && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-xl font-bold">Próximas doses</h2>
+          <h2 className="text-xl font-semibold">Próximas doses</h2>
           {proximas.length === 0 && <p className="m-0 text-sm text-fraco">{estado === 'pausado' ? 'Nenhuma enquanto estiver pausado.' : 'Nenhuma dose prevista.'}</p>}
           {proximas.map((s) => (
-            <div key={s.chave + s.itemId} className="flex min-h-11 items-center justify-between gap-3 border-b border-sup2 py-1.5 text-sm">
+            <div key={s.chave + s.itemId} className="flex min-h-11 items-center justify-between gap-3 border-b border-sup2 py-2 text-sm">
               <span className="flex min-w-0 flex-col">
                 <span>{diaRelativo(s.dia, hoje)} · <b>{nomeSubstancia(s.substanciaId, base.subs)}</b></span>
                 <span className="text-sm text-suave">{textoDoItem(base, s.itemId)}</span>
               </span>
-              <span className="shrink-0 font-bold">{s.horario}</span>
+              <span className="shrink-0 font-mono font-medium">{s.horario}</span>
             </div>
           ))}
         </section>
@@ -262,7 +263,7 @@ export function DetalheProtocolo() {
 
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold">Últimos registros</h2>
+          <h2 className="text-xl font-semibold">Últimos registros</h2>
           <Link className="link" to={`/historico?p=${p.id}`}>Ver histórico</Link>
         </div>
         {registros.length === 0 && <p className="m-0 text-sm text-fraco">Nenhum registro ainda.</p>}
@@ -275,18 +276,18 @@ export function DetalheProtocolo() {
         <Sheet titulo={nome} aoFechar={() => setAcao(null)}>
           <div className="flex flex-col">
             {p.estado !== 'encerrado' && (
-              <button type="button" className="flex min-h-14 items-center gap-3.5 rounded-[10px] px-3 text-base font-bold" onClick={() => nav(`/protocolos/${p.id}/editar`)}>
+              <button type="button" className="flex min-h-14 items-center gap-3 rounded-xl px-3 text-base font-medium" onClick={() => nav(`/protocolos/${p.id}/editar`)}>
                 <IcoEditar /> Editar
               </button>
             )}
             {estado === 'ativo' && (
-              <button type="button" className="flex min-h-14 items-center gap-3.5 rounded-[10px] px-3 text-base font-bold" onClick={() => setAcao('pausar')}>
+              <button type="button" className="flex min-h-14 items-center gap-3 rounded-xl px-3 text-base font-medium" onClick={() => setAcao('pausar')}>
                 <IcoPausa /> Pausar
               </button>
             )}
             {estado === 'pausado' && (
               <BotaoAcao
-                className="flex min-h-14 items-center gap-3.5 rounded-[10px] px-3 text-base font-bold disabled:opacity-60"
+                className="flex min-h-14 items-center gap-3 rounded-xl px-3 text-base font-medium disabled:opacity-60"
                 acao={async () => {
                   await repo.retomarProtocolo(p.id)
                   setAcao(null)
@@ -296,15 +297,15 @@ export function DetalheProtocolo() {
                 <IcoPlay /> Retomar
               </BotaoAcao>
             )}
-            <button type="button" className="flex min-h-14 items-center gap-3.5 rounded-[10px] px-3 text-base font-bold" onClick={() => nav(`/protocolos/${p.id}/duplicar`)}>
+            <button type="button" className="flex min-h-14 items-center gap-3 rounded-xl px-3 text-base font-medium" onClick={() => nav(`/protocolos/${p.id}/duplicar`)}>
               <IcoCopiar /> Duplicar para novo ciclo
             </button>
             {estado !== 'encerrado' && (
-              <button type="button" className="flex min-h-14 items-center gap-3.5 rounded-[10px] px-3 text-base font-bold text-erro" onClick={() => setAcao('encerrar')}>
+              <button type="button" className="flex min-h-14 items-center gap-3 rounded-xl px-3 text-base font-medium text-erro" onClick={() => setAcao('encerrar')}>
                 <IcoParar /> Encerrar protocolo
               </button>
             )}
-            <button type="button" className="flex min-h-14 items-center gap-3.5 rounded-[10px] px-3 text-base font-bold text-erro" onClick={() => setAcao('apagar')}>
+            <button type="button" className="flex min-h-14 items-center gap-3 rounded-xl px-3 text-base font-medium text-erro" onClick={() => setAcao('apagar')}>
               <IcoLixo /> Apagar protocolo
             </button>
           </div>
@@ -314,7 +315,7 @@ export function DetalheProtocolo() {
       {acao === 'pausar' && <Pausar protocolo={p} nome={nome} fechar={() => setAcao(null)} />}
       {acao === 'encerrar' && (
         <Dialogo titulo={`Encerrar ${nome}?`} aoFechar={() => setAcao(null)}>
-          <ul className="m-0 flex flex-col gap-2 pl-5 text-sm leading-relaxed text-suave">
+          <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm leading-relaxed text-suave">
             <li>Os lembretes deste protocolo param.</li>
             <li>O histórico continua salvo em Concluídos.</li>
             <li>Dá para duplicar depois para um novo ciclo.</li>
@@ -368,18 +369,18 @@ function Pausar({ protocolo, nome, fechar }: { protocolo: Protocolo; nome: strin
     <Dialogo titulo={`Pausar ${nome}?`} aoFechar={fechar}>
       <p className="m-0 text-sm text-suave">Os lembretes param durante a pausa. O histórico fica como está.</p>
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-sm font-bold text-fraco">Voltar quando?</legend>
-        <label className="card flex min-h-[52px] items-center gap-3 px-4 text-sm font-semibold">
+        <legend className="mb-2 text-sm font-medium text-fraco">Voltar quando?</legend>
+        <label className="card flex min-h-[52px] items-center gap-3 px-4 text-sm font-medium">
           <input type="radio" name="pausa" className="h-5 w-5" checked={comData} onChange={() => setComData(true)} />
           Em uma data
           {comData && <input type="date" aria-label="Data de volta" className="campo ml-auto h-11 w-auto px-2 text-sm" value={ate} min={somaDias(hojeStr(), 1)} onChange={(e) => { setAte(e.target.value); setErro('') }} />}
         </label>
-        <label className="card flex min-h-[52px] items-center gap-3 px-4 text-sm font-semibold">
+        <label className="card flex min-h-[52px] items-center gap-3 px-4 text-sm font-medium">
           <input type="radio" name="pausa" className="h-5 w-5" checked={!comData} onChange={() => setComData(false)} />
           Sem data, eu retomo
         </label>
       </fieldset>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
       <BotaoAcao
         className="btn-primario"
         ocupadoTexto="Pausando…"
@@ -439,22 +440,22 @@ export function Historico() {
     <Tela>
       <div className="flex items-center gap-1">
         <button type="button" onClick={() => voltarOu('/hoje')} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>
-        <h1 className="text-2xl font-extrabold">Histórico</h1>
+        <h1 className="text-2xl font-semibold">Histórico</h1>
         <label className="relative ml-auto">
           <span className="sr-only">Filtrar por protocolo</span>
           <select
-            className="h-11 max-w-[170px] appearance-none rounded-[14px] border border-borda bg-sup pr-8 pl-3 text-sm font-bold"
+            className="h-11 max-w-[170px] appearance-none rounded-xl border border-borda bg-sup pr-8 pl-3 text-sm font-medium"
             value={filtro}
             onChange={(e) => setParams(e.target.value ? { p: e.target.value } : {}, { replace: true })}
           >
             <option value="">Todos</option>
             {base.protocolos.map((p) => <option key={p.id} value={p.id}>{nomeProtocolo(p, base.itens, base.subs)}</option>)}
           </select>
-          <IcoBaixo tam={16} className="pointer-events-none absolute top-3.5 right-2.5" />
+          <IcoBaixo tam={16} className="pointer-events-none absolute top-4 right-3" />
         </label>
       </div>
 
-      <section aria-label={`Calendário de ${nomeMes(m - 1)}`} className="card flex flex-col gap-2.5 p-3.5">
+      <section aria-label={`Calendário de ${nomeMes(m - 1)}`} className="card flex flex-col gap-3 p-4">
         <div className="flex items-center justify-between">
           <button type="button" className="icone-btn" aria-label="Mês anterior" onClick={() => mudarMes(-1)}><IcoVoltar tam={20} /></button>
           <div className="flex flex-col items-center">
@@ -463,7 +464,7 @@ export function Historico() {
           </div>
           <button type="button" className="icone-btn" aria-label="Próximo mês" disabled={mes >= hoje.slice(0, 7)} onClick={() => mudarMes(1)}><IcoSeta tam={20} /></button>
         </div>
-        <div aria-hidden="true" className="grid grid-cols-7 text-center text-mini font-bold text-fraco">
+        <div aria-hidden="true" className="grid grid-cols-7 text-center text-mini font-medium text-fraco">
           {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => <span key={i}>{d}</span>)}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -472,7 +473,7 @@ export function Historico() {
             <span
               key={d.dia}
               aria-label={`${d.n} de ${nomeMes(m - 1)}${rotuloSt[d.st] ? ': ' + rotuloSt[d.st] : ''}`}
-              className={`flex h-[38px] items-center justify-center rounded-full text-sm font-bold ${
+              className={`flex h-10 items-center justify-center rounded-full text-sm font-medium ${
                 d.st === 'todas' ? 'bg-ok text-sobre-acento' : d.st === 'parte' ? 'border-2 border-ok text-ok' : d.st === 'nenhuma' ? 'border border-dashed border-borda text-suave' : 'text-fraco'
               } ${d.dia === hoje ? 'underline underline-offset-4' : ''}`}
             >
@@ -480,17 +481,17 @@ export function Historico() {
             </span>
           ))}
         </div>
-        <div className="flex flex-wrap gap-3.5 text-mini font-semibold text-suave">
-          <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-full bg-ok" />Todas tomadas</span>
-          <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-full border-2 border-ok" />Parte</span>
-          <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-full border border-dashed border-borda" />Nenhuma</span>
+        <div className="flex flex-wrap gap-3 text-mini font-medium text-suave">
+          <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-ok" />Todas tomadas</span>
+          <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full border-2 border-ok" />Parte</span>
+          <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full border border-dashed border-borda" />Nenhuma</span>
         </div>
       </section>
 
       {doMes.length === 0 && <p className="m-0 card p-4 text-sm text-suave">Nenhum registro em {nomeMes(m - 1)}.</p>}
       {[...grupos.entries()].map(([dia, lista], gi) => (
         <div key={dia} className="anima-entrada flex flex-col gap-2 [contain-intrinsic-size:auto_160px] [content-visibility:auto]" style={{ '--i': gi } as CSSProperties}>
-          <span className="text-sm font-bold text-fraco">{dataMedia(dia)}{dia === hoje ? ' · hoje' : ''}</span>
+          <span className="text-sm font-medium text-fraco">{dataMedia(dia)}{dia === hoje ? ' · hoje' : ''}</span>
           <GrupoDia lista={lista} base={base} filtro={filtro} abrir={(id) => abrir({ tipo: 'opcoes', aplicacaoId: id })} />
         </div>
       ))}
@@ -539,10 +540,10 @@ function LinhaHistorico({ a, saindo, base, filtro, abrir }: { a: Aplicacao; sain
   const extra = [a.local, fr ? `frasco ${fr.reconstituidoEm ? `aberto em ${dataCurta(fr.reconstituidoEm)}` : `${fr.mgTotal} mg`}` : '', a.motivo ? `Motivo: ${a.motivo.toLowerCase()}` : '', a.observacao].filter(Boolean).join(' · ')
   const pr = base.protocolos.find((x) => x.id === a.protocoloId)
   return (
-    <div className={`flex items-center gap-3 border-t border-l-[5px] border-t-sup2 py-2.5 pr-1.5 pl-3 first:border-t-0 ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : ''}`} style={bordaCor(pr)}>
+    <div className={`flex items-center gap-3 border-t border-l-4 border-t-sup2 py-3 pr-2 pl-3 first:border-t-0 ${saindo ? 'anima-sai' : recente ? 'anima-nova anima-brilho' : ''}`} style={bordaCor(pr)}>
       <span className="flex flex-1 flex-col gap-0.5">
         <span className="text-sm">
-          <StatusTomada status={a.status} /> <span className="font-bold">· {horaDe(d)}{a.status === 'feita' ? ` · ${textoDoRegistro(base, a)}` : ''}</span>
+          <StatusTomada status={a.status} /> <span className="font-medium">· {horaDe(d)}{a.status === 'feita' ? ` · ${textoDoRegistro(base, a)}` : ''}</span>
         </span>
         <span className="text-sm text-fraco">{pr && !filtro ? `${nomeProtocolo(pr, base.itens, base.subs)} · ` : ''}{nomeSubstancia(a.substanciaId, base.subs)}{extra ? ` · ${extra}` : ''}</span>
       </span>

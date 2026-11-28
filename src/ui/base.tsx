@@ -49,8 +49,8 @@ export function Cabecalho({
         </button>
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        {sub && <span className="text-sm font-semibold text-fraco">{sub}</span>}
-        <h1 className={`${grande ? 'text-titulo leading-tight' : 'text-2xl'} font-extrabold tracking-tight break-words`}>{titulo}</h1>
+        {sub && <span className="text-sm font-medium text-fraco">{sub}</span>}
+        <h1 className={`${grande ? 'text-titulo leading-tight' : 'text-2xl'} font-semibold break-words`}>{titulo}</h1>
       </div>
       {direita}
     </div>
@@ -58,7 +58,7 @@ export function Cabecalho({
 }
 
 export function Passo({ n, total = 4 }: { n: number; total?: number }) {
-  return <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo {n} de {total}</span>
+  return <span className="text-xs font-medium text-fraco">Passo {n} de {total}</span>
 }
 
 /**
@@ -144,17 +144,17 @@ export function Sheet({ titulo, sub, aoFechar, children }: { titulo: ReactNode; 
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}
-        className="folha-anima flex max-h-[92dvh] w-full max-w-[480px] flex-col gap-4 overflow-y-auto rounded-t-2xl [&>*]:shrink-0 bg-sup px-5 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] outline-none"
+        className="folha-anima flex max-h-[92dvh] w-full max-w-[480px] flex-col gap-4 overflow-y-auto rounded-t-[20px] [&>*]:shrink-0 bg-sup px-5 pt-3 pb-[max(28px,env(safe-area-inset-bottom))] outline-none"
       >
-        <span aria-hidden="true" className="h-[5px] w-10 self-center rounded-full bg-borda" />
+        <span aria-hidden="true" className="h-1 w-10 self-center rounded-full bg-borda" />
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <h2 id={id} className="text-2xl font-extrabold">{titulo}</h2>
-            {sub && <span className="text-sm font-semibold text-fraco">{sub}</span>}
+            <h2 id={id} className="text-2xl font-semibold">{titulo}</h2>
+            {sub && <span className="text-sm font-medium text-fraco">{sub}</span>}
           </div>
           {aoFechar && (
             <button type="button" onClick={aoFechar} aria-label="Fechar" className="icone-btn -mr-2.5">
-              <IcoFechar tam={22} />
+              <IcoFechar tam={20} />
             </button>
           )}
         </div>
@@ -173,20 +173,21 @@ export function Dialogo({ titulo, aoFechar, children, icone }: { titulo: ReactNo
   }, [])
   return (
     <Camada aoFechar={aoFechar} alinhar="centro">
-      <div ref={ref} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby={id} className="dialogo-anima flex max-h-[90dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto *:shrink-0 rounded-2xl border border-linha bg-sup px-6 pt-7 pb-6 outline-none">
+      <div ref={ref} tabIndex={-1} role="alertdialog" aria-modal="true" aria-labelledby={id} className="dialogo-anima flex max-h-[90dvh] w-full max-w-[420px] flex-col gap-4 overflow-y-auto *:shrink-0 rounded-[20px] border border-linha bg-sup px-6 pt-7 pb-6 outline-none">
         {icone}
-        <h2 id={id} className="text-2xl font-extrabold">{titulo}</h2>
+        <h2 id={id} className="text-2xl font-semibold">{titulo}</h2>
         {children}
       </div>
     </Camada>
   )
 }
 
-export function Vazio({ titulo, texto, children, icone }: { titulo: string; texto: ReactNode; children?: ReactNode; icone?: ReactNode }) {
+/** Tela vazia: um desenho de linha (frasco e seringa) ou um ícone simples, título, texto e a ação. */
+export function Vazio({ titulo, texto, children, icone, desenho }: { titulo: string; texto: ReactNode; children?: ReactNode; icone?: ReactNode; desenho?: ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-4 px-2 py-10 text-center">
-      {icone && <span className="flex h-16 w-16 items-center justify-center rounded-full bg-sup2 text-fraco">{icone}</span>}
-      <h2 className="text-2xl font-extrabold">{titulo}</h2>
+      {desenho ?? (icone && <span className="flex h-12 items-center justify-center text-fraco">{icone}</span>)}
+      <h2 className="text-xl font-semibold">{titulo}</h2>
       <p className="m-0 text-base leading-relaxed text-suave">{texto}</p>
       {children}
     </div>
@@ -235,8 +236,8 @@ export function Carregando({ linhas = 3 }: { linhas?: number }) {
       <span className="sr-only">Carregando…</span>
       {fase === 'esqueleto' &&
         Array.from({ length: linhas }, (_, i) => (
-          <div key={i} aria-hidden="true" className="esqueleto flex h-[76px] flex-col justify-center gap-2.5 px-4" style={{ animationDelay: `${i * 60}ms` }}>
-            <span className="h-3.5 w-1/2 rounded-full bg-sup2" />
+          <div key={i} aria-hidden="true" className="esqueleto flex h-[76px] flex-col justify-center gap-3 px-4" style={{ animationDelay: `${i * 60}ms` }}>
+            <span className="h-3 w-1/2 rounded-full bg-sup2" />
             <span className="h-3 w-1/3 rounded-full bg-sup2" />
           </div>
         ))}
@@ -277,15 +278,15 @@ export function useListaComSaida<T>(itens: T[], chave: (x: T) => string): { item
 /** Status sempre com ícone + texto (nunca só cor). */
 export function StatusTomada({ status }: { status: 'feita' | 'pulada' }) {
   return status === 'feita' ? (
-    <span className="inline-flex items-center gap-1 font-bold text-ok"><IcoCheck tam={14} /> Tomada</span>
+    <span className="inline-flex items-center gap-1 font-medium text-ok"><IcoCheck tam={16} /> Tomada</span>
   ) : (
-    <span className="inline-flex items-center gap-1 font-bold text-erro"><IcoX tam={14} /> Perdida (não feita)</span>
+    <span className="inline-flex items-center gap-1 font-medium text-erro"><IcoX tam={16} /> Perdida (não feita)</span>
   )
 }
 
 export function Nota({ children, tipo = 'info' }: { children: ReactNode; tipo?: 'info' | 'aviso' }) {
   return (
-    <p className={`m-0 rounded-xl px-4 py-3 text-sm leading-relaxed ${tipo === 'aviso' ? 'caixa-aviso font-semibold' : 'bg-sup2 text-suave'}`}>
+    <p className={`m-0 rounded-xl px-4 py-3 text-sm leading-relaxed ${tipo === 'aviso' ? 'caixa-aviso font-medium' : 'bg-sup2 text-suave'}`}>
       {children}
     </p>
   )
@@ -310,9 +311,9 @@ export function Linha({ children, className = '' }: { children: ReactNode; class
 
 export function Secao({ titulo, children, direita }: { titulo: string; children: ReactNode; direita?: ReactNode }) {
   return (
-    <section className="flex flex-col gap-2.5">
+    <section className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-xl font-bold">{titulo}</h2>
+        <h2 className="text-xl font-semibold">{titulo}</h2>
         {direita}
       </div>
       {children}

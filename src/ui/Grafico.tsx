@@ -46,14 +46,14 @@ export function Grafico({ pontos, marcos = [], unidade, altura = 170, descricao 
         ))}
         {marcosVis.map((k) => (
           <g key={k.dia + k.rotulo}>
-            <line x1={x(k.dia)} x2={x(k.dia)} y1={m.t - 4} y2={H - m.b} className="stroke-aviso" strokeWidth="1.5" strokeDasharray="4 4" />
+            <line x1={x(k.dia)} x2={x(k.dia)} y1={m.t - 4} y2={H - m.b} className="stroke-fraco" strokeWidth="1.5" strokeDasharray="4 4" />
             <text
               x={x(k.dia) > W / 2 ? x(k.dia) - 4 : x(k.dia) + 4}
               textAnchor={x(k.dia) > W / 2 ? 'end' : 'start'}
               y={m.t + 6}
               fontSize="14"
               fontWeight="700"
-              className="fill-aviso"
+              className="fill-fraco"
             >
               {k.rotulo.length > 22 ? k.rotulo.slice(0, 21) + '…' : k.rotulo}
             </text>

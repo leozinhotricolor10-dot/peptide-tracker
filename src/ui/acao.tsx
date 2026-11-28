@@ -54,7 +54,7 @@ export function BotaoAcao({
       <button type="button" className={className} disabled={disabled || ocupado} aria-busy={ocupado} onClick={() => void rodar(acao)}>
         {ocupado && ocupadoTexto ? ocupadoTexto : children}
       </button>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
     </>
   )
 }

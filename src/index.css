@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/dm-sans/wght.css';
+@import '@fontsource/dm-mono/latin-500.css';
 
 /* Cores: um tema só, claro e clínico (fundo cinza-azulado, cartões brancos, acento azul).
    Regra 60-30-10: ~60% fundo, ~30% superfícies (cartões, linhas), ~10% acento azul, só no que pede
@@ -30,26 +31,32 @@
   --color-veu: #0f1b2a;
   --color-dica: #5f6c7d; /* texto de exemplo dentro do campo (placeholder) */
 
-  /* Escala de texto (px): 13 só em rótulo curto em caixa alta; secundário 14-15; corpo 16-17. */
-  --text-xs: 13px;
-  --text-xs--line-height: 1.3;
+  /* Escala de texto (px), 6 tamanhos: 14 rótulo e selo; 15 secundário; 17 corpo e nome em linha;
+     21 seção; 28 título de tela, folha e diálogo; 34 figura grande (horário da próxima dose, peso,
+     unidades da seringa), em mono. Nada abaixo de 14. Pesos: 400, 500 e 600 (sem 700/800). */
+  --text-xs: 14px;
+  --text-xs--line-height: 1.35;
   --text-mini: 14px;
   --text-mini--line-height: 1.35;
   --text-sm: 15px;
   --text-sm--line-height: 1.4;
-  --text-base: 16px;
+  --text-base: 17px;
   --text-base--line-height: 1.45;
   --text-lg: 17px;
   --text-lg--line-height: 1.4;
   --text-xl: 21px;
   --text-xl--line-height: 1.25;
-  --text-2xl: 26px;
+  --text-2xl: 28px;
   --text-2xl--line-height: 1.2;
-  --text-titulo: 36px;
-  --text-titulo--line-height: 1.15;
+  --text-titulo: 28px;
+  --text-titulo--line-height: 1.2;
+  --text-figura: 34px;
+  --text-figura--line-height: 1.1;
 
-  --font-titulo: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'DM Sans Variable', 'DM Sans', sans-serif;
+  /* Uma família (DM Sans) para tudo; DM Mono só para números (horário, dose, saldo, eixos). */
+  --font-titulo: 'DM Sans Variable', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-corpo: 'DM Sans Variable', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 }
 
 /* Cor de cada protocolo (ids em src/dominio/cores.ts; tons suaves, só em marcador pequeno)
@@ -73,7 +80,12 @@
     background: var(--color-fundo);
     color: var(--color-texto);
     font-family: var(--font-corpo);
+    font-variant-numeric: tabular-nums;
     -webkit-tap-highlight-color: transparent;
+  }
+  b,
+  strong {
+    font-weight: 600;
   }
   body {
     margin: 0;
@@ -113,10 +125,14 @@
   button:disabled {
     cursor: not-allowed;
   }
+  /* ícones de traço: 1,5 px visível em qualquer tamanho (ui/icones.tsx) */
+  .ico * {
+    vector-effect: non-scaling-stroke;
+  }
 }
 
 @utility btn {
-  @apply flex h-[54px] w-full items-center justify-center gap-2 rounded-xl px-4 text-lg font-bold;
+  @apply flex h-13 w-full items-center justify-center gap-2 rounded-xl px-4 text-lg font-semibold;
 }
 
 @utility btn-primario {
@@ -127,8 +143,17 @@
   @apply btn border border-borda bg-sup text-texto;
 }
 
+/* "neutro" é o mesmo botão secundário (um estilo só); fica o nome para não mexer em todas as telas. */
 @utility btn-neutro {
-  @apply btn border border-linha bg-fundo text-texto disabled:opacity-60;
+  @apply btn border border-borda bg-sup text-texto disabled:opacity-60;
+}
+
+/* Versões curtas (44 px) dos mesmos estilos, para o canto do cabeçalho e ações dentro de cartões. */
+@utility btn-primario-curto {
+  @apply flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-acento px-4 text-base font-semibold text-sobre-acento;
+}
+@utility btn-secundario-curto {
+  @apply flex h-11 items-center justify-center gap-2 rounded-xl border border-borda bg-sup px-3 text-base font-semibold text-texto;
 }
 
 @utility btn-perigo {
@@ -136,29 +161,29 @@
 }
 
 @utility btn-texto {
-  @apply flex min-h-11 items-center justify-center px-2 text-base font-bold text-acento disabled:opacity-60;
+  @apply flex min-h-11 items-center justify-center px-2 text-base font-semibold text-acento disabled:opacity-60;
 }
 
 @utility link {
-  @apply flex min-h-11 items-center text-base font-bold text-acento underline-offset-4 hover:underline;
+  @apply flex min-h-11 items-center text-base font-semibold text-acento underline-offset-4 hover:underline;
 }
 
 @utility card {
-  @apply rounded-[14px] border border-linha bg-sup;
+  @apply rounded-2xl border border-linha bg-sup;
 }
 
 @utility campo {
-  @apply h-[52px] w-full rounded-xl border border-borda bg-fundo px-3.5 text-lg font-bold text-texto;
+  @apply h-[52px] w-full rounded-xl border border-borda bg-fundo px-4 text-lg font-medium text-texto;
 }
 
 @utility rotulo {
-  @apply flex flex-col gap-1.5 text-sm font-bold text-suave;
+  @apply flex flex-col gap-2 text-sm font-medium text-suave;
 }
 
 @utility chip {
-  @apply flex h-11 min-w-11 items-center justify-center rounded-full border border-borda bg-sup px-4 text-base font-semibold text-texto;
+  @apply flex h-11 min-w-11 items-center justify-center rounded-xl border border-borda bg-sup px-4 text-base font-medium text-texto;
   &[aria-pressed='true'] {
-    @apply border-2 border-acento bg-selecionado font-extrabold text-acento;
+    @apply border-acento bg-selecionado text-acento shadow-[inset_0_0_0_1px_var(--color-acento)];
   }
 }
 
@@ -169,11 +194,11 @@
 }
 
 @utility selo {
-  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-mini font-bold;
+  @apply inline-flex items-center gap-1 rounded-md px-2 py-1 text-mini font-medium;
 }
 
 @utility icone-btn {
-  @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px];
+  @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-xl;
 }
 
 
@@ -182,11 +207,12 @@
    UI: 120-350 ms. Celebração da dose: até ~900 ms. Nada de blur nem sombra animada (Android médio).
    Com "reduzir movimento" ligado no aparelho, tudo isso desliga (fim do arquivo). */
 :root {
-  /* curvas: "saída" desacelera (entrar, mudar), "mola" passa um tiquinho e volta (dar vida),
-     "sair" acelera (o que vai embora) */
-  --curva-saida: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Uma curva só para toda a interface (desacelera no fim). "sair" é a mesma curva (o nome fica para
+     ler melhor quem vai embora). A "mola" (passa um tiquinho e volta) ficou só na celebração da dose
+     registrada e do "Tudo feito hoje", o único momento festivo do app. */
+  --curva-saida: cubic-bezier(0.22, 1, 0.36, 1);
+  --curva-sair: var(--curva-saida);
   --curva-mola: cubic-bezier(0.34, 1.45, 0.64, 1);
-  --curva-sair: cubic-bezier(0.4, 0, 1, 1);
   --dur-toque: 120ms;
   --dur-curta: 180ms;
   --dur-media: 240ms;
@@ -343,7 +369,7 @@
 
 /* Toque: leve encolhida enquanto o dedo está em cima. */
 @utility tocavel {
-  transition: transform var(--dur-toque) ease-out, opacity var(--dur-toque) ease-out;
+  transition: transform var(--dur-toque) var(--curva-saida), opacity var(--dur-toque) var(--curva-saida);
   &:active {
     transform: scale(0.98);
   }
@@ -369,7 +395,7 @@
     position: absolute;
     inset: 0;
     background: color-mix(in srgb, var(--color-veu) var(--veu-forca), transparent);
-    animation: pt-aparecer 200ms ease-out;
+    animation: pt-aparecer 200ms var(--curva-saida);
   }
   & > * {
     position: relative;
@@ -408,11 +434,11 @@
 
 /* Troca de estado dentro de um cartão (pendente -> tomada -> desfeito): o novo estado cresce de leve. */
 @utility anima-troca {
-  animation: pt-trocar var(--dur-media) var(--curva-mola) backwards;
+  animation: pt-trocar var(--dur-media) var(--curva-saida) backwards;
 }
 /* Texto que muda (ex.: "pendente" -> "Tomada às 20:49"). */
 @utility anima-texto {
-  animation: pt-aparecer var(--dur-media) ease-out backwards;
+  animation: pt-aparecer var(--dur-media) var(--curva-saida) backwards;
 }
 
 /* Registro que acabou de mudar: um brilho verde que esmaece (camada por cima, só opacity). */
@@ -426,7 +452,7 @@
     background: color-mix(in srgb, var(--color-ok) 16%, transparent);
     pointer-events: none;
     opacity: 0;
-    animation: pt-destaque 700ms ease-out 150ms backwards;
+    animation: pt-destaque 700ms var(--curva-saida) 150ms backwards;
   }
 }
 /* Linha nova numa lista (registro recém-feito): entra deslizando (use junto com anima-brilho). */
@@ -461,14 +487,14 @@
 
 /* Aviso (toast): entra de baixo com mola, sai descendo; a barrinha mostra quanto falta. */
 @utility aviso-anima {
-  animation: pt-aviso-entra var(--dur-longa) var(--curva-mola) backwards;
+  animation: pt-aviso-entra var(--dur-longa) var(--curva-saida) backwards;
   &[data-saindo] {
     animation: pt-aviso-sai var(--dur-curta) var(--curva-sair) forwards;
   }
   &[data-voltando] {
     transition:
-      transform var(--dur-media) var(--curva-mola),
-      opacity var(--dur-curta) ease-out;
+      transform var(--dur-media) var(--curva-saida),
+      opacity var(--dur-curta) var(--curva-saida);
   }
 }
 @utility tempo-anima {
@@ -485,18 +511,23 @@
   animation: pt-linha 700ms var(--curva-saida) 80ms backwards;
 }
 .grafico-ponto {
-  animation: pt-aparecer var(--dur-media) ease-out 520ms backwards;
+  animation: pt-aparecer var(--dur-media) var(--curva-saida) 520ms backwards;
+}
+
+/* Seringa desenhada: a tampa do êmbolo desliza até a nova marca quando a conta muda. */
+.seringa-embolo {
+  transition: transform var(--dur-media) var(--curva-saida);
 }
 
 /* Esqueleto de carregamento: blocos parados que só aparecem se demorar (sem brilho em loop). */
 @utility esqueleto {
   @apply rounded-xl bg-sup;
-  animation: pt-aparecer var(--dur-media) ease-out backwards;
+  animation: pt-aparecer var(--dur-media) var(--curva-saida) backwards;
 }
 
 /* Barra de baixo: o fundo da aba escolhida desliza; o ícone dá uma encolhida no toque. */
 @utility aba-indicador {
-  transition: transform var(--dur-longa) var(--curva-mola);
+  transition: transform var(--dur-longa) var(--curva-saida);
 }
 
 @layer base {
@@ -505,6 +536,8 @@
   .btn-secundario,
   .btn-neutro,
   .btn-perigo,
+  .btn-primario-curto,
+  .btn-secundario-curto,
   .chip,
   .icone-btn,
   .btn-texto,
@@ -512,20 +545,22 @@
   [role='tab'],
   [role='radio'] {
     transition:
-      transform var(--dur-toque) ease-out,
-      opacity var(--dur-toque) ease-out;
+      transform var(--dur-toque) var(--curva-saida),
+      opacity var(--dur-toque) var(--curva-saida);
   }
   .btn:active:not(:disabled),
   .btn-primario:active:not(:disabled),
   .btn-secundario:active:not(:disabled),
   .btn-neutro:active:not(:disabled),
   .btn-perigo:active:not(:disabled),
+  .btn-primario-curto:active:not(:disabled),
+  .btn-secundario-curto:active:not(:disabled),
   .chip:active,
   [role='tab']:active {
     transform: scale(0.97);
   }
   .icone-btn:active:not(:disabled) {
-    transform: scale(0.9);
+    transform: scale(0.96);
   }
   .btn-texto:active:not(:disabled),
   .link:active {
@@ -595,4 +630,10 @@ html[data-direcao='troca']::view-transition-new(root) {
   [data-fantasma] {
     display: none !important;
   }
+}
+
+/* Com folha ou diálogo aberto, o aviso (toast) vai para o topo e não cobre os botões da camada. */
+body:has([data-camada]) .vt-avisos {
+  top: max(16px, env(safe-area-inset-top));
+  bottom: auto;
 }

@@ -1,11 +1,13 @@
-// Ícones em SVG inline (traço), sem biblioteca.
+// Ícones em SVG inline (traço), sem biblioteca. Dois tamanhos: 20 (linhas, cabeçalhos, abas) e 16 (dentro
+// de uma linha de texto); 28 só em diálogo, tela vazia e celebração. Traço de 1,5 px visível em qualquer
+// tamanho (classe `ico`: vector-effect non-scaling-stroke, em index.css); check e X com 2 px.
 import type { ReactNode, SVGProps } from 'react'
 
 type P = SVGProps<SVGSVGElement> & { tam?: number }
 
-function Ico({ tam = 24, children, ...p }: P & { children: ReactNode }) {
+function Ico({ tam = 20, children, ...p }: P & { children: ReactNode }) {
   return (
-    <svg width={tam} height={tam} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...p}>
+    <svg width={tam} height={tam} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...p} className={`ico ${p.className ?? ''}`}>
       {children}
     </svg>
   )
@@ -16,8 +18,8 @@ export const IcoFechar = (p: P) => <Ico {...p}><path d="M6 6l12 12M18 6L6 18" />
 export const IcoMais = (p: P) => <Ico {...p}><path d="M12 5v14M5 12h14" /></Ico>
 export const IcoSeta = (p: P) => <Ico {...p}><path d="M9 6l6 6-6 6" /></Ico>
 export const IcoBaixo = (p: P) => <Ico {...p}><path d="M6 9l6 6 6-6" /></Ico>
-export const IcoCheck = (p: P) => <Ico strokeWidth={2.6} {...p}><path d="M5 12.5l4.5 4.5L19 7.5" /></Ico>
-export const IcoX = (p: P) => <Ico strokeWidth={2.6} {...p}><path d="M6 6l12 12M18 6L6 18" /></Ico>
+export const IcoCheck = (p: P) => <Ico strokeWidth={2} {...p}><path d="M5 12.5l4.5 4.5L19 7.5" /></Ico>
+export const IcoX = (p: P) => <Ico strokeWidth={2} {...p}><path d="M6 6l12 12M18 6L6 18" /></Ico>
 export const IcoAlerta = (p: P) => <Ico {...p}><path d="M12 3l10 18H2L12 3z" /><path d="M12 10v5M12 18.2v.1" /></Ico>
 export const IcoInfo = (p: P) => <Ico {...p}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5v.1" /></Ico>
 export const IcoPausa = (p: P) => <Ico {...p}><path d="M9 5v14M15 5v14" /></Ico>

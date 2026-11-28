@@ -352,7 +352,7 @@ await passo('sem internet: recarrega e mostra os dados', async () => {
   await page.evaluate(() => navigator.serviceWorker.ready)
   await contexto.setOffline(true)
   await page.goto(BASE + '#/hoje')
-  await page.getByText('Sem internet.').waitFor()
+  await page.getByText('Sem internet', { exact: true }).waitFor()
   await page.locator('main', { hasText: 'Tomada às' }).waitFor()
   await conferirContraste('sem internet')
   await capturar('sem-internet-390')

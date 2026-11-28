@@ -8,7 +8,7 @@ export function PontoCor({ protocolo, tam = 10 }: { protocolo: Pick<Protocolo, '
   return <span aria-hidden="true" className="inline-block shrink-0 rounded-full" style={{ width: tam, height: tam, backgroundColor: corDe(protocolo).css }} />
 }
 
-/** Borda esquerda grossa na cor do protocolo (usar com a classe `border-l-[5px]`). */
+/** Borda esquerda grossa na cor do protocolo (usar com a classe `border-l-4`). */
 export function bordaCor(protocolo: Pick<Protocolo, 'id' | 'cor'> | undefined): CSSProperties {
   return { borderLeftColor: corDe(protocolo).css }
 }

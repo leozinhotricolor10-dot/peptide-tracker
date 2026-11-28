@@ -24,12 +24,12 @@ import { AvisosBloqueados, PrePermissao, VERSAO_AVISO } from './inicio.tsx'
 import { rascunho } from './rascunho.ts'
 import type { Substancia } from '../dominio/tipos.ts'
 
-export const VERSAO_APP = '0.1.0 (MVP)'
+export const VERSAO_APP = '0.1.0'
 
 function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-xs font-bold tracking-wide text-fraco uppercase">{titulo}</h2>
+      <h2 className="text-xs font-medium text-fraco">{titulo}</h2>
       <div className="card flex flex-col overflow-hidden">{children}</div>
     </section>
   )
@@ -37,10 +37,10 @@ function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
 
 function LinhaLink({ to, rotulo, valor, perigo }: { to: string; rotulo: string; valor?: string; perigo?: boolean }) {
   return (
-    <Link to={to} className={`flex min-h-[52px] items-center gap-2.5 border-t border-sup2 pr-3 pl-4 text-sm font-bold first:border-t-0 ${perigo ? 'text-erro' : ''}`}>
+    <Link to={to} className={`flex min-h-[52px] items-center gap-2 border-t border-sup2 pr-3 pl-4 text-sm font-medium first:border-t-0 ${perigo ? 'text-erro' : ''}`}>
       <span className="flex-1">{rotulo}</span>
-      {valor && <span className="text-sm font-semibold text-fraco">{valor}</span>}
-      <IcoSeta tam={18} className="text-fraco" />
+      {valor && <span className="text-sm font-medium text-fraco">{valor}</span>}
+      <IcoSeta tam={20} className="text-fraco" />
     </Link>
   )
 }
@@ -61,7 +61,7 @@ export function Ajustes() {
       <Grupo titulo="Lembretes"><LinhaLink to="/ajustes/lembretes" rotulo="Lembretes e agenda" valor={lembrete} /></Grupo>
       <Grupo titulo="Preferências">
         <LinhaLink to="/ajustes/substancias" rotulo="Minhas substâncias" valor={String(minhas)} />
-        <div className="flex min-h-[52px] items-center justify-between border-t border-sup2 px-4 text-sm font-bold"><span>Unidades</span><span className="text-sm text-fraco">kg · cm</span></div>
+        <div className="flex min-h-[52px] items-center justify-between border-t border-sup2 px-4 text-sm font-medium"><span>Unidades</span><span className="text-sm text-fraco">kg · cm</span></div>
       </Grupo>
       <Grupo titulo="Seus dados">
         <LinhaLink to="/ajustes/backup" rotulo="Backup" valor={dias === null ? 'nunca feito' : dias === 0 ? 'hoje' : `há ${dias} dia${dias > 1 ? 's' : ''}`} />
@@ -102,7 +102,7 @@ export function Lembretes() {
     <Tela>
       <Cabecalho titulo="Lembretes" voltar />
       <section className="flex flex-col gap-2">
-        <h2 className="text-xs font-bold tracking-wide text-fraco uppercase">Como você é avisado</h2>
+        <h2 className="text-xs font-medium text-fraco">Como você é avisado</h2>
         <div className="card flex flex-col">
           <div className="flex flex-col gap-0.5 px-4 py-3">
             <b className="text-sm">Dentro do app</b>
@@ -113,7 +113,7 @@ export function Lembretes() {
               <b className="text-sm">Agenda do celular</b>
               <span className="text-sm text-fraco">{agendaEm.valor ? `Arquivo gerado em ${dataBr(diaDe(new Date(agendaEm.valor)))} · refazer se mudar algo` : 'Avisa mesmo com o app fechado. Gere o arquivo.'}</span>
             </span>
-            <IcoSeta tam={18} className="text-fraco" />
+            <IcoSeta tam={20} className="text-fraco" />
           </Link>
           <div className="flex flex-col gap-2 border-t border-sup2 px-4 py-3">
             <b className="text-sm">Notificação no aparelho</b>
@@ -144,7 +144,7 @@ export function Lembretes() {
       </section>
 
       <div className="caixa-aviso flex flex-col gap-2 p-4 text-sm leading-relaxed">
-        <b className="flex items-center gap-2"><IcoAlerta tam={18} /> Limite desta versão (sem servidor)</b>
+        <b className="flex items-center gap-2"><IcoAlerta tam={20} /> Limite desta versão (sem servidor)</b>
         <span>A notificação é criada pelo próprio aparelho, sem servidor. Por isso ela só chega com o app aberto ou aberto há pouco tempo. <b>Com o app fechado, o aviso não é garantido</b> (isso exige um servidor de avisos, previsto para uma próxima versão).</span>
         <span>Com o app fechado, quem avisa é a <b>agenda do celular</b>: ela avisa sempre, mesmo sem internet.</span>
         {temGatilhos() && <span>Este navegador permite agendar avisos no aparelho: as doses das próximas 24 h ficam agendadas ao abrir o app.</span>}
@@ -152,11 +152,11 @@ export function Lembretes() {
 
       {visiveis.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-xs font-bold tracking-wide text-fraco uppercase">Por protocolo</h2>
+          <h2 className="text-xs font-medium text-fraco">Por protocolo</h2>
           <div className="card flex flex-col">
             {visiveis.map((p) => (
               <label key={p.id} className="flex min-h-[52px] items-center justify-between gap-3 border-t border-sup2 px-4 first:border-t-0">
-                <span className="text-sm font-bold break-words">{nomeProtocolo(p, base.itens, base.subs)}{estadoEfetivo(p, hoje) === 'pausado' && <span className="font-medium text-fraco"> · em pausa</span>}</span>
+                <span className="text-sm font-medium break-words">{nomeProtocolo(p, base.itens, base.subs)}{estadoEfetivo(p, hoje) === 'pausado' && <span className="font-medium text-fraco"> · em pausa</span>}</span>
                 <input type="checkbox" role="switch" className="h-6 w-6 shrink-0" checked={p.lembretes} onChange={(e) => { const v = e.target.checked; repo.lembretesProtocolo(p.id, v).then(() => forcar((x) => x + 1), (err: unknown) => toast({ tipo: 'info', titulo: 'Não deu para mudar o lembrete', texto: mensagemDeErro(err) })) }} />
               </label>
             ))}
@@ -165,7 +165,7 @@ export function Lembretes() {
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-xs font-bold tracking-wide text-fraco uppercase">Próximos avisos</h2>
+        <h2 className="text-xs font-medium text-fraco">Próximos avisos</h2>
         <p className="m-0 text-sm text-fraco">No horário deste aparelho. Se você mudar de fuso, os avisos acompanham o relógio do aparelho.</p>
         {proximos.length === 0 && <p className="m-0 text-sm text-suave">Nenhum aviso previsto.</p>}
         {proximos.map((s) => (
@@ -220,7 +220,7 @@ export function Agenda() {
         <Nota>Você ainda não tem protocolo ativo. Crie um protocolo e volte aqui.</Nota>
       ) : (
         <section className="flex flex-col gap-2">
-          <h2 className="text-xs font-bold tracking-wide text-fraco uppercase">Incluir</h2>
+          <h2 className="text-xs font-medium text-fraco">Incluir</h2>
           <div className="card flex flex-col">
             {lista.map((p) => (
               <label key={p.id} className="flex min-h-[56px] items-center gap-3 border-t border-sup2 px-4 py-2 first:border-t-0">
@@ -342,7 +342,7 @@ export function Backup() {
       <Cabecalho titulo="Backup" voltar />
       <AvisoRisco />
       <section aria-label="Situação do backup" className="card flex flex-col gap-2 p-4">
-        <span className={`flex items-start gap-2 text-sm font-bold ${ultimo.valor ? '' : 'text-aviso-texto'}`}>
+        <span className={`flex items-start gap-2 text-sm font-medium ${ultimo.valor ? '' : 'text-aviso-texto'}`}>
           {ultimo.valor ? <IcoCheck tam={20} className="mt-0.5 shrink-0 text-ok" /> : <IcoAlerta tam={20} className="mt-0.5 shrink-0 text-aviso" />}
           <span data-ultimo-backup="">{ultimo.carregado ? textoUltimoBackup(ultimo.valor, hojeStr()) : '…'}</span>
         </span>
@@ -351,18 +351,18 @@ export function Backup() {
       <section aria-labelledby="t-enviar-backup" className="card flex flex-col gap-3 p-4">
         <b id="t-enviar-backup" className="text-lg">Enviar uma cópia para você</b>
         <span className="text-sm leading-relaxed text-suave">Protocolos, doses, medições, frascos e fotos em um arquivo. Mande para o seu WhatsApp, e-mail ou Drive: se o celular sumir, o arquivo continua lá.</span>
-        <div className="flex min-h-11 items-center justify-between gap-2 rounded-[10px] bg-fundo px-3 text-sm">
+        <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl bg-fundo px-3 text-sm">
           <span className="text-suave">Tamanho aproximado</span>
           <b data-tamanho-backup="">{est ? fmtBytes(est.bytes) : '…'} · {est?.fotos ?? 0} foto{est?.fotos === 1 ? '' : 's'}{fotos ? '' : ' fora'}</b>
         </div>
         <label className="flex min-h-11 items-center gap-3">
           <input type="checkbox" className="h-6 w-6 shrink-0" checked={fotos} onChange={(e) => setFotos(e.target.checked)} />
           <b className="text-sm">Incluir fotos</b>
-          <span className="text-sm font-semibold text-fraco">(o arquivo fica maior)</span>
+          <span className="text-sm font-medium text-fraco">(o arquivo fica maior)</span>
         </label>
         {grande && (
-          <div role="status" className="caixa-aviso flex flex-col gap-2 px-4 py-3 text-sm font-semibold">
-            <span className="flex items-start gap-2"><IcoAlerta tam={18} className="mt-0.5 shrink-0 text-aviso" /> Com fotos, o arquivo fica com cerca de {fmtBytes(est.bytes)}. Arquivos desse tamanho costumam não passar por WhatsApp e e-mail.</span>
+          <div role="status" className="caixa-aviso flex flex-col gap-2 px-4 py-3 text-sm font-medium">
+            <span className="flex items-start gap-2"><IcoAlerta tam={20} className="mt-0.5 shrink-0 text-aviso" /> Com fotos, o arquivo fica com cerca de {fmtBytes(est.bytes)}. Arquivos desse tamanho costumam não passar por WhatsApp e e-mail.</span>
             <button type="button" className="btn-secundario" disabled={envio.ocupado} onClick={() => void envio.enviar(false)}>
               <IcoCompartilhar tam={20} /> Enviar sem fotos{estSem ? ` (${fmtBytes(estSem.bytes)})` : ''}
             </button>
@@ -421,7 +421,7 @@ export function ApagarTudo() {
       {passo === 1 ? (
         <>
           <p className="m-0 text-sm text-suave">Isto apaga deste aparelho, sem volta:</p>
-          <ul className="m-0 flex flex-col gap-2 pl-5 text-sm leading-relaxed">
+          <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm leading-relaxed">
             <li>{c.protocolos} protocolo(s) e {c.aplicacoes} registro(s) de dose</li>
             <li>{c.medicoes} medição(ões) e {c.fotos} foto(s)</li>
             <li>{c.frascos} frasco(s), {c.substancias} substância(s) e o aceite do aviso</li>
@@ -466,13 +466,13 @@ export function Sobre() {
     <Tela>
       <Cabecalho titulo="Sobre e avisos" voltar />
       <section className="card flex flex-col gap-2 p-4">
-        <h2 className="text-xl font-bold">Aviso de uso</h2>
+        <h2 className="text-xl font-semibold">Aviso de uso</h2>
         <p className="m-0 text-base leading-relaxed text-suave">Este app é só um registro pessoal. Não faz diagnóstico, não prescreve e não substitui a orientação de um profissional de saúde. As informações e decisões são suas.</p>
         <span className="text-sm text-fraco">{aceite.valor ? `Aceito em ${dataBr(diaDe(new Date(aceite.valor.em)))} · versão ${aceite.valor.versao} · uso por maiores de 18 anos` : `Versão do aviso ${VERSAO_AVISO}`}</span>
       </section>
       <section className="card flex flex-col gap-2 p-4">
-        <h2 className="text-xl font-bold">Privacidade</h2>
-        <ul className="m-0 flex flex-col gap-1.5 pl-5 text-sm text-suave">
+        <h2 className="text-xl font-semibold">Privacidade</h2>
+        <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm text-suave">
           <li>Seus dados ficam só neste aparelho.</li>
           <li>Não há conta, servidor, anúncio nem rastreamento de uso.</li>
           <li>Você pode exportar ou apagar tudo quando quiser.</li>
@@ -481,7 +481,7 @@ export function Sobre() {
         <Link to="/termos" className="link">Ler os termos de uso</Link>
       </section>
       <section className="card flex flex-col gap-2 p-4">
-        <h2 className="text-xl font-bold">O que o app não faz</h2>
+        <h2 className="text-xl font-semibold">O que o app não faz</h2>
         <p className="m-0 text-sm text-suave">Não sugere substâncias, doses ou protocolos, não vende produtos e não indica fornecedores.</p>
       </section>
       <p className="m-0 text-center text-sm text-fraco">Peptide Tracker (nome provisório) · versão {VERSAO_APP} · [CONTATO]</p>
@@ -494,7 +494,7 @@ function TextoLegal({ titulo, children }: { titulo: string; children: ReactNode 
     <Tela>
       <Cabecalho titulo={titulo} voltar />
       <Nota tipo="aviso">Texto provisório. Precisa de revisão jurídica antes do lançamento.</Nota>
-      <div className="flex flex-col gap-3 text-sm leading-relaxed text-suave [&_h2]:mt-2 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-texto">{children}</div>
+      <div className="flex flex-col gap-3 text-sm leading-relaxed text-suave [&_h2]:mt-2 [&_h2]:text-lg [&_h2]:font-medium [&_h2]:text-texto">{children}</div>
     </Tela>
   )
 }
@@ -561,7 +561,7 @@ export function Substancias() {
     const u = usoDe(base, s)
     const emUso = u.prots.length + u.frascos + u.regs > 0
     return (
-      <div key={s.id} className="flex min-h-[60px] items-center gap-1 border-t border-sup2 py-1.5 pr-1 pl-4 first:border-t-0">
+      <div key={s.id} className="flex min-h-[60px] items-center gap-1 border-t border-sup2 py-2 pr-1 pl-4 first:border-t-0">
         <button type="button" className="flex flex-1 flex-col items-start gap-0.5 text-left" onClick={() => nav(s.tipo === 'blend' ? `/novo/blend?id=${s.id}` : `/novo/criar?editar=${s.id}&volta=1`)}>
           <b className="text-sm break-words">{s.nome}</b>
           <span className="text-sm text-fraco">{s.tipo === 'blend' ? (s.origem === 'lista' ? 'Blend da lista' : 'Blend') : 'Simples'} · {emUso ? 'em uso' : 'sem uso'}</span>
@@ -583,8 +583,8 @@ export function Substancias() {
       <Cabecalho titulo="Minhas substâncias" voltar direita={<Link to="/novo/criar?volta=1" aria-label="Nova substância" className="icone-btn bg-acento text-sobre-acento"><IcoMais /></Link>} />
       <p className="m-0 text-sm text-fraco">O que você criou ou já usou. Aparece primeiro nas buscas. Só nomes: nenhuma dose vem pronta.</p>
       {ativas.length === 0 && <Nota>Nenhuma substância ainda. Elas aparecem aqui quando você cria um protocolo ou um frasco.</Nota>}
-      {criadas.length > 0 && <section className="flex flex-col gap-2"><h2 className="text-xs font-bold tracking-wide text-fraco uppercase">Criadas por você</h2><div className="card flex flex-col">{criadas.map(linha)}</div></section>}
-      {daLista.length > 0 && <section className="flex flex-col gap-2"><h2 className="text-xs font-bold tracking-wide text-fraco uppercase">Da lista, já usadas</h2><div className="card flex flex-col">{daLista.map(linha)}</div></section>}
+      {criadas.length > 0 && <section className="flex flex-col gap-2"><h2 className="text-xs font-medium text-fraco">Criadas por você</h2><div className="card flex flex-col">{criadas.map(linha)}</div></section>}
+      {daLista.length > 0 && <section className="flex flex-col gap-2"><h2 className="text-xs font-medium text-fraco">Da lista, já usadas</h2><div className="card flex flex-col">{daLista.map(linha)}</div></section>}
       {arquivadas.length > 0 && (
         <>
           <button type="button" className="link" aria-expanded={verArq} onClick={() => setVerArq(!verArq)}>Arquivadas ({arquivadas.length})</button>
@@ -595,7 +595,7 @@ export function Substancias() {
         <Dialogo titulo={emUso ? `“${alvo.nome}” está em uso` : `Arquivar ou apagar “${alvo.nome}”?`} aoFechar={() => setAlvo(null)}>
           {emUso ? (
             <>
-              <ul className="m-0 flex flex-col gap-1 pl-5 text-sm text-suave">
+              <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm text-suave">
                 {u.prots.length > 0 && <li>{u.prots.length} protocolo(s){u.ativos.length ? ` (${u.ativos.length} ativo/pausado)` : ''}</li>}
                 {u.frascos > 0 && <li>{u.frascos} frasco(s) no estoque</li>}
                 {u.regs > 0 && <li>{u.regs} registro(s) de dose</li>}

@@ -37,15 +37,15 @@ export function BoasVindas() {
     <Tela className="min-h-dvh">
       <div className="flex flex-col gap-4 pt-4">
         <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sup2 text-fraco">
-          <IcoEscudo tam={30} />
+          <IcoEscudo tam={28} />
         </span>
-        <h1 className="text-[32px] leading-tight font-extrabold tracking-tight">Seu diário de protocolos</h1>
+        <h1 className="text-2xl leading-tight font-semibold">Seu diário de protocolos</h1>
         <p className="m-0 text-lg leading-relaxed text-suave">
           Registre doses, horários e frascos. Tudo fica só neste aparelho, sem conta e sem login.
         </p>
       </div>
       <section aria-labelledby="t-aviso" className="flex flex-col gap-2 text-base leading-relaxed text-suave">
-        <h2 id="t-aviso" className="text-lg font-bold text-texto">Antes de começar</h2>
+        <h2 id="t-aviso" className="text-lg font-medium text-texto">Antes de começar</h2>
         <p className="m-0">
           Este app é <b className="text-texto">só um registro pessoal</b>. Ele não faz diagnóstico, não prescreve e não substitui a orientação de um profissional de saúde.
         </p>
@@ -57,7 +57,7 @@ export function BoasVindas() {
           { v: maior, s: setMaior, t: 'Tenho 18 anos ou mais' },
           { v: entendi, s: setEntendi, t: 'Entendi que o app é só um registro pessoal' },
         ].map((c) => (
-          <label key={c.t} className="card flex min-h-14 items-center gap-3 px-4 text-base font-semibold">
+          <label key={c.t} className="card flex min-h-14 items-center gap-3 px-4 text-base font-medium">
             <input type="checkbox" checked={c.v} onChange={(e) => c.s(e.target.checked)} className="h-6 w-6 shrink-0" />
             {c.t}
           </label>
@@ -87,7 +87,7 @@ export function AvisoAntigo() {
 export function Saida() {
   return (
     <Tela className="min-h-dvh justify-center text-center">
-      <h1 className="text-[30px] font-extrabold">Tudo bem</h1>
+      <h1 className="text-2xl font-semibold">Tudo bem</h1>
       <p className="m-0 text-base leading-relaxed text-suave">Sem o aceite, o app não pode ser usado. Nada foi salvo neste aparelho.</p>
       <p className="m-0 text-sm text-fraco">Você já pode fechar esta janela.</p>
       <Link to="/boas-vindas" className="btn-texto">Voltar ao início</Link>
@@ -109,7 +109,7 @@ export function Instalar() {
     <Tela className="min-h-dvh">
       <button type="button" onClick={() => voltarOu('/hoje')} aria-label="Voltar" className="icone-btn -ml-2.5"><IcoVoltar /></button>
       <div className="flex flex-col gap-2">
-        <h1 className="text-[28px] leading-tight font-extrabold">Coloque o app na tela inicial</h1>
+        <h1 className="text-2xl leading-tight font-semibold">Coloque o app na tela inicial</h1>
         <p className="m-0 text-base leading-relaxed text-suave">Assim ele abre como um app, funciona sem internet e seus dados ficam mais protegidos.</p>
       </div>
       {inst.instalado ? (
@@ -126,10 +126,10 @@ export function Instalar() {
           {aba === 'ios' ? (
             <div className="card flex flex-col gap-4 p-4">
               <p className="m-0 text-sm text-suave">A Apple não permite instalar com um botão. São 3 toques, só desta vez.</p>
-              <ol className="m-0 flex list-none flex-col gap-3 p-0 text-sm font-semibold">
-                <li className="flex gap-3"><b className="text-acento">1</b><span>No Safari, toque em Compartilhar <IcoCompartilhar tam={18} className="inline align-[-3px]" /> (quadrado com seta)</span></li>
-                <li className="flex gap-3"><b className="text-acento">2</b><span>Escolha “Adicionar à Tela de Início”</span></li>
-                <li className="flex gap-3"><b className="text-acento">3</b><span>Abra o app pelo novo ícone</span></li>
+              <ol className="m-0 flex list-none flex-col gap-3 p-0 text-sm font-medium">
+                <li className="flex gap-3"><b className="text-fraco">1</b><span>No Safari, toque em Compartilhar <IcoCompartilhar tam={20} className="inline align-[-3px]" /> (quadrado com seta)</span></li>
+                <li className="flex gap-3"><b className="text-fraco">2</b><span>Escolha “Adicionar à Tela de Início”</span></li>
+                <li className="flex gap-3"><b className="text-fraco">3</b><span>Abra o app pelo novo ícone</span></li>
               </ol>
               <Nota tipo="aviso">No iPhone, os avisos de dose só funcionam com o app instalado, e o Safari pode apagar dados de sites que ficam muito tempo sem uso.</Nota>
             </div>
@@ -168,11 +168,11 @@ export function PrePermissao({ aoFechar, aoTerminar }: { aoFechar: () => void; a
   const [pedindo, setPedindo] = useState(false)
   return (
     <Dialogo titulo="Avisos na hora da dose" aoFechar={aoFechar}>
-      <div className="flex flex-col gap-1.5 rounded-xl bg-sup2 p-4">
-        <span className="text-xs font-bold tracking-wide text-fraco uppercase">Exemplo do que aparece</span>
-        <span className="flex items-center gap-2 text-base font-bold"><IcoSino tam={18} className="text-fraco" /> {TEXTO_AVISO}</span>
+      <div className="flex flex-col gap-2 rounded-xl bg-sup2 p-4">
+        <span className="text-xs font-medium text-fraco">Exemplo do que aparece</span>
+        <span className="flex items-center gap-2 text-base font-medium"><IcoSino tam={20} className="text-fraco" /> {TEXTO_AVISO}</span>
       </div>
-      <ul className="m-0 flex flex-col gap-2 pl-5 text-sm leading-relaxed text-suave">
+      <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm leading-relaxed text-suave">
         <li>O aviso nunca mostra o nome da substância nem a dose.</li>
         <li>Sem servidor e sem conta: o próprio aparelho cria o aviso.</li>
         <li><b className="text-aviso-texto">Limite:</b> o aviso chega com o app aberto ou aberto há pouco. Com o app fechado, use também a agenda do celular.</li>
@@ -254,11 +254,11 @@ export function PedidoAvisos() {
   }
   return (
     <Dialogo titulo="Quer ser avisado na hora da dose?" aoFechar={() => { setEtapa(null); void responder() }} icone={<IcoSino tam={28} className="text-fraco" />}>
-      <div className="flex flex-col gap-1.5 rounded-xl bg-sup2 p-4">
-        <span className="text-xs font-bold tracking-wide text-fraco uppercase">Exemplo do que aparece</span>
-        <span className="text-base font-bold">{TEXTO_AVISO}</span>
+      <div className="flex flex-col gap-2 rounded-xl bg-sup2 p-4">
+        <span className="text-xs font-medium text-fraco">Exemplo do que aparece</span>
+        <span className="text-base font-medium">{TEXTO_AVISO}</span>
       </div>
-      <ul className="m-0 flex flex-col gap-2 pl-5 text-sm leading-relaxed text-suave">
+      <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm leading-relaxed text-suave">
         <li>O aviso nunca mostra o nome da substância nem a dose.</li>
         <li>Chega com o app aberto ou aberto há pouco. Com o app fechado, quem avisa é a agenda do celular.</li>
         <li>Em seguida o aparelho pede a permissão.</li>
@@ -280,8 +280,8 @@ export function ConviteInstalar() {
   const responder = () => repo.setConfig('conviteInstalar', 'respondido')
   return (
     <section aria-labelledby="t-instalar" data-convite-instalar="" className="card anima-entrada flex flex-col gap-3 p-4">
-      <span className="flex items-start gap-2.5">
-        <IcoCelular tam={22} className="mt-0.5 shrink-0 text-fraco" />
+      <span className="flex items-start gap-2">
+        <IcoCelular tam={20} className="mt-0.5 shrink-0 text-fraco" />
         <span className="flex flex-col gap-0.5">
           <b id="t-instalar" className="text-base">Coloque o app na tela inicial</b>
           <span className="text-sm leading-relaxed text-suave">Abre como um app, funciona sem internet e seus dados ficam mais protegidos.</span>
@@ -289,10 +289,10 @@ export function ConviteInstalar() {
       </span>
       {inst.ios ? (
         <>
-          <ol className="m-0 flex list-none flex-col gap-2 p-0 text-sm font-semibold">
-            <li className="flex gap-3"><b className="text-acento">1</b><span>No Safari, toque em Compartilhar <IcoCompartilhar tam={18} className="inline align-[-3px]" /></span></li>
-            <li className="flex gap-3"><b className="text-acento">2</b><span>Escolha “Adicionar à Tela de Início”</span></li>
-            <li className="flex gap-3"><b className="text-acento">3</b><span>Abra o app pelo novo ícone</span></li>
+          <ol className="m-0 flex list-none flex-col gap-2 p-0 text-sm font-medium">
+            <li className="flex gap-3"><b className="text-fraco">1</b><span>No Safari, toque em Compartilhar <IcoCompartilhar tam={20} className="inline align-[-3px]" /></span></li>
+            <li className="flex gap-3"><b className="text-fraco">2</b><span>Escolha “Adicionar à Tela de Início”</span></li>
+            <li className="flex gap-3"><b className="text-fraco">3</b><span>Abra o app pelo novo ícone</span></li>
           </ol>
           <div className="flex gap-2">
             <button type="button" className="btn-texto flex-1" onClick={() => void responder()}>Agora não</button>

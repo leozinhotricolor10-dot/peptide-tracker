@@ -315,3 +315,42 @@ Hoje rolando a página inteira: neutros 76,6 → 92,2%, acento 9,4 → 4,2%, sta
 Conferido no build servido por `npm run pages` (Chrome automático, 390 × 844 e 360 × 640, com toque, relógio parado): boas-vindas e 1º passo do primeiro acesso, Hoje com dose pendente e Atenção, Hoje com "Dose atrasada", Hoje com "Tudo feito hoje", folha de dose, Protocolos, detalhe, Estoque, Peso, Ajustes (22 telas, 960 textos medidos). Em todas: todo texto ≥ 4,5:1 contra o fundo real, nenhum alvo < 44 px, sem rolagem lateral, sem texto em inglês, console limpo, nenhum fundo colorido grande. Única peça azul cheia fora de botão: os tracinhos "Passo 1 de 2" do cadastro (indicador de progresso, permitido pela regra).
 
 Fora desta rodada: ícone do app, tela de abertura e página 404 não mudaram (já eram fundo claro e gota azul); o tracinho de progresso do cadastro e a linha do gráfico de peso continuam azuis (progresso); não testado em aparelho real.
+
+## Rodada de 28/11/2026: polimento visual "unslop"
+
+Auditoria pelo método unslop (sinais de interface com cara de gerada por IA), decisão "slop leve, modo polimento" e direção aprovadas pelo dono ("aprovo tudo"). Só visual: paleta, regra 60-30-10, ordem das seções, funções e textos de regra iguais. Um commit por passe, na ordem do método.
+
+| # | Passe | O que mudou | Coberto por |
+|---|---|---|---|
+| V01 | Espaçamento | Tudo na grade de 4 px: `gap-1.5`/`2.5`/`3.5`, `py-2.5`, `p-3.5`, `px-3.5` (~110 usos) viraram 8, 12 ou 16; botão 54 → 52 px (igual ao campo); faixa do protocolo 5/6 → 4 px; alça da folha 5 → 4 px; listas do diálogo de avisos e de outros textos sem o recuo de 20 px sem marcador | revisão + e2e (alvos ≥ 44 px) |
+| V02 | Cor | Acento só em ação, seleção e progresso: saíram do azul "Passo N de 2", nome da substância escolhida, "N unidades", números dos passos de instalação, barra de tempo do aviso, ação dos cartões da Atenção, rótulo "hoje" da semana (o dia fica contornado, sem fundo); barras de saldo do Estoque em cinza escuro (âmbar quando acabando); marca de início de protocolo no gráfico em cinza (âmbar é aviso); bolinha da cor some quando o cartão já tem a faixa. Lembrete de backup com o botão secundário (o principal da tela continua o "Registrar dose") | `npm run cores` (tabela abaixo) + e2e `conferir603010` |
+| V03 | Ícones | Tamanhos 12/13/14/18/22/24/30 → 16 (em linha de texto), 20 (linhas, cabeçalhos, abas) e 28 (diálogo, tela vazia); traço de 1,5 px visível em qualquer tamanho (`vector-effect: non-scaling-stroke`), check e X com 2. Caracteres ✓ ✕ ⚠ ● dentro de textos (11 usos) viraram ícones SVG; status continua ícone + texto | revisão + e2e ("Tomada às …") |
+| V04 | Texto | Hoje sem saudação (só a data); selo "Lista" fora da busca de substâncias (fica "Sua"); selo "Ativo" fora dos cartões da aba Ativos; nome da substância não se repete no cartão quando é o nome do protocolo; "Sem internet" sem ponto; versão sem "(MVP)" | `textos.test.ts` + e2e (offline) |
+| V05 | Tipografia | DM Sans em tudo (o título usava a fonte do sistema e mudava por aparelho); DM Mono 500 (pacote `@fontsource/dm-mono` 5.3.0, local, funciona sem internet) só nos horários; 14 tamanhos → 6 (14, 15, 17, 21, 28, 34); pesos 700/800 → 500/600 (`b` em 600); sem caixa alta espaçada (16 rótulos e os dias da semana); `tabular-nums` no corpo; nada abaixo de 14 px | e2e (contraste de todo texto, 390 e 360) |
+| V06 | Layout | Atenção com um formato só de cartão; lembrete de backup com botões empilhados (não quebra mais em 2 linhas); Estoque com os 3 números num cartão só; com folha ou diálogo aberto o aviso (toast) vai para o topo e não cobre os botões | e2e (lembrete, Atenção) |
+| V07 | Detalhes | Raios por tamanho: controle 12, cartão 16 (era 14), folha e diálogo 20, selo 6, abas internas 8 (aninhado); chips sem forma de pílula; 5 estilos de botão (o "neutro" ficou igual ao secundário; versões curtas de 44 px para "+ Novo", "+ Frasco", "Atualizar", "+ Registrar"); chip escolhido com contorno sem mudar de largura | revisão |
+| V08 | Visuais | **Seringa desenhada** (SVG, folha Registrar dose, calculadora do passo 1, Reconstituição): escala 0–100, marca a cada 2, número a cada 20, líquido cinza-claro até a marca, êmbolo na marca e um traço azul no número; só desenha o número calculado do que a pessoa digitou; sem número válido não aparece; acima de 100 fica cheia com aviso "A conta passou da seringa de 100 unidades. Confira os números."; texto alternativo "Seringa de insulina de 100 unidades, marcada em N de 100". **Régua graduada** (risquinhos a cada 10%) sob as barras de saldo do Estoque. Telas vazias (Hoje, Protocolos, Estoque) com desenho de linha de frasco e seringa | `dominio/desenho.test.ts` (0, fração, 50, 100, acima de 100, blend em mL, sem dado, texto sem verbo de instrução, escala, régua, fração da barra) + `textos.test.ts` |
+| V09 | Movimento | Uma curva só `cubic-bezier(0.22, 1, 0.36, 1)` (antes 3); a mola ficou só na celebração da dose e no "Tudo feito hoje"; toque em botão de ícone 0,9 → 0,96; o êmbolo desliza até a nova marca. Reduzir movimento desliga tudo, como antes | e2e (reduzir movimento, nada animando depois) |
+
+Cores (`npm run cores`, primeira tela em 390 × 844, antes → depois). O acento caiu ou ficou igual em todas as telas:
+
+| Tela | Neutros (60+30) | Acento (10) | Status + protocolo |
+|---|---|---|---|
+| Hoje | 89,5 → 90,6% | 7,2 → 6,4% | 3,3 → 3,0% |
+| Folha de dose | 96,7 → 97,0% | 1,0 → 0,5% | 2,3 → 2,5% |
+| Protocolos | 92,7 → 93,2% | 4,3 → 4,3% | 3,0 → 2,5% |
+| Detalhe | 96,4 → 96,4% | 0,7 → 0,6% | 3,0 → 3,0% |
+| Estoque | 92,4 → 93,2% | 4,1 → 3,4% | 3,6 → 3,4% |
+| Peso | 94,5 → 94,6% | 3,7 → 3,7% | 1,8 → 1,8% |
+| Hoje (tudo feito) | 92,2 → 93,2% | 2,8 → 2,0% | 5,0 → 4,9% |
+
+Página inteira (rolando): Hoje acento 4,4 → 2,9%; Hoje "tudo feito" 2,6 → 1,2%; Estoque 3,1 → 2,3%.
+
+Conferido no build servido por `npm run pages` (Chrome automático, toque, 390 × 844 e 360 × 640, relógio parado): boas-vindas, Hoje com dados e vazia, folha de dose, Protocolos (com dados e vazio), detalhe, Reconstituição, Estoque (com dados e vazio), Peso (com gráfico e vazio), Configurações, Backup e o passo 1 da edição. 36 conferências: todo texto ≥ 4,5:1, nenhum alvo < 44 px, sem rolagem lateral, nenhum texto em inglês, console limpo, menor texto 14 px.
+
+Tamanho do build (gzip): JS do app 74,1 → 74,7 KB; CSS 7,8 → 8,1 KB; fontes 55,2 → 70,1 KB (+15,0 KB da DM Mono 500 latina, só no primeiro carregamento, depois fica no cache offline). React e bibliotecas sem mudança.
+
+Limitações desta rodada:
+- A DM Mono desenha o zero cortado por uma barra (como em relógio digital); por isso ficou só nos horários. Doses, saldo, peso e dinheiro continuam na DM Sans com números de largura fixa.
+- A seringa é sempre a de 100 unidades (1 mL), a mesma usada nas contas do app; outros tamanhos de seringa não são desenhados.
+- Não testado em aparelho real (Chrome de computador simulando celular).

@@ -64,7 +64,7 @@ export function Peso() {
   const [periodo, setPeriodo] = useState<7 | 30 | 90>(30)
   const cab = (
     <div className="flex items-center justify-between">
-      <h1 className="text-titulo leading-tight font-extrabold tracking-tight">Peso e medidas</h1>
+      <h1 className="text-titulo leading-tight font-semibold">Peso e medidas</h1>
       <Link to="/peso/medicao/nova" aria-label="Adicionar registro" className="icone-btn bg-acento text-sobre-acento"><IcoMais /></Link>
     </div>
   )
@@ -72,8 +72,8 @@ export function Peso() {
   if (!base.medicoes.length && !fotos.length) {
     return (
       <Tela>
-        <h1 className="text-titulo font-extrabold">Peso e medidas</h1>
-        <Vazio icone={<IcoPeso tam={30} />} titulo="Comece pelo peso de hoje" texto="Só o peso já basta. Medidas e fotos são opcionais e dá para incluir quando quiser.">
+        <h1 className="text-titulo font-semibold">Peso e medidas</h1>
+        <Vazio icone={<IcoPeso tam={28} />} titulo="Comece pelo peso de hoje" texto="Só o peso já basta. Medidas e fotos são opcionais e dá para incluir quando quiser.">
           <Link to="/peso/medicao/nova" className="btn-primario">Registrar peso</Link>
           <Link to="/peso/fotos" className="btn-texto">Fotos de progresso</Link>
         </Vazio>
@@ -90,34 +90,34 @@ export function Peso() {
       <div className="card flex flex-col gap-3 p-4">
         <Link to="/peso/medida/peso" className="flex items-end justify-between">
           <span className="flex flex-col gap-0.5">
-            <span className="text-xs font-bold tracking-wide text-fraco uppercase">Peso atual</span>
-            <span className="text-[34px] leading-none font-extrabold">{atual ? <><NumeroAnimado valor={atual.valor} formatar={(v) => fmtNum(v, 1)} /> <span className="text-lg text-fraco">kg</span></> : '—'}</span>
+            <span className="text-xs font-medium text-fraco">Peso atual</span>
+            <span className="text-figura leading-none font-semibold">{atual ? <><NumeroAnimado valor={atual.valor} formatar={(v) => fmtNum(v, 1)} /> <span className="text-lg text-fraco">kg</span></> : '—'}</span>
           </span>
-          {variacao(sPeso) !== null && <span className="rounded-full bg-sup2 px-3 py-1 text-sm font-bold text-suave">{fmtVar(variacao(sPeso), 'kg')} em 30 dias</span>}
+          {variacao(sPeso) !== null && <span className="rounded-md bg-sup2 px-2 py-1 text-sm font-medium text-suave">{fmtVar(variacao(sPeso), 'kg')} em 30 dias</span>}
         </Link>
         <Grafico pontos={noPeriodo} marcos={marcos(base)} unidade="kg" descricao={`Peso nos últimos ${periodo} dias`} />
         <div role="tablist" aria-label="Período" className="grid grid-cols-3 gap-1 rounded-xl bg-fundo p-1">
           {([7, 30, 90] as const).map((p) => (
-            <button key={p} type="button" role="tab" aria-selected={periodo === p} onClick={() => setPeriodo(p)} className={`h-11 rounded-[10px] text-sm font-bold ${periodo === p ? 'bg-selecionado text-acento' : 'text-fraco'}`}>{p} dias</button>
+            <button key={p} type="button" role="tab" aria-selected={periodo === p} onClick={() => setPeriodo(p)} className={`h-11 rounded-lg text-sm font-medium ${periodo === p ? 'bg-selecionado text-acento' : 'text-fraco'}`}>{p} dias</button>
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-3">
         {CAMPOS.slice(1).map(({ c, t, u }) => {
           const s = serie(base.medicoes, c)
           const v = s[s.length - 1]
           return (
-            <Link key={c} to={`/peso/medida/${c}`} className="card flex min-h-[84px] flex-col gap-1 p-3.5">
-              <span className="text-sm font-bold text-fraco">{t}</span>
-              <span className="text-xl font-extrabold">{v ? `${fmtNum(v.valor, 1)} ${u}` : '—'}</span>
-              <span className="text-mini font-semibold text-suave">{v ? fmtVar(variacao(s), u) || 'Só 1 registro' : 'Sem registro'}</span>
+            <Link key={c} to={`/peso/medida/${c}`} className="card flex min-h-[84px] flex-col gap-1 p-4">
+              <span className="text-sm font-medium text-fraco">{t}</span>
+              <span className="text-xl font-semibold">{v ? `${fmtNum(v.valor, 1)} ${u}` : '—'}</span>
+              <span className="text-mini font-medium text-suave">{v ? fmtVar(variacao(s), u) || 'Só 1 registro' : 'Sem registro'}</span>
             </Link>
           )
         })}
       </div>
       <Link to="/peso/fotos" className="card flex min-h-[60px] items-center justify-between px-4">
-        <span className="flex items-center gap-3 text-base font-bold"><IcoImagem className="text-fraco" /> Fotos de progresso</span>
-        <span className="flex items-center gap-1 text-sm text-fraco">{fotos.length} <IcoSeta tam={18} /></span>
+        <span className="flex items-center gap-3 text-base font-medium"><IcoImagem className="text-fraco" /> Fotos de progresso</span>
+        <span className="flex items-center gap-1 text-sm text-fraco">{fotos.length} <IcoSeta tam={20} /></span>
       </Link>
       {fotos.length >= 2 && <Link to="/peso/fotos/comparar" className="link">Comparar duas datas</Link>}
     </Tela>
@@ -185,20 +185,20 @@ export function NovaMedicao() {
   return (
     <Tela className="min-h-dvh">
       <Cabecalho titulo={existente ? 'Editar medição' : 'Nova medição'} fechar={() => voltarOu('/peso')} />
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-3">
         <label className="rotulo">Data<input type="date" className="campo px-2" value={data} max={hojeStr()} onChange={(e) => setData(e.target.value)} /></label>
         <label className="rotulo">Peso (kg)<input className="campo" inputMode="decimal" autoFocus={!existente} placeholder="Ex.: 84,2" value={vals.peso} onChange={(e) => { setVals({ ...vals, peso: e.target.value }); setErro('') }} /></label>
       </div>
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-sm font-bold text-fraco">Medidas em cm (opcional)</legend>
-        <div className="grid grid-cols-2 gap-2.5">
+        <legend className="mb-2 text-sm font-medium text-fraco">Medidas em cm (opcional)</legend>
+        <div className="grid grid-cols-2 gap-3">
           {CAMPOS.slice(1).map(({ c, t }) => (
             <label key={c} className="rotulo">{t}<input className="campo" inputMode="decimal" value={vals[c]} onChange={(e) => { setVals({ ...vals, [c]: e.target.value }); setErro('') }} /></label>
           ))}
         </div>
       </fieldset>
-      <label className="rotulo">Nota (opcional)<textarea rows={2} className="campo h-auto py-2.5 font-medium" value={nota} onChange={(e) => setNota(e.target.value)} /></label>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      <label className="rotulo">Nota (opcional)<textarea rows={2} className="campo h-auto py-3 font-medium" value={nota} onChange={(e) => setNota(e.target.value)} /></label>
+      {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
       <div className="mt-auto flex flex-col gap-2">
         <button type="button" className="btn-primario" onClick={() => salvar()}>Salvar medição</button>
         {existente && (
@@ -239,8 +239,8 @@ export function DetalheMedida() {
     <Tela>
       <Cabecalho titulo={info.t} voltar />
       <div className="flex items-baseline gap-3">
-        <span className="text-[34px] font-extrabold">{atual ? <><NumeroAnimado valor={atual.valor} formatar={(v) => fmtNum(v, 1)} /> {info.u}</> : '—'}</span>
-        {v !== null && <span className="text-sm font-bold text-suave">{fmtVar(v, info.u)} em 30 dias</span>}
+        <span className="text-figura font-semibold">{atual ? <><NumeroAnimado valor={atual.valor} formatar={(v) => fmtNum(v, 1)} /> {info.u}</> : '—'}</span>
+        {v !== null && <span className="text-sm font-medium text-suave">{fmtVar(v, info.u)} em 30 dias</span>}
       </div>
       <div className="card p-3">
         <Grafico pontos={s} marcos={marcos(base)} unidade={info.u} descricao={`${info.t} ao longo do tempo`} />
@@ -252,7 +252,7 @@ export function DetalheMedida() {
         {[...s].reverse().map((p) => (
           <Link key={p.id} to={`/peso/medicao/${p.id}`} className="flex min-h-[52px] items-center justify-between border-t border-sup2 px-4 first:border-t-0">
             <span className="text-sm text-suave">{dataBr(p.dia)}</span>
-            <span className="flex items-center gap-2 text-base font-bold">{fmtNum(p.valor, 1)} {info.u} <IcoSeta tam={16} className="text-fraco" /></span>
+            <span className="flex items-center gap-2 text-base font-medium">{fmtNum(p.valor, 1)} {info.u} <IcoSeta tam={16} className="text-fraco" /></span>
           </Link>
         ))}
       </div>
@@ -272,7 +272,7 @@ function Miniatura({ foto, aoAbrir }: { foto: Foto; aoAbrir: () => void }) {
   return (
     <button type="button" onClick={aoAbrir} aria-label={`Foto ${rot}, ${dataMedia(foto.data)}`} className="relative aspect-[3/4] overflow-hidden rounded-xl border border-linha bg-sup2">
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
-      <span className="absolute inset-x-0 bottom-0 bg-veu/80 py-1 text-center text-mini font-bold text-sobre-acento">{rot}</span>
+      <span className="absolute inset-x-0 bottom-0 bg-veu/80 py-1 text-center text-mini font-medium text-sobre-acento">{rot}</span>
     </button>
   )
 }
@@ -313,13 +313,13 @@ export function Fotos() {
       <Nota>Ficam só neste aparelho. O backup inclui as fotos.</Nota>
       <Chips rotulo="Ângulo" opcoes={[{ v: 'todas' as const, t: 'Todas' }, ...ANGULOS]} valor={filtro} aoMudar={setFiltro} />
       {fotos.length === 0 && (
-        <Vazio icone={<IcoCamera tam={30} />} titulo="Nenhuma foto ainda" texto="Fotos de frente, lado e costas ajudam a comparar com o tempo. Ficam só aqui.">
+        <Vazio icone={<IcoCamera tam={28} />} titulo="Nenhuma foto ainda" texto="Fotos de frente, lado e costas ajudam a comparar com o tempo. Ficam só aqui.">
           <Link to="/peso/fotos/nova" className="btn-primario">Adicionar foto</Link>
         </Vazio>
       )}
       {[...grupos.entries()].map(([dia, fs]) => (
         <section key={dia} className="flex flex-col gap-2">
-          <h2 className="text-sm font-bold text-fraco">{dataMedia(dia)}</h2>
+          <h2 className="text-sm font-medium text-fraco">{dataMedia(dia)}</h2>
           <div className="grid grid-cols-3 gap-2">
             {fs.map((f) => <Miniatura key={f.id} foto={f} aoAbrir={() => setAberta(f)} />)}
           </div>
@@ -363,18 +363,18 @@ export function NovaFoto() {
     <Tela className="min-h-dvh">
       <Cabecalho titulo="Nova foto" fechar={() => voltarOu('/peso/fotos')} />
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-sm font-bold text-fraco">Ângulo</legend>
+        <legend className="mb-2 text-sm font-medium text-fraco">Ângulo</legend>
         <Chips rotulo="Ângulo" opcoes={ANGULOS} valor={angulo} aoMudar={setAngulo} />
       </fieldset>
       <label className="rotulo">Data<input type="date" className="campo" value={data} max={hojeStr()} onChange={(e) => setData(e.target.value)} /></label>
       <Nota>Dica: mesma luz, mesma distância e mesma roupa deixam a comparação mais justa.</Nota>
-      {estado === 'comprimindo' && <p role="status" className="m-0 text-center font-bold text-acento">Reduzindo e guardando a foto…</p>}
-      {estado === 'erro' && <p role="alert" className="m-0 text-sm font-bold text-erro">Não deu para abrir esta imagem. Tente outra foto.</p>}
-      {estado === 'erro-data' && <p role="alert" className="m-0 text-sm font-bold text-erro">Escolha uma data até hoje.</p>}
-      {estado === 'erro-salvar' && <p role="alert" className="m-0 text-sm font-bold text-erro">Não deu para guardar a foto. Pode faltar espaço no aparelho.</p>}
+      {estado === 'comprimindo' && <p role="status" className="m-0 text-center font-medium text-acento">Reduzindo e guardando a foto…</p>}
+      {estado === 'erro' && <p role="alert" className="m-0 text-sm font-medium text-erro">Não deu para abrir esta imagem. Tente outra foto.</p>}
+      {estado === 'erro-data' && <p role="alert" className="m-0 text-sm font-medium text-erro">Escolha uma data até hoje.</p>}
+      {estado === 'erro-salvar' && <p role="alert" className="m-0 text-sm font-medium text-erro">Não deu para guardar a foto. Pode faltar espaço no aparelho.</p>}
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => escolher(e.currentTarget)} />
       <input ref={galeria} type="file" accept="image/*" hidden data-testid="galeria" onChange={(e) => escolher(e.currentTarget)} />
-      <div className="mt-auto grid grid-cols-2 gap-2.5">
+      <div className="mt-auto grid grid-cols-2 gap-3">
         <button type="button" className="btn-primario" disabled={estado === 'comprimindo'} onClick={() => camera.current?.click()}><IcoCamera tam={20} /> Câmera</button>
         <button type="button" className="btn-secundario" disabled={estado === 'comprimindo'} onClick={() => galeria.current?.click()}><IcoImagem tam={20} /> Galeria</button>
       </div>
@@ -386,11 +386,11 @@ export function NovaFoto() {
 function ImagemComparar({ foto, peso }: { foto?: Foto; peso?: number }) {
   const url = useUrlObjeto(foto?.blob)
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-xl border border-linha bg-sup2">
         {url ? <img src={url} alt={foto ? `Foto de ${dataBr(foto.data)}` : ''} className="h-full w-full object-cover" /> : <span className="px-2 text-center text-mini text-fraco">Sem foto deste ângulo</span>}
       </div>
-      {foto && <span className="text-center text-sm font-bold">{dataBr(foto.data)}{peso !== undefined ? ` · ${fmtNum(peso, 1)} kg` : ''}</span>}
+      {foto && <span className="text-center text-sm font-medium">{dataBr(foto.data)}{peso !== undefined ? ` · ${fmtNum(peso, 1)} kg` : ''}</span>}
     </div>
   )
 }
@@ -419,12 +419,12 @@ export function CompararFotos() {
       {datas.length < 2 ? (
         <Nota tipo="aviso">Falta foto deste ângulo: são precisas fotos em 2 datas diferentes para comparar.</Nota>
       ) : null}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-3">
         <ImagemComparar foto={doAngulo.find((f) => f.data === da)} peso={da ? pesoEm(da) : undefined} />
         <ImagemComparar foto={datas.length > 1 ? [...doAngulo].reverse().find((f) => f.data === db) : undefined} peso={db ? pesoEm(db) : undefined} />
       </div>
       {datas.length >= 2 && (
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-3">
           <label className="rotulo">Antes<select className="campo text-sm" value={da} onChange={(e) => setA(e.target.value)}>{datas.map((d) => <option key={d} value={d}>{dataBr(d)}</option>)}</select></label>
           <label className="rotulo">Depois<select className="campo text-sm" value={db} onChange={(e) => setB(e.target.value)}>{datas.map((d) => <option key={d} value={d}>{dataBr(d)}</option>)}</select></label>
         </div>

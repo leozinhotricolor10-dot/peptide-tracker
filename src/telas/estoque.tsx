@@ -1,5 +1,5 @@
 // T40 Estoque (+E50), T51 novo/editar frasco, T52 reconstituição, T53 reconstituição de blend, M51 vencido.
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { repo, useBase, type Base } from '../dados/index.ts'
 import { buscar } from '../dominio/sugestoes.ts'
@@ -27,7 +27,8 @@ import type { Frasco, ItemProtocolo, Substancia, UnidadeDose } from '../dominio/
 import { NumeroAnimado } from '../ui/celebracao.tsx'
 import { Cabecalho, Carregando, Chips, Dialogo, NaoAchou, Nota, Tela, Vazio } from '../ui/base.tsx'
 import { useVoltar } from '../ui/navegar.ts'
-import { IcoAlerta, IcoEstoque, IcoMais } from '../ui/icones.tsx'
+import { IcoAlerta, IcoMais } from '../ui/icones.tsx'
+import { DesenhoBancada, Regua, SeringaDesenho } from '../ui/desenhos.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { BotaoAcao, useAcao } from '../ui/acao.tsx'
 import { mensagemDeErro } from '../dados/repo.ts'
@@ -51,18 +52,18 @@ function cadaDose(base: Base, f: Frasco, item: ItemProtocolo): string | null {
   return `Cada dose de ${fmtNum(d.valor)} ${d.unidade} equivale a ${fmtUnidades(d.unidades)} na seringa`
 }
 
-function seloFrasco(f: Frasco, base: Base, hoje: string): { t: string; cls: string } {
+function seloFrasco(f: Frasco, base: Base, hoje: string): { t: string; cls: string; alerta?: boolean } {
   if (f.status === 'acabou') return { t: 'Acabou', cls: 'bg-sup2 text-fraco' }
   if (f.status === 'descartado') return { t: 'Descartado', cls: 'bg-sup2 text-fraco' }
   const lim = dataLimite(f)
   if (lim) {
     const d = difDias(hoje, lim)
-    if (d < 0) return { t: '⚠ Vencido', cls: 'bg-aviso-fundo text-aviso' }
-    if (d <= DIAS_AVISO_VENCIMENTO) return { t: `⚠ Vence em ${d} dia${d === 1 ? '' : 's'}`, cls: 'bg-aviso-fundo text-aviso' }
+    if (d < 0) return { t: 'Vencido', cls: 'bg-aviso-fundo text-aviso', alerta: true }
+    if (d <= DIAS_AVISO_VENCIMENTO) return { t: `Vence em ${d} dia${d === 1 ? '' : 's'}`, cls: 'bg-aviso-fundo text-aviso', alerta: true }
   }
   const s = saldoFrasco(f, base.aplicacoes)
-  if (s.dosesFeitas > 0 && f.mgTotal > 0 && s.mgRestante / f.mgTotal <= LIMITE_ACABANDO) return { t: '⚠ Acabando', cls: 'bg-aviso-fundo text-aviso' }
-  return f.status === 'fechado' ? { t: 'Lacrado', cls: 'bg-sup2 text-suave' } : { t: '● Em uso', cls: 'bg-sup2 text-suave' }
+  if (s.dosesFeitas > 0 && f.mgTotal > 0 && s.mgRestante / f.mgTotal <= LIMITE_ACABANDO) return { t: 'Acabando', cls: 'bg-aviso-fundo text-aviso', alerta: true }
+  return f.status === 'fechado' ? { t: 'Lacrado', cls: 'bg-sup2 text-suave' } : { t: 'Em uso', cls: 'bg-sup2 text-suave' }
 }
 
 export function Estoque() {
@@ -71,16 +72,16 @@ export function Estoque() {
   const [verAntigos, setVerAntigos] = useState(false)
   const cab = (
     <div className="flex items-center justify-between">
-      <h1 className="text-titulo leading-tight font-extrabold tracking-tight">Estoque</h1>
-      <Link to="/estoque/frasco/novo" className="flex h-11 items-center gap-1.5 rounded-[10px] bg-acento px-4 text-sm font-bold text-sobre-acento"><IcoMais tam={20} /> Frasco</Link>
+      <h1 className="text-titulo leading-tight font-semibold">Estoque</h1>
+      <Link to="/estoque/frasco/novo" className="btn-primario-curto"><IcoMais tam={20} /> Frasco</Link>
     </div>
   )
   if (!base) return <Tela>{cab}<Carregando /></Tela>
   if (!base.frascos.length) {
     return (
       <Tela>
-        <h1 className="text-titulo font-extrabold">Estoque</h1>
-        <Vazio icone={<IcoEstoque tam={30} />} titulo="Nenhum frasco cadastrado" texto="Cadastre seus frascos para ver quanto resta, quando vencem e as unidades na seringa. É opcional: o app funciona sem isso.">
+        <h1 className="text-titulo font-semibold">Estoque</h1>
+        <Vazio desenho={<DesenhoBancada />} titulo="Nenhum frasco cadastrado" texto="Cadastre seus frascos para ver quanto resta, quando vencem e as unidades na seringa. É opcional: o app funciona sem isso.">
           <Link to="/estoque/frasco/novo" className="btn-primario">Adicionar frasco</Link>
         </Vazio>
       </Tela>
@@ -110,36 +111,39 @@ export function Estoque() {
     const doses = item && emUsoF ? dosesRestantes(f, base.aplicacoes, item.doseValor, item.doseUnidade) : null
     const cada = item && emUsoF ? cadaDose(base, f, item) : null
     return (
-      <div key={f.id} style={{ '--i': k, ...(prot && emUsoF ? { borderLeftColor: corDe(prot).css } : {}) } as CSSProperties} className={`card anima-entrada flex flex-col gap-2.5 p-4 ${prot && emUsoF ? 'border-l-[5px]' : ''} ${selo.cls.includes('aviso') ? 'border-aviso' : ''}`}>
+      <div key={f.id} style={{ '--i': k, ...(prot && emUsoF ? { borderLeftColor: corDe(prot).css } : {}) } as CSSProperties} className={`card anima-entrada flex flex-col gap-3 p-4 ${prot && emUsoF ? 'border-l-4' : ''} ${selo.cls.includes('aviso') ? 'border-aviso' : ''}`}>
         <Link to={`/estoque/frasco/${f.id}`} className="flex items-start justify-between gap-2">
           <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-lg font-extrabold break-words">{nomeComMg(nome, f.mgTotal)}</span>
+            <span className="text-lg font-semibold break-words">{nomeComMg(nome, f.mgTotal)}</span>
             <span className="text-sm text-fraco">
               {f.status === 'reconstituido' && f.reconstituidoEm ? `Reconstituído em ${dataDiaMes(f.reconstituidoEm)} · ${fmtNum(f.diluenteMl ?? 0)} mL` : f.status === 'fechado' ? `Fechado${f.validade ? ` · validade ${dataBr(f.validade)}` : ''}` : f.lote ? `Lote ${f.lote}` : 'Fora de uso'}
             </span>
           </span>
-          <span className={`selo shrink-0 ${selo.cls}`}>{selo.t}</span>
+          <span className={`selo shrink-0 ${selo.cls}`}>{selo.alerta && <IcoAlerta tam={16} />}{selo.t}</span>
         </Link>
         {(f.status === 'reconstituido' || f.status === 'fechado') && (
           <>
             <div className="flex flex-col gap-1">
-              <span className="flex justify-between gap-2 text-sm font-semibold">
+              <span className="flex justify-between gap-2 text-sm font-medium">
                 <span>Restante</span>
                 <span>{s.mlRestante !== null ? <><NumeroAnimado valor={s.mlRestante} formatar={(v) => fmtNum(v, 2)} /> mL de {fmtNum(f.diluenteMl ?? 0)} mL</> : <><NumeroAnimado valor={s.mgRestante} formatar={(v) => fmtNum(v, 3)} /> mg de {fmtNum(f.mgTotal)} mg</>}</span>
               </span>
+              <div className="flex flex-col gap-1">
               <div className="h-2 overflow-hidden rounded-full bg-sup2" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(frac * 100)} aria-label="Saldo do frasco">
-                <div className={`barra-anima h-full w-full rounded-full ${frac <= LIMITE_ACABANDO ? 'bg-aviso' : 'bg-acento'}`} style={{ transform: `translateX(${(Math.max(0, Math.min(1, frac)) - 1) * 100}%)` }} />
+                <div className={`barra-anima h-full w-full rounded-full ${frac <= LIMITE_ACABANDO ? 'bg-aviso' : 'bg-suave'}`} style={{ transform: `translateX(${(Math.max(0, Math.min(1, frac)) - 1) * 100}%)` }} />
               </div>
-              {doses !== null && <span className="text-sm font-semibold text-suave">{doses === 0 ? 'Menos de 1 dose restante' : `≈ ${doses} dose${doses === 1 ? '' : 's'} restante${doses === 1 ? '' : 's'}`} com {fmtDose(item!.doseValor, item!.doseUnidade)}</span>}
+              <Regua />
+              </div>
+              {doses !== null && <span className="text-sm font-medium text-suave">{doses === 0 ? 'Menos de 1 dose restante' : `≈ ${doses} dose${doses === 1 ? '' : 's'} restante${doses === 1 ? '' : 's'}`} com {fmtDose(item!.doseValor, item!.doseUnidade)}</span>}
               {cada && <span className="text-sm text-suave">{cada}</span>}
               {s.naoContabilizadas > 0 && <span className="text-mini text-fraco">{s.naoContabilizadas} registro(s) sem conversão para mg (em UI, ou em mL/unidades antes de reconstituir) não entram na conta.</span>}
             </div>
             {prot && (
-              <Link to={`/protocolos/${prot.id}`} className="flex min-h-11 items-center gap-2 text-sm font-semibold text-suave">
-                <PontoCor protocolo={prot} /> Protocolo: <span className="text-texto">{nomeProtocolo(prot, base.itens, base.subs)}</span>
+              <Link to={`/protocolos/${prot.id}`} className="flex min-h-11 items-center gap-2 text-sm font-medium text-suave">
+                Protocolo: <span className="text-texto">{nomeProtocolo(prot, base.itens, base.subs)}</span>
               </Link>
             )}
-            <div className="flex flex-wrap justify-between gap-x-3 border-t border-sup2 pt-2.5 text-sm text-suave">
+            <div className="flex flex-wrap justify-between gap-x-3 border-t border-sup2 pt-3 text-sm text-suave">
               <span>{lim ? `Validade: ${dataDiaMes(lim)}` : 'Sem validade informada'}</span>
               {custo !== null && <span>Custo: {fmtReais(custo)} por dose</span>}
             </div>
@@ -160,10 +164,11 @@ export function Estoque() {
   return (
     <Tela>
       {cab}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="card flex flex-col gap-0.5 p-3"><span className="text-mini font-bold text-fraco">Em uso</span><b className="text-xl">{emUso.length}</b></div>
-        <div className={`card flex flex-col gap-0.5 p-3 ${vencendo ? 'border-aviso/60' : ''}`}><span className={`text-mini font-bold ${vencendo ? 'text-aviso-texto' : 'text-fraco'}`}>Vencem em {DIAS_AVISO_VENCIMENTO} dias</span><b className={`text-xl ${vencendo ? 'text-aviso' : ''}`}>{vencendo}</b></div>
-        <div className="card flex flex-col gap-0.5 p-3"><span className="text-mini font-bold text-fraco">Gasto no mês</span><b className="text-base">{fmtReais(gastoMes)}</b></div>
+      {/* Resumo: um cartão só, três números separados por linha fina (não três cartões iguais). */}
+      <div className="card grid grid-cols-3 divide-x divide-linha py-3">
+        <div className="flex flex-col gap-1 px-3"><span className="text-mini font-medium text-fraco">Em uso</span><b className="text-xl font-medium">{emUso.length}</b></div>
+        <div className="flex flex-col gap-1 px-3"><span className={`text-mini font-medium ${vencendo ? 'text-aviso-texto' : 'text-fraco'}`}>Vencem em {DIAS_AVISO_VENCIMENTO} dias</span><b className={`text-xl font-medium ${vencendo ? 'text-aviso' : ''}`}>{vencendo}</b></div>
+        <div className="flex flex-col gap-1 px-3"><span className="text-mini font-medium text-fraco">Gasto no mês</span><b className="text-base font-medium">{fmtReais(gastoMes)}</b></div>
       </div>
       {emUso.length === 0 && <p className="m-0 card p-4 text-sm text-suave">Nenhum frasco em uso.</p>}
       {emUso.sort((a, b) => (a.status === b.status ? 0 : a.status === 'reconstituido' ? -1 : 1)).map((f, k) => card(f, k))}
@@ -198,7 +203,7 @@ function EscolherSubstancia({ base, valor, aoEscolher }: { base: Base; valor?: s
   const q = texto.trim()
   return (
     <div className="flex flex-col gap-2">
-      <input type="search" className="campo font-semibold" aria-label="Buscar substância" placeholder="Buscar ou digitar o nome" value={texto} onChange={(e) => setTexto(e.target.value)} />
+      <input type="search" className="campo font-medium" aria-label="Buscar substância" placeholder="Buscar ou digitar o nome" value={texto} onChange={(e) => setTexto(e.target.value)} />
       <div role="listbox" aria-label="Substâncias" className="card flex flex-col overflow-hidden">
         {res.map((r) => {
           const nome = r.origem === 'minha' ? r.substancia.nome : r.sugestao.nome
@@ -208,7 +213,7 @@ function EscolherSubstancia({ base, valor, aoEscolher }: { base: Base; valor?: s
               type="button"
               role="option"
               aria-selected={false}
-              className="flex min-h-12 items-center justify-between border-t border-sup2 px-4 text-left font-bold first:border-t-0"
+              className="flex min-h-12 items-center justify-between border-t border-sup2 px-4 text-left font-medium first:border-t-0"
               onClick={() => void rodar(async () => {
                 const s = r.origem === 'minha' ? r.substancia : await repo.usarSugestao(r.sugestao)
                 aoEscolher(s)
@@ -216,22 +221,22 @@ function EscolherSubstancia({ base, valor, aoEscolher }: { base: Base; valor?: s
               })}
             >
               {nome}
-              <span className={`selo ${r.origem === 'minha' ? 'bg-sup2 text-suave' : 'bg-sup2 text-fraco'}`}>{r.origem === 'minha' ? 'Sua' : 'Lista'}</span>
+              {r.origem === 'minha' && <span className="selo bg-sup2 text-suave">Sua</span>}
             </button>
           )
         })}
         {q && (
           <>
-            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-sm font-bold text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q)); setAberto(false) })}>
-              <IcoMais tam={18} /> Criar “{q}”
+            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-sm font-medium text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q)); setAberto(false) })}>
+              <IcoMais tam={20} /> Criar “{q}”
             </button>
-            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-sm font-bold text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q, 'blend')); setAberto(false) })}>
-              <IcoMais tam={18} /> É um blend? Criar “{q}” como blend
+            <button type="button" className="flex min-h-12 items-center gap-2 border-t border-sup2 px-4 text-left text-sm font-medium text-acento" onClick={() => void rodar(async () => { aoEscolher(await repo.substanciaPorNome(q, 'blend')); setAberto(false) })}>
+              <IcoMais tam={20} /> É um blend? Criar “{q}” como blend
             </button>
           </>
         )}
       </div>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
     </div>
   )
 }
@@ -344,7 +349,7 @@ function FormFrascoTela() {
         Quantidade no frasco (mg){soma !== null ? ` · soma dos componentes: ${fmtNum(soma)} mg` : ''}
         <input className="campo" inputMode="decimal" value={mg} onChange={(e) => { setMg(e.target.value); setErro('') }} placeholder="Do rótulo" />
       </label>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-3">
         <label className="rotulo">Validade<input type="date" className="campo px-2" value={validade} onChange={(e) => setValidade(e.target.value)} /></label>
         <label className="rotulo">Comprado em<input type="date" className="campo px-2" value={compra} onChange={(e) => setCompra(e.target.value)} /></label>
         <label className="rotulo">Lote (opcional)<input className="campo" value={lote} onChange={(e) => setLote(e.target.value)} /></label>
@@ -356,7 +361,7 @@ function FormFrascoTela() {
         const cada = it ? cadaDose(base, existente, it) : null
         return cada ? <Nota>{cada}, com a água informada ({fmtNum(existente.diluenteMl ?? 0)} mL).</Nota> : null
       })()}
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
       <div className="mt-auto flex flex-col gap-2">
         {!existente ? (
           <>
@@ -375,7 +380,7 @@ function FormFrascoTela() {
             ) : (
               <button type="button" className="btn-neutro" disabled={acoes.ocupado} onClick={() => void acoes.rodar(async () => { await repo.statusFrasco(existente.id, existente.reconstituidoEm ? 'reconstituido' : 'fechado'); voltarOu('/estoque') })}>Voltar a usar este frasco</button>
             )}
-            {acoes.erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{acoes.erro}</p>}
+            {acoes.erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{acoes.erro}</p>}
             <button type="button" className="btn-texto text-erro" onClick={() => setApagar(true)}>Apagar frasco</button>
           </>
         )}
@@ -413,12 +418,13 @@ function FormFrascoTela() {
   )
 }
 
-function Conta({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe?: string }) {
+function Conta({ titulo, valor, detalhe, children }: { titulo: string; valor: string; detalhe?: string; children?: ReactNode }) {
   return (
     <div className="card flex flex-col gap-1 p-4">
-      <span className="text-xs font-bold tracking-wide text-fraco uppercase">{titulo}</span>
-      <b className="text-[26px] leading-tight">{valor}</b>
+      <span className="text-xs font-medium text-fraco">{titulo}</span>
+      <b className="text-2xl leading-tight font-medium">{valor}</b>
       {detalhe && <span className="text-sm text-suave">{detalhe}</span>}
+      {children}
     </div>
   )
 }
@@ -480,30 +486,30 @@ export function Reconstituicao() {
       <Cabecalho titulo="Reconstituição" sub={`${sub?.nome ?? ''} · ${blend ? 'blend' : `frasco de ${fmtNum(frasco.mgTotal)} mg`}`} voltar />
       {blend && (
         <section className="card flex flex-col p-4">
-          <span className="mb-2 text-xs font-bold tracking-wide text-fraco uppercase">No frasco, como você informou</span>
-          {comps.length === 0 && <span className="text-sm text-fraco">Nenhum componente informado. <Link to={`/novo/blend?id=${sub!.id}`} className="font-bold text-acento">Adicionar</Link></span>}
+          <span className="mb-2 text-xs font-medium text-fraco">No frasco, como você informou</span>
+          {comps.length === 0 && <span className="text-sm text-fraco">Nenhum componente informado. <Link to={`/novo/blend?id=${sub!.id}`} className="font-medium text-acento">Adicionar</Link></span>}
           {comps.map((c, i) => (
             <div key={i} className="flex min-h-9 items-center justify-between border-b border-sup2 text-sm">
               <span>{c.nome}</span><b>{c.quantidade !== undefined ? `${fmtNum(c.quantidade)} ${c.unidade ?? 'mg'}` : 'sem quantidade'}</b>
             </div>
           ))}
-          {soma !== null && <div className="flex min-h-9 items-center justify-between text-sm font-extrabold"><span>Total</span><span>{fmtNum(soma)} mg</span></div>}
+          {soma !== null && <div className="flex min-h-9 items-center justify-between text-sm font-semibold"><span>Total</span><span>{fmtNum(soma)} mg</span></div>}
           <span className="mt-1 text-mini text-fraco">Frasco cadastrado com {fmtNum(frasco.mgTotal)} mg.</span>
         </section>
       )}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-3">
         <label className="rotulo">Diluente (mL)<input className="campo" inputMode="decimal" value={dil} onChange={(e) => { setDil(e.target.value); setErro('') }} placeholder="Ex.: 2" /></label>
         <label className="rotulo">Misturado em<input type="date" className="campo px-2" value={quando} onChange={(e) => setQuando(e.target.value)} /></label>
       </div>
       <label className="rotulo">Usar até (você informa)<input type="date" className="campo" value={usarAte} onChange={(e) => setUsarAte(e.target.value)} /></label>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
 
       {!blend && conc !== null && <Conta titulo="Concentração" valor={`${fmtNum(conc)} mg/mL`} detalhe={`${fmtNum(frasco.mgTotal)} mg ÷ ${fmtNum(dilN!)} mL`} />}
 
       {itensSub.length > 0 ? (
         <label className="rotulo">
           Dose do protocolo
-          <select className="campo text-sm font-semibold" value={itemId} onChange={(e) => setItemId(e.target.value)}>
+          <select className="campo text-sm font-medium" value={itemId} onChange={(e) => setItemId(e.target.value)}>
             {itensSub.map((i) => {
               const p = base.protocolos.find((x) => x.id === i.protocoloId)!
               return <option key={i.id} value={i.id}>{nomeProtocolo(p, base.itens, base.subs)} · {fmtDose(i.doseValor, i.doseUnidade)}</option>
@@ -530,7 +536,9 @@ export function Reconstituicao() {
               ? `${fmtNum(doseMcg * 1000)} mcg ÷ ${fmtNum(conc * 1000)} mcg/mL = ${fmtNum(vol)} mL · seringa de ${UNIDADES_POR_ML} unidades por mL`
               : `= ${fmtNum(vol)} mL · seringa de ${UNIDADES_POR_ML} unidades por mL`
           }
-        />
+        >
+          <SeringaDesenho unidades={unidadesNaSeringa(vol)} />
+        </Conta>
       )}
       {dose && vol === null && (
         <Nota tipo="aviso">

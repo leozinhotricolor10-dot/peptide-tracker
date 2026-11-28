@@ -54,9 +54,9 @@ function Faixas() {
   return (
     <>
       {!online && (
-        <div role="status" className="sticky top-0 z-30 flex items-center gap-2.5 bg-sup2 px-4 py-2.5 pt-[max(10px,env(safe-area-inset-top))] text-sm">
+        <div role="status" className="sticky top-0 z-30 flex items-center gap-2 bg-sup2 px-4 py-3 pt-[max(12px,env(safe-area-inset-top))] text-sm">
           <IcoNuvemOff tam={20} className="shrink-0 text-fraco" />
-          <span><b>Sem internet.</b> Tudo continua funcionando e salvo no aparelho.</span>
+          <span><b>Sem internet</b> · tudo continua funcionando e salvo no aparelho</span>
         </div>
       )}
       {sw.disponivel && !depois && (
@@ -64,7 +64,7 @@ function Faixas() {
           <div className="flex w-full max-w-[448px] items-center gap-2 rounded-xl border border-linha bg-sup p-2 pl-4">
             <span className="flex flex-1 flex-col"><b className="text-sm">Nova versão disponível</b><span className="text-sm text-fraco">Seus dados não mudam.</span></span>
             <button type="button" className="btn-texto text-suave" onClick={() => setDepois(true)}>Depois</button>
-            <button type="button" className="h-11 rounded-[10px] bg-acento px-4 font-bold text-sobre-acento" onClick={sw.atualizar}>Atualizar</button>
+            <button type="button" className="btn-primario-curto" onClick={sw.atualizar}>Atualizar</button>
           </div>
         </div>
       )}
@@ -128,8 +128,8 @@ function Abas() {
           <NavLink key={to} to={to} className={({ isActive }) => `relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-xl ${isActive ? 'text-acento' : 'text-fraco'}`}>
             {({ isActive }) => (
               <>
-                <I tam={24} />
-                <span className={`text-mini ${isActive ? 'font-bold' : 'font-semibold'}`}>{t}</span>
+                <I tam={20} />
+                <span className={`text-mini ${isActive ? 'font-medium' : 'font-medium'}`}>{t}</span>
               </>
             )}
           </NavLink>
@@ -185,7 +185,7 @@ export function ErroGeral(): ReactNode {
   const banco = erro instanceof Error && /IndexedDB|Database|Dexie|MissingAPI|InvalidState|Open/i.test(`${erro.name} ${erro.message}`)
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col justify-center gap-4 px-5 text-center">
-      <h1 className="text-2xl font-extrabold">Algo deu errado</h1>
+      <h1 className="text-2xl font-semibold">Algo deu errado</h1>
       <p className="m-0 text-sm leading-relaxed text-suave">
         {banco
           ? 'O navegador não deixou o app abrir o armazenamento deste aparelho. Isso acontece em janela anônima ou com dados do site bloqueados. Abra numa janela normal.'
@@ -214,7 +214,7 @@ function FalhaSilenciosa() {
 export function NaoEncontrada(): ReactNode {
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center justify-center gap-4 px-5 text-center">
-      <h1 className="text-2xl font-extrabold">Página não encontrada</h1>
+      <h1 className="text-2xl font-semibold">Página não encontrada</h1>
       <Link to="/hoje" className="btn-primario">Ir para Hoje</Link>
     </div>
   )

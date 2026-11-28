@@ -160,17 +160,17 @@ function Aviso({ t, saindo, fechar, mostrar }: { t: Atual; saindo: boolean; fech
       className={`aviso-anima pointer-events-auto relative flex w-full max-w-[448px] items-center gap-3 overflow-hidden rounded-2xl border bg-sup2 py-2 pr-2 pl-3 select-none ${t.tipo === 'erro' ? 'border-aviso/60' : t.festa ? 'border-ok/50' : 'border-borda/60'}`}
     >
       {icone}
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-1.5">
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
         <b className="text-sm text-texto">{t.titulo}</b>
         {t.texto && <span className="text-sm break-words text-fraco">{t.texto}</span>}
       </span>
       {t.desfazer && (
-        <button type="button" className="h-11 shrink-0 rounded-xl border border-borda bg-sup px-4 text-sm font-extrabold text-acento" onClick={() => void desfazer()}>
+        <button type="button" className="h-11 shrink-0 rounded-xl border border-borda bg-sup px-4 text-sm font-semibold text-acento" onClick={() => void desfazer()}>
           Desfazer
         </button>
       )}
       <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[3px] bg-linha">
-        <span className="tempo-anima block h-full w-full bg-acento/80" style={{ animationDuration: `${duracao}ms` }} />
+        <span className="tempo-anima block h-full w-full bg-borda" style={{ animationDuration: `${duracao}ms` }} />
       </span>
     </div>
   )

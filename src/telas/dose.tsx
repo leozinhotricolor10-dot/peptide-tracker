@@ -13,6 +13,7 @@ import { escolherFrasco } from '../dominio/estoque.ts'
 import { nomeComMg, nomeSubstancia } from '../dominio/nomes.ts'
 import { Chips, Dialogo, Nota, Sheet } from '../ui/base.tsx'
 import { IcoAlerta } from '../ui/icones.tsx'
+import { SeringaDesenho } from '../ui/desenhos.tsx'
 import { useToast } from '../ui/toast.tsx'
 import { BotaoAcao } from '../ui/acao.tsx'
 import { mensagemDeErro, novoId } from '../dados/repo.ts'
@@ -239,14 +240,14 @@ function Registrar({
       <Sheet titulo={titulo} sub={sub2} aoFechar={fechar}>
         {blend && <Nota>Blend cadastrado por você. Os componentes ficam no cadastro do blend.</Nota>}
         {/* Um embaixo do outro: lado a lado, o campo de data e hora espremia a dose (o número sumia em 390 px). */}
-        <div className="grid grid-cols-1 gap-2.5">
+        <div className="grid grid-cols-1 gap-3">
           <label className="rotulo">
             Horário
             <input type="datetime-local" className="campo" value={quando} onChange={(e) => setQuando(e.target.value)} />
           </label>
           <div className="rotulo">
             <label htmlFor="dose-valor">{blend ? 'Dose do blend' : 'Dose aplicada'}</label>
-            <div className="flex gap-1.5">
+            <div className="flex gap-2">
               <input id="dose-valor" inputMode="decimal" className="campo min-w-0" value={doseTxt} onChange={(e) => { setDoseTxt(e.target.value); setErro('') }} />
               <select aria-label="Unidade" className="campo w-auto shrink-0 px-2 text-sm" value={unidade} onChange={(e) => setUnidade(e.target.value as UnidadeDose)}>
                 {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
@@ -254,10 +255,10 @@ function Registrar({
             </div>
           </div>
         </div>
-        {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+        {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
         {du && <Seringa d={du} troca={troca} atalho={atalhoDiluicao} />}
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-          <legend className="mb-2 text-sm font-bold text-fraco">Local da aplicação <span className="font-medium">(opcional)</span></legend>
+          <legend className="mb-2 text-sm font-medium text-fraco">Local da aplicação <span className="font-medium">(opcional)</span></legend>
           <Chips rotulo="Local da aplicação" opcoes={LOCAIS.map((l) => ({ v: l, t: l }))} valor={local} aoMudar={(v) => setLocal(local === v ? undefined : v)} />
           {ultimo?.local && (
             <span className="text-sm text-fraco">
@@ -267,16 +268,16 @@ function Registrar({
         </fieldset>
         <label className="rotulo">
           Frasco usado
-          <select className="campo text-sm font-semibold" value={frascoId} onChange={(e) => { setFrascoId(e.target.value); setVencidoOk(false) }}>
+          <select className="campo text-sm font-medium" value={frascoId} onChange={(e) => { setFrascoId(e.target.value); setVencidoOk(false) }}>
             <option value="">Sem frasco ligado</option>
             {frascos.map((f) => <option key={f.id} value={f.id}>{descreverFrasco(f, base)}</option>)}
           </select>
         </label>
-        {vencido && <p className="m-0 flex items-center gap-2 text-sm font-semibold text-aviso"><IcoAlerta tam={16} /> Este frasco passou da data informada ({dataBr(limite!)}).</p>}
+        {vencido && <p className="m-0 flex items-center gap-2 text-sm font-medium text-aviso"><IcoAlerta tam={16} /> Este frasco passou da data informada ({dataBr(limite!)}).</p>}
         {!edicao && <button type="button" className="link -mt-2 self-start" onClick={frascoAcabou}>{frascoSel ? 'Frasco acabou?' : frascos.length ? 'Nenhum frasco com saldo?' : 'Cadastrar frasco'}</button>}
         <label className="rotulo">
           <span>Observação <span className="font-medium">(opcional)</span></span>
-          <textarea rows={2} className="campo h-auto py-2.5 text-sm font-medium" placeholder="Como foi, algo a lembrar" value={obs} onChange={(e) => setObs(e.target.value)} />
+          <textarea rows={2} className="campo h-auto py-3 text-sm font-medium" placeholder="Como foi, algo a lembrar" value={obs} onChange={(e) => setObs(e.target.value)} />
         </label>
         {blend && <p className="m-0 text-sm text-fraco">Fica registrada a dose do blend como você informou. O app não divide por componente.</p>}
         <button type="button" className="btn-primario" onClick={() => salvar()}>Salvar registro</button>
@@ -317,12 +318,13 @@ function Seringa({ d, troca, atalho }: { d: DoseUn; troca: MudancaUnidades | nul
   }
   const doseTxt = fmtDose(d.valor, d.unidade)
   return (
-    <div aria-live="polite" data-seringa="" className="flex flex-col gap-1.5 rounded-xl border border-borda bg-sup2 px-4 py-3">
-      <span className="text-sm font-bold text-fraco">{doseTxt} {equivale(d.valor)} a</span>
-      <b className="text-[30px] leading-tight font-extrabold text-acento">{fmtUnidadesExtenso(d.unidades)}</b>
+    <div aria-live="polite" data-seringa="" className="flex flex-col gap-2 rounded-xl border border-borda bg-sup2 px-4 py-3">
+      <span className="text-sm font-medium text-fraco">{doseTxt} {equivale(d.valor)} a</span>
+      <b className="text-figura leading-tight font-medium">{fmtUnidadesExtenso(d.unidades)}</b>
       <span className="text-sm leading-snug text-suave">na seringa ({fmtNum(d.ml)} mL) · seringa de insulina de {UNIDADES_POR_ML} unidades por mL</span>
+      <SeringaDesenho unidades={d.unidades} />
       {troca && (
-        <p className="caixa-aviso m-0 px-3 py-2 text-sm font-bold">
+        <p className="caixa-aviso m-0 px-3 py-2 text-sm font-medium">
           {troca.frascoNovo ? 'Frasco novo' : 'A diluição do frasco mudou'}: agora a mesma dose equivale a {fmtUnidadesExtenso(troca.agora)} (antes {fmtNum(troca.antes)}).
         </p>
       )}
@@ -333,10 +335,10 @@ function Seringa({ d, troca, atalho }: { d: DoseUn; troca: MudancaUnidades | nul
         </p>
       )}
       {d.abaixoDaMenorMarca && (
-        <p className="caixa-aviso m-0 px-3 py-2 text-sm font-semibold">Menos de meia unidade: a seringa de insulina não tem marca para isso. Confira os números.</p>
+        <p className="caixa-aviso m-0 px-3 py-2 text-sm font-medium">Menos de meia unidade: a seringa de insulina não tem marca para isso. Confira os números.</p>
       )}
       {d.acimaDaSeringa && (
-        <p className="caixa-aviso m-0 px-3 py-2 text-sm font-semibold">Passa de {UNIDADES_POR_ML} unidades: não cabe de uma vez numa seringa de 1 mL. Confira os números.</p>
+        <p className="caixa-aviso m-0 px-3 py-2 text-sm font-medium">Passa de {UNIDADES_POR_ML} unidades: não cabe de uma vez numa seringa de 1 mL. Confira os números.</p>
       )}
     </div>
   )
@@ -392,7 +394,7 @@ function Atrasada({ base, slot, fechar, trocar }: { base: Base; slot: Slot; fech
   return (
     <Sheet titulo="Ainda não registrada" sub={`${nome} · prevista ${slot.dia === hojeStr() ? '' : diaRelativo(slot.dia, hojeStr()).toLowerCase() + ' '}às ${slot.horario}`} aoFechar={fechar}>
       <span className="text-sm text-suave">Dose cadastrada: <b className="text-texto">{textoDoItem(base, slot.itemId)}</b></span>
-      <span className="text-sm font-bold">O que aconteceu com esta dose?</span>
+      <span className="text-sm font-medium">O que aconteceu com esta dose?</span>
       <button type="button" className="btn-primario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot })}>Fiz agora</button>
       <button type="button" className="btn-secundario" onClick={() => trocar({ tipo: 'registrar', itemId: slot.itemId, slot, outroHorario: true })}>Fiz, mas em outro horário</button>
       <button type="button" className="btn-neutro" onClick={() => trocar({ tipo: 'pular', slot })}>Não fiz</button>
@@ -412,7 +414,7 @@ function Pular({ base, slot, fechar, trocar }: { base: Base; slot: Slot; fechar:
         {nome} · {slot.horario}. Fica no histórico como “não feita” e o lembrete desta dose para.
       </p>
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-sm font-bold text-fraco">Motivo (opcional)</legend>
+        <legend className="mb-2 text-sm font-medium text-fraco">Motivo (opcional)</legend>
         <Chips rotulo="Motivo" opcoes={MOTIVOS.map((m) => ({ v: m, t: m }))} valor={motivo} aoMudar={(v) => setMotivo(motivo === v ? undefined : v)} />
       </fieldset>
       <BotaoAcao

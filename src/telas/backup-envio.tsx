@@ -22,7 +22,7 @@ export const TEXTO_INSTALAR_IOS = 'Este app ainda não está na Tela de Início.
 export function AvisoRisco({ compacto }: { compacto?: boolean }) {
   const inst = useInstalacao()
   return (
-    <div className={`flex flex-col gap-1.5 text-sm leading-relaxed ${compacto ? 'text-aviso-texto' : 'caixa-aviso px-4 py-3 font-semibold'}`}>
+    <div className={`flex flex-col gap-2 text-sm leading-relaxed ${compacto ? 'text-aviso-texto' : 'caixa-aviso px-4 py-3 font-medium'}`}>
       <p className="m-0">{TEXTO_RISCO}</p>
       {inst.ios && <p className="m-0">{TEXTO_RISCO_IOS}</p>}
       {inst.ios && !inst.instalado && (
@@ -47,14 +47,14 @@ export function EstadoDoArmazenamento() {
   if (estado === null) return null
   if (estado === 'protegido') {
     return (
-      <span className="flex items-start gap-2 text-sm font-semibold text-ok">
-        <IcoCheck tam={18} className="mt-0.5 shrink-0" /> Armazenamento protegido: o navegador não apaga os dados do app para liberar espaço.
+      <span className="flex items-start gap-2 text-sm font-medium text-ok">
+        <IcoCheck tam={20} className="mt-0.5 shrink-0" /> Armazenamento protegido: o navegador não apaga os dados do app para liberar espaço.
       </span>
     )
   }
   return (
-    <span className="flex items-start gap-2 text-sm font-semibold text-aviso-texto">
-      <IcoAlerta tam={18} className="mt-0.5 shrink-0 text-aviso" />
+    <span className="flex items-start gap-2 text-sm font-medium text-aviso-texto">
+      <IcoAlerta tam={20} className="mt-0.5 shrink-0 text-aviso" />
       {estado === 'nao-protegido'
         ? 'Não protegido: se faltar espaço, o navegador pode apagar os dados do app. Instalar o app e fazer backup ajudam.'
         : 'Este navegador não informa se os dados do app ficam protegidos. O backup é a garantia.'}

@@ -48,7 +48,7 @@ const PASSOS = 2
 
 function Barra({ n }: { n: number }) {
   return (
-    <div aria-hidden="true" className="flex gap-1.5">
+    <div aria-hidden="true" className="flex gap-2">
       {Array.from({ length: PASSOS }, (_, k) => k + 1).map((k) => <span key={k} className={`h-1.5 flex-1 rounded-full ${k <= n ? 'bg-acento' : 'bg-sup2'}`} />)}
     </div>
   )
@@ -66,10 +66,10 @@ function Etapa({ n, titulo, children, rodape, aoVoltar, fecharEmVezDeVoltar }: {
         <button type="button" className="icone-btn -ml-2.5" aria-label={fecharEmVezDeVoltar ? 'Cancelar' : 'Voltar'} onClick={aoVoltar ?? (() => voltarOu('/hoje'))}>
           {fecharEmVezDeVoltar ? <IcoFechar /> : <IcoVoltar />}
         </button>
-        {n && <span className="text-xs font-bold tracking-wide text-acento uppercase">Passo {n} de {PASSOS}</span>}
+        {n && <span className="text-xs font-medium text-fraco">Passo {n} de {PASSOS}</span>}
       </div>
       {n && <Barra n={n} />}
-      <h1 className="text-[28px] leading-tight font-extrabold tracking-tight">{titulo}</h1>
+      <h1 className="text-2xl leading-tight font-semibold">{titulo}</h1>
       {children}
       <div className="mt-auto flex flex-col gap-2 pt-2">{rodape}</div>
     </Tela>
@@ -223,17 +223,17 @@ export function PassoOQue() {
           </>
         }
       >
-        <h2 className="text-lg font-bold">O que você vai usar?</h2>
+        <h2 className="text-xl font-semibold">O que você vai usar?</h2>
         <label className="relative flex items-center">
           <span className="sr-only">Buscar ou digitar o nome</span>
-          <IcoBusca tam={20} className="pointer-events-none absolute left-3.5 text-fraco" />
+          <IcoBusca tam={20} className="pointer-events-none absolute left-4 text-fraco" />
           <input
             type="search"
             autoComplete="off"
             placeholder="Buscar ou digitar o nome"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
-            className="campo h-[52px] pl-11 font-semibold"
+            className="campo h-[52px] pl-11 font-medium"
           />
         </label>
 
@@ -259,27 +259,27 @@ export function PassoOQue() {
                   role="option"
                   aria-selected={sel}
                   onClick={() => void escolher(res)}
-                  className={`flex min-h-[52px] items-center justify-between gap-2.5 border-t border-sup2 px-4 text-left first:border-t-0 ${sel ? 'bg-selecionado text-acento' : ''}`}
+                  className={`flex min-h-[52px] items-center justify-between gap-2 border-t border-sup2 px-4 text-left first:border-t-0 ${sel ? 'bg-selecionado text-acento' : ''}`}
                 >
-                  <span className="text-base font-bold break-words">{nome}</span>
-                  <span className="flex shrink-0 gap-1.5">
+                  <span className="text-base font-medium break-words">{nome}</span>
+                  <span className="flex shrink-0 gap-2">
                     {tipo === 'blend' && <span className="selo border border-borda text-suave">Blend</span>}
-                    <span className={`selo ${res.origem === 'minha' ? 'bg-sup2 text-suave' : 'bg-sup2 text-fraco'}`}>{res.origem === 'minha' ? 'Sua' : 'Lista'}</span>
+                    {res.origem === 'minha' && <span className="selo bg-sup2 text-suave">Sua</span>}
                   </span>
                 </button>
               )
             })}
             {q && !existeNomeExato(q, base.substancias) && (
-              <button type="button" onClick={() => ir(`/novo/criar?nome=${encodeURIComponent(q)}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
+              <button type="button" onClick={() => ir(`/novo/criar?nome=${encodeURIComponent(q)}`)} className="flex min-h-[52px] items-center gap-2 border-t border-sup2 px-4 text-left text-sm font-medium text-acento">
                 <IcoMais tam={20} /> Não achei: criar “{q}”
               </button>
             )}
             {!q && (
-              <button type="button" onClick={() => ir('/novo/criar')} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
+              <button type="button" onClick={() => ir('/novo/criar')} className="flex min-h-[52px] items-center gap-2 border-t border-sup2 px-4 text-left text-sm font-medium text-acento">
                 <IcoMais tam={20} /> Criar substância do zero
               </button>
             )}
-            <button type="button" onClick={() => ir(`/novo/blend?usar=1${q ? `&nome=${encodeURIComponent(q)}` : ''}`)} className="flex min-h-[52px] items-center gap-2.5 border-t border-sup2 px-4 text-left text-sm font-bold text-acento">
+            <button type="button" onClick={() => ir(`/novo/blend?usar=1${q ? `&nome=${encodeURIComponent(q)}` : ''}`)} className="flex min-h-[52px] items-center gap-2 border-t border-sup2 px-4 text-left text-sm font-medium text-acento">
               <IcoMais tam={20} /> Criar blend (vários em um frasco)
             </button>
           </div>
@@ -314,8 +314,8 @@ export function PassoOQue() {
     >
       <div className="card flex items-center justify-between gap-3 py-1 pr-1 pl-4">
         <span className="flex min-w-0 flex-col">
-          <span className="text-sm font-bold text-fraco">Substância</span>
-          <b className="text-lg break-words text-acento">{sub.nome}</b>
+          <span className="text-sm font-medium text-fraco">Substância</span>
+          <b className="text-lg break-words">{sub.nome}</b>
         </span>
         <button type="button" className="btn-texto shrink-0" onClick={() => { setTrocando(true); setErro('') }}>Trocar</button>
       </div>
@@ -332,17 +332,17 @@ export function PassoOQue() {
         />
       </label>
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-sm font-bold text-fraco">Unidade</legend>
+        <legend className="mb-2 text-sm font-medium text-fraco">Unidade</legend>
         <Chips rotulo="Unidade" opcoes={UNIDADES.map((u) => ({ v: u, t: u }))} valor={atual.doseUnidade} aoMudar={(v: UnidadeDose) => { rascunho.mudarItem(() => ({ doseUnidade: v, unidadeAuto: false })); setErro('') }} />
       </fieldset>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
       <Nota tipo="aviso">Confira a unidade: 1 mg = 1.000 mcg. A dose é a que você definiu.</Nota>
       {blend && <Nota>Em blend, a dose é do frasco todo, em mL ou unidades.</Nota>}
       <CalculadoraSeringa it={atual} blend={blend} frascoLigado={frascoLigado} ligadoUsavel={ligadoUsavel} somaBlendMg={blend ? somaComponentesMg(sub.componentes) : null} />
       {!novoFrasco && frascos.length > 0 && (
         <label className="rotulo text-sm">
           Frasco do Estoque
-          <select className="campo text-sm font-semibold" value={atual.frascoId ?? ''} onChange={(e) => rascunho.mudarItem(() => ({ frascoId: e.target.value || undefined }))}>
+          <select className="campo text-sm font-medium" value={atual.frascoId ?? ''} onChange={(e) => rascunho.mudarItem(() => ({ frascoId: e.target.value || undefined }))}>
             <option value="">Automático (o mais antigo com saldo)</option>
             {frascos.map((f) => <option key={f.id} value={f.id}>{fmtNum(f.mgTotal)} mg · {f.status === 'reconstituido' ? 'reconstituído' : 'fechado'}{f.validade ? ` · val. ${dataCurta(f.validade)}` : ''}</option>)}
           </select>
@@ -428,11 +428,11 @@ export function CriarSubstancia() {
         Nome
         <input className="campo" value={nome} autoFocus onChange={(e) => { setNome(e.target.value); setErro('') }} placeholder="Como você chama" />
       </label>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
       {!editando && (
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-          <legend className="mb-2 text-sm font-bold text-fraco">Tipo</legend>
-          <div className="grid grid-cols-2 gap-2.5">
+          <legend className="mb-2 text-sm font-medium text-fraco">Tipo</legend>
+          <div className="grid grid-cols-2 gap-3">
             {([['simples', 'Simples', '1 substância'], ['blend', 'Blend', 'vários no mesmo frasco']] as const).map(([v, t, d]) => (
               <button key={v} type="button" aria-pressed={tipo === v} onClick={() => setTipo(v)} className={`flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-xl border ${tipo === v ? 'border-2 border-acento bg-selecionado text-acento' : 'border-borda bg-sup'}`}>
                 <b className="text-base">{t}</b>
@@ -521,15 +521,15 @@ export function EditorBlend() {
         Nome do blend (da lista ou como você chama)
         <input className="campo" value={nome} onChange={(e) => { setNome(e.target.value); setErro('') }} placeholder="Ex.: Blend pele 70 mg" />
       </label>
-      {erro && <p role="alert" className="m-0 text-sm font-bold text-erro">{erro}</p>}
+      {erro && <p role="alert" className="m-0 text-sm font-medium text-erro">{erro}</p>}
       <p className="m-0 text-sm leading-relaxed text-fraco">Este nome aparece em todas as telas e vira o nome do protocolo se você não der outro. Componentes são opcionais: só aparecem aqui e na reconstituição.</p>
-      <section className="flex flex-col gap-2.5">
-        <h2 className="text-xl font-bold">Componentes no mesmo frasco</h2>
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold">Componentes no mesmo frasco</h2>
         {comps.map((c, i) => (
           <div key={c.k} className="card flex flex-col gap-2 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-fraco">Componente {i + 1}</span>
-              <button type="button" className="icone-btn -mr-2" aria-label={`Remover componente ${i + 1}`} onClick={() => setComps(comps.filter((x) => x.k !== c.k))}><IcoX tam={18} /></button>
+              <span className="text-sm font-medium text-fraco">Componente {i + 1}</span>
+              <button type="button" className="icone-btn -mr-2" aria-label={`Remover componente ${i + 1}`} onClick={() => setComps(comps.filter((x) => x.k !== c.k))}><IcoX tam={20} /></button>
             </div>
             <input className="campo" aria-label={`Nome do componente ${i + 1}`} placeholder="Nome" value={c.nome} onChange={(e) => setComps(comps.map((x) => (x.k === c.k ? { ...x, nome: e.target.value } : x)))} />
             <div className="flex gap-2">
@@ -545,7 +545,7 @@ export function EditorBlend() {
           <IcoMais tam={20} /> Adicionar componente
         </button>
         {componentes.length === 1 && <p className="m-0 text-sm text-aviso">Blend costuma ter 2 ou mais componentes. Se for só 1, crie como substância simples.</p>}
-        {soma !== null && <p className="m-0 text-sm font-semibold text-suave">Soma informada: {fmtNum(soma)} mg por frasco</p>}
+        {soma !== null && <p className="m-0 text-sm font-medium text-suave">Soma informada: {fmtNum(soma)} mg por frasco</p>}
       </section>
       <Nota>Quantidades são opcionais e vêm do rótulo. O app não calcula dose de cada componente.</Nota>
     </Etapa>
@@ -657,11 +657,11 @@ export function PassoQuando() {
       rodape={
         <>
           {erros.length > 0 && (
-            <div role="alert" className="flex flex-col gap-1 rounded-xl bg-sup2 p-3 text-sm font-bold text-erro">
+            <div role="alert" className="flex flex-col gap-1 rounded-xl bg-sup2 p-3 text-sm font-medium text-erro">
               {erros.map((e) => <span key={e}>{e}</span>)}
             </div>
           )}
-          <button type="button" data-salvar="" className="btn-primario h-auto min-h-[54px] py-2.5 text-center leading-snug" onClick={salvar}>
+          <button type="button" data-salvar="" className="btn-primario h-auto min-h-[56px] py-3 text-center leading-snug" onClick={salvar}>
             {r.modo === 'editar' ? 'Salvar alteração' : 'Salvar'} · {resumoDoSalvar(r)}
           </button>
         </>
@@ -672,13 +672,13 @@ export function PassoQuando() {
           <b className="text-base break-words">{subNome(it)} · {doseDaLinha(it)}</b>
           <span className="text-sm text-fraco">Substância e dose</span>
         </span>
-        <span className="flex shrink-0 items-center text-sm font-bold text-acento">Corrigir<IcoSeta tam={16} /></span>
+        <span className="flex shrink-0 items-center text-sm font-medium text-acento">Corrigir<IcoSeta tam={16} /></span>
       </button>
 
       <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-        <legend className="mb-2 text-sm font-bold text-fraco">Frequência</legend>
+        <legend className="mb-2 text-sm font-medium text-fraco">Frequência</legend>
         {opc.map((o) => (
-          <label key={o.v} className={`card flex min-h-[52px] items-center gap-3 px-4 text-base font-semibold ${it.freqTipo === o.v ? 'border-acento' : ''}`}>
+          <label key={o.v} className={`card flex min-h-[52px] items-center gap-3 px-4 text-base font-medium ${it.freqTipo === o.v ? 'border-acento' : ''}`}>
             <input type="radio" name="freq" className="h-5 w-5" checked={it.freqTipo === o.v} onChange={() => { rascunho.mudarItem(() => ({ freqTipo: o.v })); setErros([]) }} />
             {o.t}
             {o.v === 'cadaN' && it.freqTipo === 'cadaN' && (
@@ -701,7 +701,7 @@ export function PassoQuando() {
         </div>
       )}
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-bold text-fraco">{it.horarios.length > 1 ? 'Horários' : 'Horário'}</h2>
+        <h2 className="text-sm font-medium text-fraco">{it.horarios.length > 1 ? 'Horários' : 'Horário'}</h2>
         {it.horarios.map((h, k) => (
           <div key={k} className="flex gap-2">
             <input
@@ -713,12 +713,12 @@ export function PassoQuando() {
             />
             {it.horarios.length > 1 && (
               <button type="button" className="icone-btn shrink-0 border border-linha" aria-label={`Remover horário ${k + 1}`} onClick={() => rascunho.mudarItem((i) => ({ horarios: i.horarios.filter((_, j) => j !== k) }))}>
-                <IcoX tam={18} />
+                <IcoX tam={20} />
               </button>
             )}
           </div>
         ))}
-        <button type="button" className="link gap-2 self-start text-sm" onClick={novoHorario}><IcoMais tam={18} /> {it.horarios.length ? 'Outro horário' : 'Adicionar horário'}</button>
+        <button type="button" className="link gap-2 self-start text-sm" onClick={novoHorario}><IcoMais tam={20} /> {it.horarios.length ? 'Outro horário' : 'Adicionar horário'}</button>
       </section>
 
       <button
@@ -732,18 +732,18 @@ export function PassoQuando() {
           <b className="text-base">Mais opções</b>
           <span className="text-sm text-fraco">Início, fim, ciclo, nome, cor e outras substâncias</span>
         </span>
-        <IcoSeta tam={18} className={`shrink-0 text-acento transition-transform ${aberto ? 'rotate-90' : ''}`} />
+        <IcoSeta tam={20} className={`shrink-0 text-acento transition-transform ${aberto ? 'rotate-90' : ''}`} />
       </button>
       {aberto && (
         <div id="mais-opcoes" className="anima-entrada flex flex-col gap-5">
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-3">
             <label className="rotulo text-sm text-texto">
               Começa em
               <input type="date" className="campo px-2" value={r.inicio} onChange={(e) => rascunho.mudar(() => ({ inicio: e.target.value }))} />
             </label>
             <div className="rotulo text-sm text-texto">
               <span>Duração</span>
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 {r.duracaoTipo !== 'sem-fim' && (
                   <input aria-label="Duração" inputMode="numeric" className="campo w-14 shrink-0 px-2 text-center" value={r.duracaoValor} onChange={(e) => rascunho.mudar(() => ({ duracaoValor: e.target.value }))} />
                 )}
@@ -764,7 +764,7 @@ export function PassoQuando() {
               <input type="checkbox" role="switch" className="h-6 w-6" checked={r.ciclo} onChange={(e) => rascunho.mudar(() => ({ ciclo: e.target.checked }))} />
             </label>
             {r.ciclo && (
-              <div className="flex items-center gap-2 text-sm font-semibold text-suave">
+              <div className="flex items-center gap-2 text-sm font-medium text-suave">
                 <input aria-label="Dias com dose" inputMode="numeric" className="campo h-11 w-16 text-center" value={r.diasOn} onChange={(e) => rascunho.mudar(() => ({ diasOn: e.target.value }))} />
                 dias sim,
                 <input aria-label="Dias de pausa" inputMode="numeric" className="campo h-11 w-16 text-center" value={r.diasOff} onChange={(e) => rascunho.mudar(() => ({ diasOff: e.target.value }))} />
@@ -781,11 +781,11 @@ export function PassoQuando() {
           </label>
           <SeletorCor valor={corEscolhida} aoMudar={(cor) => rascunho.mudar(() => ({ cor }))} />
           <section aria-labelledby="t-linhas" className="flex flex-col gap-2">
-            <h2 id="t-linhas" className="text-sm font-bold text-texto">Substâncias deste protocolo</h2>
+            <h2 id="t-linhas" className="text-sm font-medium text-texto">Substâncias deste protocolo</h2>
             <div className="card flex flex-col overflow-hidden">
               {r.itens.map((i, k) => (
                 <div key={i.id} className="flex min-h-[52px] flex-wrap items-center gap-x-1 border-t border-sup2 py-1 pr-1 pl-4 first:border-t-0">
-                  <span className="min-w-0 flex-1 text-sm font-semibold break-words">{subNome(i) || 'Sem substância'} · {doseDaLinha(i)} · {descreverFrequencia(frequenciaDe(i), i.horarios)}</span>
+                  <span className="min-w-0 flex-1 text-sm font-medium break-words">{subNome(i) || 'Sem substância'} · {doseDaLinha(i)} · {descreverFrequencia(frequenciaDe(i), i.horarios)}</span>
                   <button type="button" className="link px-2 text-sm" onClick={() => editarLinha(k)}>Editar</button>
                   {r.itens.length > 1 && (
                     <button type="button" className="link px-2 text-sm text-erro" onClick={() => rascunho.mudar((x) => ({ itens: x.itens.filter((y) => y.id !== i.id), atual: 0 }))}>Remover</button>
@@ -811,8 +811,8 @@ export function PassoQuando() {
         const f = frascoNovoDe(i, r.inicio)
         if (!f) return null
         return (
-          <span key={i.id} className="flex items-start gap-2 text-sm font-semibold text-suave">
-            <IcoEstoque tam={18} className="mt-0.5 shrink-0 text-fraco" />
+          <span key={i.id} className="flex items-start gap-2 text-sm font-medium text-suave">
+            <IcoEstoque tam={20} className="mt-0.5 shrink-0 text-fraco" />
             {f.status === 'reconstituido'
               ? `Frasco novo: ${fmtNum(f.mgTotal)} mg + ${fmtNum(f.diluenteMl!)} mL, vai para o Estoque como reconstituído.`
               : `Frasco novo: ${fmtNum(f.mgTotal)} mg, vai para o Estoque lacrado.`}
@@ -823,9 +823,9 @@ export function PassoQuando() {
       {confirmar && (
         <Dialogo titulo="Salvar a alteração?" aoFechar={() => setConfirmar(false)}>
           <p className="m-0 text-sm text-suave">Vale a partir de hoje. As doses já registradas continuam com o valor da época.</p>
-          <div className="flex flex-col gap-1.5 rounded-xl bg-sup2 p-3 text-sm">
+          <div className="flex flex-col gap-2 rounded-xl bg-sup2 p-3 text-sm">
             <span><b className="text-fraco">Antes:</b> {r.antes}</span>
-            <span><b className="text-acento">Depois:</b> {depois}</span>
+            <span><b className="text-texto">Depois:</b> {depois}</span>
           </div>
           <button type="button" className="btn-primario" onClick={gravar}>Salvar a partir de hoje</button>
           <button type="button" className="btn-texto" onClick={() => setConfirmar(false)}>Continuar editando</button>
@@ -838,9 +838,9 @@ export function PassoQuando() {
 /** Cor do protocolo: bolinhas de 44px; a escolhida tem um sinal de check (não depende só da cor). */
 export function SeletorCor({ valor, aoMudar }: { valor: string; aoMudar: (cor: string) => void }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <span id="cor-titulo" className="text-sm font-bold text-texto">Cor do protocolo</span>
-      <div role="radiogroup" aria-labelledby="cor-titulo" className="flex flex-wrap gap-1.5">
+    <div className="flex flex-col gap-2">
+      <span id="cor-titulo" className="text-sm font-medium text-texto">Cor do protocolo</span>
+      <div role="radiogroup" aria-labelledby="cor-titulo" className="flex flex-wrap gap-2">
         {CORES_PROTOCOLO.map((c) => {
           const sel = c.id === valor
           return (
@@ -855,7 +855,7 @@ export function SeletorCor({ valor, aoMudar }: { valor: string; aoMudar: (cor: s
               className={`tocavel flex h-11 w-11 items-center justify-center rounded-full border-2 ${sel ? 'border-texto' : 'border-transparent'}`}
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full text-sobre-acento" style={{ backgroundColor: c.css }}>
-                {sel && <IcoCheck tam={18} />}
+                {sel && <IcoCheck tam={20} />}
               </span>
             </button>
           )
